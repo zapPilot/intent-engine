@@ -28,8 +28,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use((req, _res, next) => {
-  req.headers['x-request-id'] = req.headers['x-request-id'] || 
-    Math.random().toString(36).substring(2, 15);
+  req.headers['x-request-id'] =
+    req.headers['x-request-id'] || Math.random().toString(36).substring(2, 15);
   next();
 });
 
@@ -104,7 +104,7 @@ const startServer = async () => {
       } catch (error) {
         logger.warn('Database not available in development mode, continuing without it');
       }
-      
+
       try {
         await redisClient.connect();
         logger.info('Redis connected in development mode');
@@ -112,7 +112,7 @@ const startServer = async () => {
         logger.warn('Redis not available in development mode, continuing without it');
       }
     }
-    
+
     const server = app.listen(config.server.port, () => {
       logger.info(`Intent Engine server running on port ${config.server.port}`);
       logger.info(`Environment: ${config.server.nodeEnv}`);
@@ -136,13 +136,13 @@ process.on('SIGTERM', async () => {
     } catch (error) {
       logger.warn('Database close error:', error);
     }
-    
+
     try {
       await redisClient.close();
     } catch (error) {
       logger.warn('Redis close error:', error);
     }
-    
+
     logger.info('Process terminated');
     process.exit(0);
   });
@@ -153,7 +153,7 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('Uncaught Exception:', error);
   process.exit(1);
 });

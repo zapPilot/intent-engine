@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 export class QuoteController {
   public getQuote = asyncHandler(async (req: Request, res: Response) => {
     const quoteRequest: QuoteRequest = req.query as any;
-    
+
     logger.info('Getting quote:', {
       action: quoteRequest.action,
       fromToken: quoteRequest.fromToken,

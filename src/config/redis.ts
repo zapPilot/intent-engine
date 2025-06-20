@@ -11,14 +11,17 @@ export class RedisClient {
       url: config.redis.url,
       socket: {
         connectTimeout: 5000,
-        reconnectStrategy: config.server.nodeEnv === 'development' ? false : (retries: number) => {
-          const delay = Math.min(retries * 50, 2000);
-          return delay;
-        },
+        reconnectStrategy:
+          config.server.nodeEnv === 'development'
+            ? false
+            : (retries: number) => {
+                const delay = Math.min(retries * 50, 2000);
+                return delay;
+              },
       },
     });
 
-    this.client.on('error', (err) => {
+    this.client.on('error', err => {
       logger.error('Redis client error:', err);
     });
 

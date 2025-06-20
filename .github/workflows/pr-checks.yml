@@ -1,0 +1,178 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate commit messages
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: .commitlintrc.json
+          failOnWarnings: false
+
+      - name: Check for breaking changes
+        run: |
+          echo "Checking for breaking changes in API..."
+          # Add custom breaking change detection logic here
+          
+      - name: Lint staged files
+        run: |
+          npm run lint
+          
+      - name: Check code formatting
+        run: |
+          npx prettier --check "src/**/*.ts" "tests/**/*.ts"
+          
+      - name: Run type checking
+        run: |
+          npx tsc --noEmit
+
+      - name: Run tests with coverage
+        run: |
+          npm run test:coverage
+        env:
+          NODE_ENV: test
+          LOG_LEVEL: silent
+
+      - name: Check test coverage threshold
+        run: |
+          echo "Checking coverage meets minimum thresholds..."
+          # Coverage thresholds are enforced in jest.config.js
+          
+      - name: Comment PR with test results
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './coverage/coverage-summary.json';
+            
+            if (fs.existsSync(path)) {
+              const coverage = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const { lines, statements, functions, branches } = coverage.total;
+              
+              const body = `## Test Coverage Report
+              
+              | Metric | Coverage | Status |
+              |--------|----------|--------|
+              | Lines | ${lines.pct}% | ${lines.pct >= 70 ? '✅' : '❌'} |
+              | Statements | ${statements.pct}% | ${statements.pct >= 70 ? '✅' : '❌'} |
+              | Functions | ${functions.pct}% | ${functions.pct >= 70 ? '✅' : '❌'} |
+              | Branches | ${branches.pct}% | ${branches.pct >= 70 ? '✅' : '❌'} |
+              
+              ${lines.pct >= 70 && statements.pct >= 70 && functions.pct >= 70 && branches.pct >= 70 
+                ? '✅ All coverage thresholds met!' 
+                : '❌ Some coverage thresholds not met. Please add more tests.'}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
+  size-check:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Check bundle size
+        run: |
+          echo "Checking build output size..."
+          du -sh dist/
+          
+          # Check if dist folder exceeds reasonable size (e.g., 10MB)
+          SIZE=$(du -sb dist/ | cut -f1)
+          MAX_SIZE=$((10 * 1024 * 1024))  # 10MB in bytes
+          
+          if [ $SIZE -gt $MAX_SIZE ]; then
+            echo "❌ Build size ($SIZE bytes) exceeds maximum allowed size ($MAX_SIZE bytes)"
+            exit 1
+          else
+            echo "✅ Build size check passed"
+          fi
+
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run performance tests
+        run: |
+          echo "Running basic performance checks..."
+          # Start the server in the background
+          npm start &
+          SERVER_PID=$!
+          
+          # Wait for server to start
+          sleep 5
+          
+          # Simple performance check using curl
+          echo "Testing endpoint response times..."
+          
+          # Test health endpoint
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' http://localhost:3003/health || echo "failed")
+          echo "Health endpoint response time: $RESPONSE_TIME seconds"
+          
+          # Test root endpoint
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' http://localhost:3003/ || echo "failed")
+          echo "Root endpoint response time: $RESPONSE_TIME seconds"
+          
+          # Cleanup
+          kill $SERVER_PID || true
+        env:
+          NODE_ENV: test
+          LOG_LEVEL: silent

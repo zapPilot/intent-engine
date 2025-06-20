@@ -47,7 +47,7 @@ describe('Redis Configuration', () => {
     jest.isolateModules(() => {
       // This will trigger the Redis client creation
       require('../src/config/redis');
-      
+
       expect(createClient).toHaveBeenCalledWith({
         url: 'redis://localhost:6379',
         socket: {
@@ -73,7 +73,7 @@ describe('Redis Configuration', () => {
 
     jest.isolateModules(() => {
       require('../src/config/redis');
-      
+
       expect(createClient).toHaveBeenCalledWith({
         url: 'redis://prod:6379',
         socket: {
@@ -85,7 +85,7 @@ describe('Redis Configuration', () => {
       // Test the reconnect strategy function
       const createClientCall = (createClient as jest.Mock).mock.calls[0][0];
       const reconnectStrategy = createClientCall.socket.reconnectStrategy;
-      
+
       // Test various retry counts
       expect(reconnectStrategy(1)).toBe(50);
       expect(reconnectStrategy(10)).toBe(500);
@@ -96,7 +96,7 @@ describe('Redis Configuration', () => {
   it('should set up Redis client event listeners', () => {
     jest.isolateModules(() => {
       require('../src/config/redis');
-      
+
       expect(mockRedisClient.on).toHaveBeenCalledWith('error', expect.any(Function));
       expect(mockRedisClient.on).toHaveBeenCalledWith('connect', expect.any(Function));
       expect(mockRedisClient.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
@@ -106,7 +106,7 @@ describe('Redis Configuration', () => {
   it('should handle Redis connection timeout configuration', () => {
     jest.isolateModules(() => {
       require('../src/config/redis');
-      
+
       const createClientCall = (createClient as jest.Mock).mock.calls[0][0];
       expect(createClientCall.socket.connectTimeout).toBe(5000);
     });

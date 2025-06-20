@@ -4,7 +4,7 @@ import Joi from 'joi';
 export const validateRequest = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body);
-    
+
     if (error) {
       res.status(400).json({
         error: 'Validation error',
@@ -15,7 +15,7 @@ export const validateRequest = (schema: Joi.ObjectSchema) => {
       });
       return;
     }
-    
+
     next();
   };
 };
@@ -30,7 +30,9 @@ export const intentRequestSchema = Joi.object({
     slippageTolerance: Joi.number().min(0).max(100).optional(),
     deadline: Joi.number().integer().optional(),
   }).required(),
-  userAddress: Joi.string().pattern(/^0x[a-fA-F0-9]{40}$/).required(),
+  userAddress: Joi.string()
+    .pattern(/^0x[a-fA-F0-9]{40}$/)
+    .required(),
   preferences: Joi.object({
     gasOptimization: Joi.string().valid('speed', 'cost', 'balanced').optional(),
     bridgeProvider: Joi.string().valid('across', 'squid', 'auto').optional(),

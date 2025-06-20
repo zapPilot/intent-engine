@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 export class IntentController {
   public executeIntent = asyncHandler(async (req: Request, res: Response) => {
     const intentRequest: IntentRequest = req.body;
-    
+
     logger.info('Executing intent:', {
       action: intentRequest.action,
       userAddress: intentRequest.userAddress,
@@ -14,10 +14,10 @@ export class IntentController {
     });
 
     const intentId = this.generateIntentId();
-    
+
     // Build raw transaction data compatible with all wallet libraries
     const transactions = await this.buildTransactions(intentRequest);
-    
+
     const response: IntentResponse = {
       intentId,
       transactions,
@@ -39,13 +39,13 @@ export class IntentController {
     };
 
     logger.info('Intent execution prepared:', { intentId });
-    
+
     res.json(response);
   });
 
   public getIntentStatus = asyncHandler(async (req: Request, res: Response) => {
     const { intentId } = req.params;
-    
+
     logger.info('Getting intent status:', { intentId });
 
     const status: IntentStatus = {
@@ -60,7 +60,7 @@ export class IntentController {
 
   public optimizeTransactions = asyncHandler(async (req: Request, res: Response) => {
     const { transactions, optimizationGoal } = req.body;
-    
+
     logger.info('Optimizing transactions:', {
       transactionCount: transactions?.length || 0,
       optimizationGoal,
@@ -83,7 +83,7 @@ export class IntentController {
 
   private async buildTransactions(intentRequest: IntentRequest): Promise<Transaction[]> {
     const { action, params } = intentRequest;
-    
+
     // This is a placeholder - actual implementation will build real transactions
     // based on the action type and parameters
     const sampleTransaction: Transaction = {
@@ -108,9 +108,8 @@ export class IntentController {
   private checkRequiresApproval(transactions: Transaction[]): boolean {
     // Check if any transaction requires token approval
     // This would analyze the transaction data to determine if ERC20 approvals are needed
-    return transactions.some(tx => 
-      tx.metadata?.description?.includes('approve') || 
-      tx.data.startsWith('0x095ea7b3') // ERC20 approve method signature
+    return transactions.some(
+      tx => tx.metadata?.description?.includes('approve') || tx.data.startsWith('0x095ea7b3') // ERC20 approve method signature
     );
   }
 }

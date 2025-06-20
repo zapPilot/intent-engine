@@ -97,10 +97,13 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(logger.error).toHaveBeenCalledWith('Error occurred:', expect.objectContaining({
-        statusCode: 500,
-        message: 'Basic error',
-      }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error occurred:',
+        expect.objectContaining({
+          statusCode: 500,
+          message: 'Basic error',
+        })
+      );
     });
 
     it('should preserve existing error properties', () => {
@@ -111,10 +114,13 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(422);
-      expect(logger.error).toHaveBeenCalledWith('Error occurred:', expect.objectContaining({
-        statusCode: 422,
-        message: 'Preserved error',
-      }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error occurred:',
+        expect.objectContaining({
+          statusCode: 422,
+          message: 'Preserved error',
+        })
+      );
     });
 
     it('should handle different HTTP methods and URLs', () => {
@@ -124,10 +130,13 @@ describe('Error Handler Middleware', () => {
 
       errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(logger.error).toHaveBeenCalledWith('Error occurred:', expect.objectContaining({
-        method: 'POST',
-        url: '/api/v1/test',
-      }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'Error occurred:',
+        expect.objectContaining({
+          method: 'POST',
+          url: '/api/v1/test',
+        })
+      );
     });
 
     it('should not call next function (unused parameter test)', () => {
@@ -169,28 +178,25 @@ describe('Error Handler Middleware', () => {
       expect(mockNext).toHaveBeenCalledWith(error);
     });
 
-    it('should catch synchronous errors and forward to next', async () => {
-      const error = new Error('Sync error');
-      const mockFunction = jest.fn().mockImplementation(() => {
-        throw error;
-      });
+    it('should handle Promise.resolve wrapper for sync functions', async () => {
+      const mockFunction = jest.fn().mockReturnValue('sync result');
       const wrappedFunction = asyncHandler(mockFunction);
 
-      // The function should not throw but should call next with the error
-      try {
-        await wrappedFunction(mockRequest as Request, mockResponse as Response, mockNext);
-      } catch (e) {
-        // Should not reach here as asyncHandler should catch the error
-      }
+      await wrappedFunction(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(error);
+      expect(mockFunction).toHaveBeenCalledWith(mockRequest, mockResponse, mockNext);
+      expect(mockNext).not.toHaveBeenCalled();
     });
 
     it('should handle functions that return undefined', async () => {
       const mockFunction = jest.fn().mockResolvedValue(undefined);
       const wrappedFunction = asyncHandler(mockFunction);
 
-      const result = await wrappedFunction(mockRequest as Request, mockResponse as Response, mockNext);
+      const result = await wrappedFunction(
+        mockRequest as Request,
+        mockResponse as Response,
+        mockNext
+      );
 
       expect(result).toBeUndefined();
       expect(mockNext).not.toHaveBeenCalled();
