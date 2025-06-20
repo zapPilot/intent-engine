@@ -68,7 +68,7 @@ export class QuoteController {
         gasFee: gasFeeEth,
         totalFee: gasFeeEth,
       };
-      
+
       if (quoteRequest.action === 'bridge') {
         fees.bridgeFee = '0.001';
       }

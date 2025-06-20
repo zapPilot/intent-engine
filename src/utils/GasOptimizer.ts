@@ -234,11 +234,11 @@ export class GasOptimizer {
       totalCostWei: totalCostWei.toString(),
       avgGasPrice,
     };
-    
+
     if (hasUsdPricing && estimations.length > 0) {
       result.totalCostUsd = totalCostUsd.toFixed(2);
     }
-    
+
     return result;
   }
 

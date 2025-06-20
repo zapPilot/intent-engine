@@ -115,11 +115,11 @@ export class TransactionValidator {
         errors,
         warnings,
       };
-      
+
       if (balanceCheck) {
         result.balanceCheck = balanceCheck;
       }
-      
+
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -157,7 +157,7 @@ export class TransactionValidator {
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i];
       if (!transaction) continue;
-      
+
       const result = await this.validateTransaction(transaction, context);
 
       // Add sequence-specific validations
@@ -452,24 +452,27 @@ export class TransactionValidator {
     errors: ValidationError[],
     warnings: ValidationWarning[]
   ): void {
-    if (!ethers.utils.isHexString(transaction.data)) {
-      errors.push({
-        code: 'INVALID_DATA_FORMAT',
-        message: 'Transaction data must be a valid hex string',
-        field: 'data',
-        severity: 'critical',
-      });
-    }
+    // Only validate data if it exists (structure validation should catch missing data)
+    if (transaction.data !== undefined && transaction.data !== null) {
+      if (!ethers.utils.isHexString(transaction.data)) {
+        errors.push({
+          code: 'INVALID_DATA_FORMAT',
+          message: 'Transaction data must be a valid hex string',
+          field: 'data',
+          severity: 'critical',
+        });
+      }
 
-    // Check for suspiciously large data
-    if (transaction.data.length > 100000) {
-      // 50kb of data
-      warnings.push({
-        code: 'LARGE_DATA_SIZE',
-        message: `Large transaction data size: ${transaction.data.length} characters`,
-        field: 'data',
-        suggestion: 'Verify this is necessary',
-      });
+      // Check for suspiciously large data
+      if (transaction.data.length > 100000) {
+        // 50kb of data
+        warnings.push({
+          code: 'LARGE_DATA_SIZE',
+          message: `Large transaction data size: ${transaction.data.length} characters`,
+          field: 'data',
+          suggestion: 'Verify this is necessary',
+        });
+      }
     }
   }
 
