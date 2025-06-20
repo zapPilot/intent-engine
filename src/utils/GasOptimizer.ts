@@ -55,15 +55,21 @@ export class GasOptimizer {
       let gasEstimation: GasEstimation;
 
       if (networkInfo.supportsEIP1559) {
-        gasEstimation = this.optimizeEIP1559Gas(networkInfo, strategy, {
-          maxPriorityFeeGwei,
+        const eip1559Options: { maxPriorityFeeGwei?: number; gasLimitMultiplier: number } = {
           gasLimitMultiplier,
-        });
+        };
+        if (maxPriorityFeeGwei !== undefined) {
+          eip1559Options.maxPriorityFeeGwei = maxPriorityFeeGwei;
+        }
+        gasEstimation = this.optimizeEIP1559Gas(networkInfo, strategy, eip1559Options);
       } else {
-        gasEstimation = this.optimizeLegacyGas(networkInfo, strategy, {
-          maxGasPriceGwei,
+        const legacyOptions: { maxGasPriceGwei?: number; gasLimitMultiplier: number } = {
           gasLimitMultiplier,
-        });
+        };
+        if (maxGasPriceGwei !== undefined) {
+          legacyOptions.maxGasPriceGwei = maxGasPriceGwei;
+        }
+        gasEstimation = this.optimizeLegacyGas(networkInfo, strategy, legacyOptions);
       }
 
       // Apply gas limit from transaction with multiplier
@@ -90,8 +96,9 @@ export class GasOptimizer {
 
       return gasEstimation;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Gas optimization failed', {
-        error: error.message,
+        error: errorMessage,
         chainId: transaction.chainId,
         strategy,
       });
@@ -139,8 +146,9 @@ export class GasOptimizer {
 
       return gasInfo;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to fetch network gas info', {
-        error: error.message,
+        error: errorMessage,
         chainId,
       });
 
@@ -179,8 +187,9 @@ export class GasOptimizer {
       // Fallback gas estimates based on transaction type
       return this.getFallbackGasEstimate(transaction);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Gas estimation failed', {
-        error: error.message,
+        error: errorMessage,
         transaction: {
           to: transaction.to,
           dataLength: transaction.data.length,
@@ -201,7 +210,7 @@ export class GasOptimizer {
   } {
     let totalCostWei = ethers.BigNumber.from('0');
     let totalGasUsed = ethers.BigNumber.from('0');
-    let hasUsdPricing = true;
+    let hasUsdPricing = estimations.length > 0; // Only true if we have estimations
     let totalCostUsd = 0;
 
     for (const estimation of estimations) {
@@ -217,11 +226,20 @@ export class GasOptimizer {
 
     const avgGasPrice = totalGasUsed.gt(0) ? totalCostWei.div(totalGasUsed).toString() : '0';
 
-    return {
+    const result: {
+      totalCostWei: string;
+      totalCostUsd?: string;
+      avgGasPrice: string;
+    } = {
       totalCostWei: totalCostWei.toString(),
-      totalCostUsd: hasUsdPricing ? totalCostUsd.toFixed(2) : undefined,
       avgGasPrice,
     };
+    
+    if (hasUsdPricing && estimations.length > 0) {
+      result.totalCostUsd = totalCostUsd.toFixed(2);
+    }
+    
+    return result;
   }
 
   /**
@@ -249,14 +267,15 @@ export class GasOptimizer {
     if (oracleUrl) {
       try {
         const response = await fetch(oracleUrl);
-        const data = await response.json();
+        const data: any = await response.json();
 
         if (data.status === '1' && data.result) {
           return this.parseOracleResponse(chainId, data.result);
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         this.logger.warn('Gas oracle request failed', {
-          error: error.message,
+          error: errorMessage,
           chainId,
           oracleUrl,
         });

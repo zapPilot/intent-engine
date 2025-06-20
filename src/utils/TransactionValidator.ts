@@ -110,15 +110,21 @@ export class TransactionValidator {
       const isValid =
         errors.filter(e => e.severity === 'critical' || e.severity === 'high').length === 0;
 
-      return {
+      const result: ValidationResult = {
         isValid,
         errors,
         warnings,
-        balanceCheck,
       };
+      
+      if (balanceCheck) {
+        result.balanceCheck = balanceCheck;
+      }
+      
+      return result;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Transaction validation failed', {
-        error: error.message,
+        error: errorMessage,
         transaction: {
           to: transaction.to,
           value: transaction.value,
@@ -130,7 +136,7 @@ export class TransactionValidator {
         errors: [
           {
             code: 'VALIDATION_ERROR',
-            message: `Validation failed: ${error.message}`,
+            message: `Validation failed: ${errorMessage}`,
             severity: 'critical',
           },
         ],
@@ -150,6 +156,8 @@ export class TransactionValidator {
 
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i];
+      if (!transaction) continue;
+      
       const result = await this.validateTransaction(transaction, context);
 
       // Add sequence-specific validations
@@ -359,9 +367,10 @@ export class TransactionValidator {
         }
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       errors.push({
         code: 'INVALID_GAS_PARAMETERS',
-        message: `Invalid gas parameters: ${error.message}`,
+        message: `Invalid gas parameters: ${errorMessage}`,
         severity: 'critical',
       });
     }
@@ -396,9 +405,10 @@ export class TransactionValidator {
         });
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       errors.push({
         code: 'INVALID_VALUE',
-        message: `Invalid transaction value: ${error.message}`,
+        message: `Invalid transaction value: ${errorMessage}`,
         field: 'value',
         severity: 'critical',
       });
@@ -612,8 +622,9 @@ export class TransactionValidator {
         token: 'ETH',
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Balance validation failed', {
-        error: error.message,
+        error: errorMessage,
         userAddress: context.userAddress,
       });
 
@@ -651,8 +662,9 @@ export class TransactionValidator {
 
       return { success: true };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn('Transaction simulation failed', {
-        error: error.message,
+        error: errorMessage,
         transaction: {
           to: transaction.to,
           data: `${transaction.data.slice(0, 42)}...`,
@@ -661,7 +673,7 @@ export class TransactionValidator {
 
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
@@ -677,6 +689,8 @@ export class TransactionValidator {
   ): void {
     const current = transactions[currentIndex];
     const previous = transactions[currentIndex - 1];
+
+    if (!current || !previous) return;
 
     // Check for nonce ordering (if nonces are provided)
     if (current.nonce !== undefined && previous.nonce !== undefined) {

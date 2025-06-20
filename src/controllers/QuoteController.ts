@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { QuoteRequest, QuoteResponse } from '../types';
+import { QuoteRequest, QuoteResponse, FeeBreakdown, RouteInfo } from '../types';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 import { oneInchProvider } from '../integrations/swap-providers/OneInchProvider';
@@ -8,11 +8,11 @@ import { gasOptimizer } from '../utils/GasOptimizer';
 export class QuoteController {
   public getQuote = asyncHandler(async (req: Request, res: Response) => {
     const quoteRequest: QuoteRequest = {
-      action: req.query.action as string,
-      amount: req.query.amount as string,
-      fromToken: req.query.fromToken as string,
-      toToken: req.query.toToken as string,
-      chainId: parseInt(req.query.chainId as string),
+      action: req.query['action'] as string,
+      amount: req.query['amount'] as string,
+      fromToken: req.query['fromToken'] as string,
+      toToken: req.query['toToken'] as string,
+      chainId: parseInt(req.query['chainId'] as string),
     };
 
     logger.info('Getting quote:', {
@@ -24,8 +24,8 @@ export class QuoteController {
     });
 
     try {
-      let routes = [];
-      let bestRoute;
+      let routes: RouteInfo[] = [];
+      let bestRoute: RouteInfo | undefined;
       let gasEstimate = '21000';
       let priceImpact = '0';
 
@@ -38,8 +38,10 @@ export class QuoteController {
 
         if (routes.length > 0) {
           bestRoute = routes[0];
-          gasEstimate = bestRoute.gasEstimate;
-          priceImpact = bestRoute.priceImpact;
+          if (bestRoute) {
+            gasEstimate = bestRoute.gasEstimate;
+            priceImpact = bestRoute.priceImpact;
+          }
         }
       }
 
@@ -61,17 +63,22 @@ export class QuoteController {
       const gasCostWei = (BigInt(gasEstimate) * BigInt(gasPriceWei)).toString();
       const gasFeeEth = (Number(gasCostWei) / Math.pow(10, 18)).toFixed(6);
 
+      const fees: FeeBreakdown = {
+        protocolFee: '0', // This would come from the protocol configuration
+        gasFee: gasFeeEth,
+        totalFee: gasFeeEth,
+      };
+      
+      if (quoteRequest.action === 'bridge') {
+        fees.bridgeFee = '0.001';
+      }
+
       const response: QuoteResponse = {
         bestRoute,
         alternatives: routes.slice(1), // All routes except the best one
         gasEstimate,
         priceImpact,
-        fees: {
-          protocolFee: '0', // This would come from the protocol configuration
-          gasFee: gasFeeEth,
-          bridgeFee: quoteRequest.action === 'bridge' ? '0.001' : undefined,
-          totalFee: gasFeeEth,
-        },
+        fees,
       };
 
       logger.info('Quote generated:', {
@@ -81,16 +88,17 @@ export class QuoteController {
         routeCount: routes.length,
       });
 
-      res.json(response);
+      return res.json(response);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Quote generation failed:', {
-        error: error.message,
+        error: errorMessage,
         quoteRequest,
       });
 
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Quote generation failed',
-        message: error.message,
+        message: errorMessage,
       });
     }
   });

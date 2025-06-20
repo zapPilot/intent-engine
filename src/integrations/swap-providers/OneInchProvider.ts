@@ -55,7 +55,7 @@ export class OneInchProvider {
   private readonly apiKey: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.ONEINCH_API_KEY || '';
+    this.apiKey = apiKey || process.env['ONEINCH_API_KEY'] || '';
     
     this.client = axios.create({
       baseURL: this.baseUrl,
@@ -87,9 +87,10 @@ export class OneInchProvider {
         return response;
       },
       (error) => {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         this.logger.error('1inch API error', {
           status: error.response?.status,
-          message: error.message,
+          message: errorMessage,
           url: error.config?.url
         });
         return Promise.reject(error);
@@ -118,12 +119,13 @@ export class OneInchProvider {
         priceImpact: this.calculatePriceImpact(data.fromAmount, data.toAmount, params.src, params.dst)
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to get 1inch quote', {
-        error: error.message,
+        error: errorMessage,
         params,
         chainId
       });
-      throw new Error(`1inch quote failed: ${error.message}`);
+      throw new Error(`1inch quote failed: ${errorMessage}`);
     }
   }
 
@@ -168,12 +170,13 @@ export class OneInchProvider {
         route
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to get 1inch swap transaction', {
-        error: error.message,
+        error: errorMessage,
         params,
         chainId
       });
-      throw new Error(`1inch swap transaction failed: ${error.message}`);
+      throw new Error(`1inch swap transaction failed: ${errorMessage}`);
     }
   }
 
@@ -194,8 +197,9 @@ export class OneInchProvider {
       // For now, return single quote - in future could get multiple quotes with different parameters
       return [primaryQuote];
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn('Failed to get 1inch quotes', {
-        error: error.message,
+        error: errorMessage,
         request
       });
       return [];
@@ -239,8 +243,9 @@ export class OneInchProvider {
       const response = await this.client.get(`/swap/v6.0/${chainId}/tokens`);
       return Object.values(response.data.tokens || {});
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to get supported tokens', {
-        error: error.message,
+        error: errorMessage,
         chainId
       });
       return [];
@@ -265,8 +270,9 @@ export class OneInchProvider {
       await this.client.get('/swap/v6.0/1/tokens', { timeout: 5000 });
       return true;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('1inch API health check failed', {
-        error: error.message
+        error: errorMessage
       });
       return false;
     }
@@ -312,14 +318,6 @@ export class OneInchProvider {
     return '0.1'; // 0.1% price impact
   }
 
-  /**
-   * Format token amount for 1inch API
-   */
-  private formatTokenAmount(amount: string, _decimals: number = 18): string {
-    // 1inch expects amounts in wei (for 18 decimal tokens)
-    // This is a simplified version - production should handle different decimals
-    return amount;
-  }
 
   /**
    * Get spender address for token approvals
@@ -329,8 +327,9 @@ export class OneInchProvider {
       const response = await this.client.get(`/swap/v6.0/${chainId}/approve/spender`);
       return response.data.address;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to get spender address', {
-        error: error.message,
+        error: errorMessage,
         chainId
       });
       // Fallback to known 1inch router address for Ethereum
@@ -373,8 +372,9 @@ export class OneInchProvider {
         spenderAddress
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to check approval', {
-        error: error.message,
+        error: errorMessage,
         tokenAddress,
         walletAddress,
         chainId

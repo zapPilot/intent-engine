@@ -51,7 +51,7 @@ export class IntentController {
         metadata: {
           estimatedGas: totalGas,
           totalFees: totalCostWei,
-          priceImpact: routes.length > 0 ? routes[0].priceImpact : '0',
+          priceImpact: routes.length > 0 ? routes[0]?.priceImpact || '0' : '0',
           routes,
           executionTime: new Date().toISOString(),
           walletCompatibility: {
@@ -72,17 +72,18 @@ export class IntentController {
         estimatedCostUsd: totalCostUsd,
       });
 
-      res.json(response);
+      return res.json(response);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Intent execution failed:', {
-        error: error.message,
+        error: errorMessage,
         intentId,
         action: intentRequest.action,
       });
 
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Intent execution failed',
-        message: error.message,
+        message: errorMessage,
         intentId,
       });
     }
@@ -100,7 +101,7 @@ export class IntentController {
       transactions: [],
     };
 
-    res.json(status);
+    return res.json(status);
   });
 
   public optimizeTransactions = asyncHandler(async (req: Request, res: Response) => {
@@ -111,7 +112,7 @@ export class IntentController {
       optimizationGoal,
     });
 
-    res.json({
+    return res.json({
       optimizedTransactions: transactions || [],
       gasSavings: '0',
       improvementMetrics: {
@@ -177,6 +178,8 @@ export class IntentController {
     for (let i = 0; i < transactions.length && i < gasOptimizations.length; i++) {
       const tx = transactions[i];
       const optimization = gasOptimizations[i];
+
+      if (!tx || !optimization) continue;
 
       tx.gasLimit = optimization.gasLimit;
 

@@ -48,8 +48,9 @@ export class TransactionBuilder {
           throw new Error(`Unsupported action: ${intent.action}`);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to build transactions', {
-        error: error.message,
+        error: errorMessage,
         intent: intent.action,
         userAddress: intent.userAddress,
       });
@@ -331,8 +332,9 @@ export class TransactionBuilder {
 
       return true;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Transaction validation failed', {
-        error: error.message,
+        error: errorMessage,
         transaction: {
           to: transaction.to,
           value: transaction.value,

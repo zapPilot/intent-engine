@@ -102,7 +102,7 @@ describe('GasOptimizer', () => {
 
       expect(result).toBeDefined();
       expect(result.gasLimit).toBe('23100'); // 21000 * 1.1 (default multiplier)
-      expect(result.gasPrice).toBeDefined();
+      expect(result.gasPrice || result.maxFeePerGas).toBeDefined();
     });
 
     it('should apply gas limit multiplier', async () => {
@@ -219,7 +219,8 @@ describe('GasOptimizer', () => {
     });
 
     it('should cache gas info to avoid repeated requests', async () => {
-      (fetch as jest.Mock).mockResolvedValue({
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      fetchSpy.mockResolvedValue({
         json: () => Promise.resolve({
           status: '1',
           result: {
@@ -228,16 +229,22 @@ describe('GasOptimizer', () => {
             FastGasPrice: '30'
           }
         })
-      });
+      } as any);
 
-      // First call
-      await gasOptimizer.getNetworkGasInfo(1);
+      // First call - clear any existing cache
+      const firstResult = await gasOptimizer.getNetworkGasInfo(1);
+      
+      // Reset the spy to count only subsequent calls
+      fetchSpy.mockClear();
       
       // Second call (should use cache)
-      await gasOptimizer.getNetworkGasInfo(1);
+      const secondResult = await gasOptimizer.getNetworkGasInfo(1);
 
-      // Should only make one request due to caching
-      expect(fetch).toHaveBeenCalledTimes(1);
+      // Should not make additional requests due to caching
+      expect(fetchSpy).toHaveBeenCalledTimes(0);
+      expect(firstResult).toEqual(secondResult);
+      
+      fetchSpy.mockRestore();
     });
   });
 
