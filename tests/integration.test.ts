@@ -70,7 +70,7 @@ const createTestApp = () => {
   });
 
   // Mock API endpoints for testing
-  app.post('/api/v1/intent/execute', (_req, res) => {
+  app.post('/api/v1/intent/build', (_req, res) => {
     res.json({
       intentId: 'intent_test_123',
       transactions: [{ to: '0x123', data: '0x456' }],
@@ -78,25 +78,10 @@ const createTestApp = () => {
     });
   });
 
-  app.get('/api/v1/intent/quote', (_req, res) => {
+  app.get('/api/v1/quote', (_req, res) => {
     res.json({
       bestRoute: { protocol: 'test', gasEstimate: '21000' },
       gasEstimate: '21000',
-    });
-  });
-
-  app.post('/api/v1/intent/optimize', (_req, res) => {
-    res.json({
-      optimized: true,
-      transactions: [{ to: '0x123', data: '0x456' }],
-    });
-  });
-
-  app.get('/api/v1/intent/status/:intentId', (req, res) => {
-    res.json({
-      intentId: req.params.intentId,
-      status: 'completed',
-      timestamp: new Date().toISOString(),
     });
   });
 
@@ -214,12 +199,12 @@ describe('Intent Engine API Integration Tests', () => {
         userAddress: '0x1234567890123456789012345678901234567890',
       };
 
-      await request(app).post('/api/v1/intent/execute').send(largePayload).expect(200);
+      await request(app).post('/api/v1/intent/build').send(largePayload).expect(200);
     });
   });
 
   describe('API Endpoints', () => {
-    it('should execute intent successfully', async () => {
+    it('should build transactions for intent successfully', async () => {
       const intentRequest = {
         action: 'swap',
         params: {
@@ -232,7 +217,7 @@ describe('Intent Engine API Integration Tests', () => {
       };
 
       const response = await request(app)
-        .post('/api/v1/intent/execute')
+        .post('/api/v1/intent/build')
         .send(intentRequest)
         .expect(200);
 
@@ -243,7 +228,7 @@ describe('Intent Engine API Integration Tests', () => {
 
     it('should return quote for swap', async () => {
       const response = await request(app)
-        .get('/api/v1/intent/quote')
+        .get('/api/v1/quote')
         .query({
           action: 'swap',
           amount: '1000',
@@ -257,28 +242,6 @@ describe('Intent Engine API Integration Tests', () => {
       expect(response.body.gasEstimate).toBeDefined();
     });
 
-    it('should get intent status', async () => {
-      const intentId = 'intent_test_123';
-
-      const response = await request(app).get(`/api/v1/intent/status/${intentId}`).expect(200);
-
-      expect(response.body.intentId).toBe(intentId);
-      expect(response.body.status).toBe('completed');
-    });
-
-    it('should optimize transactions', async () => {
-      const optimizeRequest = {
-        transactions: [{ to: '0x123', data: '0x456' }],
-        userAddress: '0x789',
-      };
-
-      const response = await request(app)
-        .post('/api/v1/intent/optimize')
-        .send(optimizeRequest)
-        .expect(200);
-
-      expect(response.body.optimized).toBe(true);
-    });
   });
 
   describe('API Versioning', () => {

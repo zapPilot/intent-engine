@@ -7,16 +7,14 @@ const router = Router();
 const intentController = new IntentController();
 const quoteController = new QuoteController();
 
+// Core endpoint: Build transactions for wallet execution
 router.post(
-  '/intent/execute',
+  '/intent/build',
   validateRequest(intentRequestSchema),
-  intentController.executeIntent
+  intentController.executeIntent // TODO: Rename method to buildTransactions
 );
 
-router.get('/intent/quote', quoteController.getQuote);
-
-router.post('/intent/optimize', intentController.optimizeTransactions);
-
-router.get('/intent/status/:intentId', intentController.getIntentStatus);
+// Quote endpoint (consider moving to rebalance_backend)
+router.get('/quote', quoteController.getQuote);
 
 export default router;
