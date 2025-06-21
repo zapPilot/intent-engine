@@ -25,6 +25,19 @@ export interface OneInchSwapParams extends OneInchQuoteParams {
   disableEstimate?: boolean;
 }
 
+export interface EnhancedOneInchSwapParams {
+  chainId: string;
+  fromTokenAddress: string;
+  fromTokenDecimals: number;
+  toTokenAddress: string;
+  toTokenDecimals: number;
+  amount: string;
+  fromAddress: string;
+  slippage: number;
+  ethPrice: number;
+  toTokenPrice: number;
+}
+
 export interface OneInchQuoteResponse {
   toAmount: string;
   fromAmount: string;
@@ -49,11 +62,32 @@ export interface OneInchSwapResponse {
   };
 }
 
+export interface EnhancedSwapResult {
+  approve_to: string;
+  to: string;
+  toAmount: string;
+  minToAmount: string;
+  data: string;
+  gasCostUSD: number;
+  gas: number;
+  custom_slippage: number;
+  toUsd: number;
+}
+
 export class OneInchProvider {
   private readonly client: AxiosInstance;
   private readonly logger = logger.child({ service: 'OneInchProvider' });
   private readonly baseUrl = 'https://api.1inch.dev';
   private readonly apiKey: string;
+  
+  // Chain prefix mapping for protocol exclusions (from rebalance_backend)
+  private readonly chainPrefixMap: Record<string, string> = {
+    '1': '',           // Ethereum
+    '42161': 'ARBITRUM_',  // Arbitrum
+    '8453': 'BASE_',      // Base
+    '10': 'OPTIMISM_',    // Optimism
+    '137': 'POLYGON_',    // Polygon
+  };
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || config.apis.oneInchApiKey || '';
@@ -388,6 +422,88 @@ export class OneInchProvider {
         spenderAddress: await this.getSpenderAddress(chainId)
       };
     }
+  }
+
+  /**
+   * Enhanced swap method that matches rebalance_backend functionality
+   * Includes gas cost calculations, slippage handling, and USD value calculations
+   */
+  async getEnhancedSwapData(params: EnhancedOneInchSwapParams): Promise<EnhancedSwapResult> {
+    try {
+      const chainPrefix = this.chainPrefixMap[params.chainId] || '';
+      
+      // Excluded protocols (from rebalance_backend)
+      const excludedProtocols = [
+        `${chainPrefix}ONE_INCH_LIMIT_ORDER_V3`,
+        `${chainPrefix}ONE_INCH_LIMIT_ORDER_V4`
+      ];
+
+      const apiUrl = `/swap/v5.2/${params.chainId}/swap`;
+      const requestParams = {
+        src: params.fromTokenAddress,
+        dst: params.toTokenAddress,
+        amount: params.amount,
+        from: params.fromAddress,
+        slippage: params.slippage,
+        disableEstimate: 'true',
+        'liquidity-sources': excludedProtocols.join(',')
+      };
+
+      this.logger.info('Making enhanced 1inch swap request', {
+        chainId: params.chainId,
+        excludedProtocols,
+        params: requestParams
+      });
+
+      const response = await this.client.get(apiUrl, { 
+        params: requestParams,
+        timeout: 30000
+      });
+
+      const resp = response.data;
+      
+      // Calculate gas cost in USD (from rebalance_backend logic)
+      const gasCostUSD = (
+        (parseInt(resp.tx.gas) * parseInt(resp.tx.gasPrice)) / Math.pow(10, 18) * params.ethPrice
+      );
+
+      // Calculate minimum to amount with slippage
+      const minToAmount = this.getMinToAmount(resp.toAmount, params.slippage);
+
+      // Calculate USD value of output minus gas costs
+      const toUsd = (
+        parseInt(resp.toAmount) * params.toTokenPrice / Math.pow(10, params.toTokenDecimals) - gasCostUSD
+      );
+
+      return {
+        approve_to: resp.tx.to,
+        to: resp.tx.to,
+        toAmount: resp.toAmount,
+        minToAmount: minToAmount,
+        data: resp.tx.data,
+        gasCostUSD: gasCostUSD,
+        gas: parseInt(resp.tx.gasPrice),
+        custom_slippage: params.slippage,
+        toUsd: toUsd
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Enhanced 1inch swap failed', {
+        error: errorMessage,
+        params
+      });
+      throw new Error(`1inch enhanced swap failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Calculate minimum to amount with slippage (from rebalance_backend)
+   */
+  private getMinToAmount(toAmount: string, slippage: number): string {
+    const amount = parseInt(toAmount);
+    const minAmount = Math.floor(amount * (100 - slippage) / 100);
+    return minAmount.toString();
   }
 }
 

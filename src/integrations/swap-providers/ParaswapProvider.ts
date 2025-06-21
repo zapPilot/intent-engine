@@ -42,6 +42,31 @@ export interface ParaswapTransactionData {
   gasLimit: string;
 }
 
+export interface EnhancedParaswapParams {
+  chainId: string;
+  fromTokenAddress: string;
+  fromTokenDecimals: number;
+  toTokenAddress: string;
+  toTokenDecimals: number;
+  amount: string;
+  fromAddress: string;
+  slippage: number;
+  ethPrice: number;
+  toTokenPrice: number;
+}
+
+export interface EnhancedParaswapResult {
+  approve_to: string;
+  to: string;
+  toAmount: string;
+  minToAmount: string;
+  data: string;
+  gasCostUSD: number;
+  gas: string;
+  custom_slippage: number;
+  toUsd: number;
+}
+
 export class ParaswapProvider {
   private readonly logger = logger.child({ service: 'ParaswapProvider' });
   private readonly client: AxiosInstance;
@@ -259,6 +284,93 @@ export class ParaswapProvider {
     // Simplified price impact calculation
     // In reality, this would require token prices and more complex calculation
     return '0.1'; // Default 0.1% price impact
+  }
+
+  /**
+   * Enhanced swap method that matches rebalance_backend functionality
+   * Includes gas cost calculations, slippage handling, and USD value calculations
+   */
+  async getEnhancedSwapData(params: EnhancedParaswapParams): Promise<EnhancedParaswapResult> {
+    try {
+      // Convert slippage to basis points (from rebalance_backend)
+      const customSlippage = Math.floor(params.slippage * 100);
+      const chainIdNumber = parseInt(params.chainId);
+
+      if (!this.isChainSupported(chainIdNumber)) {
+        throw new Error(`Paraswap does not support chain ID ${params.chainId}`);
+      }
+
+      const requestParams = {
+        srcToken: params.fromTokenAddress,
+        srcDecimals: params.fromTokenDecimals,
+        destToken: params.toTokenAddress,
+        destDecimals: params.toTokenDecimals,
+        amount: params.amount,
+        side: 'SELL' as const,
+        network: params.chainId,
+        slippage: customSlippage,
+        userAddress: params.fromAddress,
+        excludeDEXS: 'AugustusRFQ',
+      };
+
+      this.logger.info('Making enhanced Paraswap swap request', {
+        chainId: params.chainId,
+        customSlippage,
+        params: requestParams
+      });
+
+      const response = await this.client.get('/swap', { 
+        params: requestParams,
+        timeout: 30000
+      });
+
+      const resp = response.data;
+      
+      // Extract gas cost USD directly from response (from rebalance_backend logic)
+      const gasCostUSD = parseFloat(resp.priceRoute.gasCostUSD);
+
+      // Calculate minimum to amount with slippage
+      const minToAmount = this.getMinToAmount(resp.priceRoute.destAmount, params.slippage);
+
+      // Calculate USD value of output minus gas costs
+      const toUsd = (
+        parseInt(resp.priceRoute.destAmount) * params.toTokenPrice / Math.pow(10, params.toTokenDecimals) - gasCostUSD
+      );
+
+      const proxyAddress = this.proxyAddresses[chainIdNumber];
+      if (!proxyAddress) {
+        throw new Error(`Paraswap proxy address not found for chain ${chainIdNumber}`);
+      }
+
+      return {
+        approve_to: proxyAddress,
+        to: resp.txParams.to,
+        toAmount: resp.priceRoute.destAmount,
+        minToAmount: minToAmount,
+        data: resp.txParams.data,
+        gasCostUSD: gasCostUSD,
+        gas: resp.priceRoute.gasCost,
+        custom_slippage: customSlippage,
+        toUsd: toUsd
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Enhanced Paraswap swap failed', {
+        error: errorMessage,
+        params
+      });
+      throw new Error(`Paraswap enhanced swap failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Calculate minimum to amount with slippage (from rebalance_backend)
+   */
+  private getMinToAmount(toAmount: string, slippage: number): string {
+    const amount = parseInt(toAmount);
+    const minAmount = Math.floor(amount * (100 - slippage) / 100);
+    return minAmount.toString();
   }
 }
 

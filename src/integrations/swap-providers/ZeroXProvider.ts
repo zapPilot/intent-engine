@@ -48,6 +48,31 @@ export interface ZeroXTransactionData {
   gasLimit: string;
 }
 
+export interface EnhancedZeroXParams {
+  chainId: string;
+  fromTokenAddress: string;
+  fromTokenDecimals: number;
+  toTokenAddress: string;
+  toTokenDecimals: number;
+  amount: string;
+  fromAddress: string;
+  slippage: number;
+  ethPrice: number;
+  toTokenPrice: number;
+}
+
+export interface EnhancedZeroXResult {
+  toAmount: string;
+  minToAmount: string;
+  data: string;
+  to: string;
+  approve_to: string;
+  gasCostUSD: number;
+  gas: number;
+  custom_slippage: number;
+  toUsd: number;
+}
+
 export class ZeroXProvider {
   private readonly logger = logger.child({ service: 'ZeroXProvider' });
   private readonly client: AxiosInstance;
@@ -292,6 +317,86 @@ export class ZeroXProvider {
       .map(source => source.name);
     
     return significantSources.length > 0 ? significantSources : ['0x'];
+  }
+
+  /**
+   * Enhanced swap method that matches rebalance_backend functionality
+   * Includes gas cost calculations, slippage handling, and USD value calculations
+   */
+  async getEnhancedSwapData(params: EnhancedZeroXParams): Promise<EnhancedZeroXResult> {
+    try {
+      // Convert slippage to basis points (from rebalance_backend)
+      const customSlippage = Math.floor(params.slippage * 100);
+      const chainIdNumber = parseInt(params.chainId);
+
+      if (!this.isChainSupported(chainIdNumber)) {
+        throw new Error(`0x does not support chain ID ${params.chainId}`);
+      }
+
+      const requestParams = {
+        chainId: params.chainId,
+        sellToken: params.fromTokenAddress,
+        buyToken: params.toTokenAddress,
+        sellAmount: params.amount,
+        slippageBps: customSlippage,
+        taker: params.fromAddress,
+      };
+
+      this.logger.info('Making enhanced 0x swap request', {
+        chainId: params.chainId,
+        customSlippage,
+        params: requestParams
+      });
+
+      const response = await this.client.get('/swap/allowance-holder/quote', {
+        params: requestParams,
+        timeout: 30000
+      });
+
+      const resp = response.data;
+      
+      // Calculate gas cost in USD (from rebalance_backend logic)
+      const gasCostUSD = (
+        (parseInt(resp.transaction.gas) * parseInt(resp.transaction.gasPrice)) / Math.pow(10, 18) * params.ethPrice
+      );
+
+      // Calculate minimum to amount with slippage
+      const minToAmount = this.getMinToAmount(resp.buyAmount, params.slippage);
+
+      // Calculate USD value of output minus gas costs
+      const toUsd = (
+        parseInt(resp.buyAmount) * params.toTokenPrice / Math.pow(10, params.toTokenDecimals) - gasCostUSD
+      );
+
+      return {
+        toAmount: resp.buyAmount,
+        minToAmount: minToAmount,
+        data: resp.transaction.data,
+        to: resp.transaction.to,
+        approve_to: resp.transaction.to,
+        gasCostUSD: gasCostUSD,
+        gas: parseInt(resp.transaction.gas),
+        custom_slippage: customSlippage,
+        toUsd: toUsd
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Enhanced 0x swap failed', {
+        error: errorMessage,
+        params
+      });
+      throw new Error(`0x enhanced swap failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Calculate minimum to amount with slippage (from rebalance_backend)
+   */
+  private getMinToAmount(toAmount: string, slippage: number): string {
+    const amount = parseInt(toAmount);
+    const minAmount = Math.floor(amount * (100 - slippage) / 100);
+    return minAmount.toString();
   }
 }
 
