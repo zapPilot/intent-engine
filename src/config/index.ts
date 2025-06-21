@@ -21,9 +21,9 @@ export const config = {
     },
   },
   apis: {
-    oneInch: process.env['ONEINCH_API_KEY'] || '',
-    zeroX: process.env['ZEROX_API_KEY'] || '',
-    paraswap: process.env['PARASWAP_API_KEY'] || '',
+    oneInchApiKey: process.env['ONEINCH_API_KEY'] || '',
+    zeroxApiKey: process.env['ZEROX_API_KEY'] || '',
+    paraswapApiKey: process.env['PARASWAP_API_KEY'] || '',
   },
   logging: {
     level: process.env['LOG_LEVEL'] || 'info',

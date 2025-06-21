@@ -58,9 +58,9 @@ describe('Configuration', () => {
       jest.isolateModules(() => {
         const { config: testConfig } = require('../src/config');
 
-        expect(testConfig.apis.oneInch).toBe('test-1inch-key');
-        expect(testConfig.apis.zeroX).toBe('test-0x-key');
-        expect(testConfig.apis.paraswap).toBe('test-paraswap-key');
+        expect(testConfig.apis.oneInchApiKey).toBe('test-1inch-key');
+        expect(testConfig.apis.zeroxApiKey).toBe('test-0x-key');
+        expect(testConfig.apis.paraswapApiKey).toBe('test-paraswap-key');
       });
     });
 

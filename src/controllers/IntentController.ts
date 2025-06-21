@@ -89,7 +89,6 @@ export class IntentController {
     }
   });
 
-
   private generateIntentId(): string {
     return `intent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }

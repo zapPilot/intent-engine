@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '../../utils/logger';
 import { RouteInfo, QuoteRequest } from '../../types';
+import { config } from '../../config';
 
 export interface OneInchQuoteParams {
   src: string;
@@ -55,7 +56,7 @@ export class OneInchProvider {
   private readonly apiKey: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env['ONEINCH_API_KEY'] || '';
+    this.apiKey = apiKey || config.apis.oneInchApiKey || '';
     
     this.client = axios.create({
       baseURL: this.baseUrl,

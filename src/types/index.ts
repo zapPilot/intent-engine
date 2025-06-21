@@ -67,6 +67,16 @@ export interface RouteInfo {
   amountOut: string;
   gasEstimate: string;
   priceImpact: string;
+  metadata?: {
+    savings?: string;
+    savingsPercent?: string;
+    gasCostUSD?: string;
+    protocolFee?: string;
+    allowanceTarget?: string;
+    sources?: Array<{ name: string; proportion: string }>;
+    warning?: string;
+    [key: string]: any;
+  };
 }
 
 export interface QuoteRequest {
@@ -83,6 +93,13 @@ export interface QuoteResponse {
   gasEstimate: string;
   priceImpact: string;
   fees: FeeBreakdown;
+  metadata?: {
+    quoteFetchTime?: string;
+    failedAggregators?: string[];
+    totalAggregatorsCalled?: number;
+    aggregatorResults?: Record<string, RouteInfo | null>;
+    [key: string]: any;
+  };
 }
 
 export interface FeeBreakdown {
