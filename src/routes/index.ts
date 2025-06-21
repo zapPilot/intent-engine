@@ -17,4 +17,7 @@ router.post(
 // Quote endpoint (consider moving to rebalance_backend)
 router.get('/quote', quoteController.getQuote);
 
+// Enhanced swap endpoint that matches rebalance_backend functionality
+router.get('/swap/enhanced', quoteController.getEnhancedSwapData);
+
 export default router;
