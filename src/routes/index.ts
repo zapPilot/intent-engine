@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { IntentController } from '../controllers/IntentController';
 import { QuoteController } from '../controllers/QuoteController';
 import { validateRequest, intentRequestSchema } from '../middleware/validation';
+import healthRoutes from './health';
 
 const router = Router();
 const intentController = new IntentController();
@@ -19,5 +20,8 @@ router.get('/quote', quoteController.getQuote);
 
 // Enhanced swap endpoint that matches rebalance_backend functionality
 router.get('/swap/enhanced', quoteController.getEnhancedSwapData);
+
+// Health check endpoints
+router.use('/health', healthRoutes);
 
 export default router;

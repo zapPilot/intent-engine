@@ -1,4 +1,6 @@
 import { logger } from '../utils/logger';
+import { monitoring } from '../utils/monitoring';
+import { errorHandler, withRetry, CircuitBreaker } from '../utils/errorUtils';
 import {
   oneInchProvider,
   EnhancedOneInchSwapParams,
@@ -42,58 +44,77 @@ export interface UnifiedSwapResult {
  */
 export class EnhancedSwapService {
   private readonly logger = logger.child({ service: 'EnhancedSwapService' });
+  
+  // Circuit breakers for each provider
+  private readonly circuitBreakers = {
+    '1inch': new CircuitBreaker(3, 30000),
+    'paraswap': new CircuitBreaker(3, 30000),
+    '0x': new CircuitBreaker(3, 30000),
+  };
 
   /**
    * Get swap data from specified provider (matches rebalance_backend get_the_best_swap_data)
    */
   async getSwapData(request: EnhancedSwapRequest): Promise<UnifiedSwapResult> {
-    this.logger.info('Getting enhanced swap data', {
-      provider: request.provider,
-      chainId: request.chainId,
-      fromToken: request.fromTokenAddress,
-      toToken: request.toTokenAddress,
-      amount: request.amount,
-    });
+    return monitoring.timeOperation(
+      'enhanced_swap',
+      request.provider,
+      async () => {
+        this.logger.info('Getting enhanced swap data', {
+          provider: request.provider,
+          chainId: request.chainId,
+          fromToken: request.fromTokenAddress,
+          toToken: request.toTokenAddress,
+          amount: request.amount,
+        });
 
-    try {
-      // Validate the swap request
-      this.validateSwapRequest(request);
+        try {
+          // Validate the swap request
+          this.validateSwapRequest(request);
 
-      let result: UnifiedSwapResult;
+          let result: UnifiedSwapResult;
 
-      switch (request.provider) {
-        case '1inch':
-          result = await this.get1inchSwapData(request);
-          break;
+          switch (request.provider) {
+            case '1inch':
+              result = await this.get1inchSwapData(request);
+              break;
 
-        case 'paraswap':
-          result = await this.getParaswapSwapData(request);
-          break;
+            case 'paraswap':
+              result = await this.getParaswapSwapData(request);
+              break;
 
-        case '0x':
-          result = await this.get0xSwapData(request);
-          break;
+            case '0x':
+              result = await this.get0xSwapData(request);
+              break;
 
-        default:
-          throw new Error(`Provider ${request.provider} is not supported`);
+            default:
+              throw errorHandler.handleValidationError(
+                `Provider ${request.provider} is not supported`,
+                'provider'
+              );
+          }
+
+          this.logger.info('Enhanced swap data retrieved successfully', {
+            provider: request.provider,
+            toAmount: result.toAmount,
+            gasCostUSD: result.gasCostUSD,
+            toUsd: result.toUsd,
+          });
+
+          return result;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'IntentEngineError') {
+            throw error;
+          }
+          throw errorHandler.handleInternalError(error, 'getSwapData');
+        }
+      },
+      {
+        chainId: request.chainId,
+        fromToken: request.fromTokenAddress,
+        toToken: request.toTokenAddress,
       }
-
-      this.logger.info('Enhanced swap data retrieved successfully', {
-        provider: request.provider,
-        toAmount: result.toAmount,
-        gasCostUSD: result.gasCostUSD,
-        toUsd: result.toUsd,
-      });
-
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Failed to get enhanced swap data', {
-        error: errorMessage,
-        request,
-      });
-      throw new Error(`Enhanced swap failed: ${errorMessage}`);
-    }
+    );
   }
 
   /**
@@ -145,7 +166,7 @@ export class EnhancedSwapService {
   }
 
   /**
-   * 1inch provider integration
+   * 1inch provider integration with circuit breaker and retry logic
    */
   private async get1inchSwapData(request: EnhancedSwapRequest): Promise<UnifiedSwapResult> {
     const params: EnhancedOneInchSwapParams = {
@@ -161,7 +182,16 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await oneInchProvider.getEnhancedSwapData(params);
+    const result = await this.circuitBreakers['1inch'].execute(
+      () => withRetry(
+        () => oneInchProvider.getEnhancedSwapData(params),
+        {
+          maxRetries: 2,
+          operation: 'getEnhancedSwapData',
+          provider: '1inch',
+        }
+      )
+    );
 
     return {
       ...result,
@@ -170,7 +200,7 @@ export class EnhancedSwapService {
   }
 
   /**
-   * Paraswap provider integration
+   * Paraswap provider integration with circuit breaker and retry logic
    */
   private async getParaswapSwapData(request: EnhancedSwapRequest): Promise<UnifiedSwapResult> {
     const params: EnhancedParaswapParams = {
@@ -186,7 +216,16 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await paraswapProvider.getEnhancedSwapData(params);
+    const result = await this.circuitBreakers['paraswap'].execute(
+      () => withRetry(
+        () => paraswapProvider.getEnhancedSwapData(params),
+        {
+          maxRetries: 2,
+          operation: 'getEnhancedSwapData',
+          provider: 'paraswap',
+        }
+      )
+    );
 
     return {
       ...result,
@@ -196,7 +235,7 @@ export class EnhancedSwapService {
   }
 
   /**
-   * 0x provider integration
+   * 0x provider integration with circuit breaker and retry logic
    */
   private async get0xSwapData(request: EnhancedSwapRequest): Promise<UnifiedSwapResult> {
     const params: EnhancedZeroXParams = {
@@ -212,7 +251,16 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await zeroXProvider.getEnhancedSwapData(params);
+    const result = await this.circuitBreakers['0x'].execute(
+      () => withRetry(
+        () => zeroXProvider.getEnhancedSwapData(params),
+        {
+          maxRetries: 2,
+          operation: 'getEnhancedSwapData',
+          provider: '0x',
+        }
+      )
+    );
 
     return {
       ...result,
@@ -221,42 +269,42 @@ export class EnhancedSwapService {
   }
 
   /**
-   * Validate swap request parameters
+   * Validate swap request parameters with enhanced error handling
    */
   private validateSwapRequest(request: EnhancedSwapRequest): void {
     if (!request.chainId) {
-      throw new Error('Chain ID is required');
+      throw errorHandler.handleValidationError('Chain ID is required', 'chainId');
     }
 
     if (!request.fromTokenAddress || !request.toTokenAddress) {
-      throw new Error('Token addresses are required');
+      throw errorHandler.handleValidationError('Token addresses are required', 'tokenAddresses');
     }
 
     if (request.fromTokenAddress.toLowerCase() === request.toTokenAddress.toLowerCase()) {
-      throw new Error('Cannot swap token to itself');
+      throw errorHandler.handleValidationError('Cannot swap token to itself', 'tokenAddresses');
     }
 
     if (request.fromTokenDecimals < 0 || request.toTokenDecimals < 0) {
-      throw new Error('Token decimals must be non-negative');
+      throw errorHandler.handleValidationError('Token decimals must be non-negative', 'tokenDecimals');
     }
 
     if (request.slippage < 0 || request.slippage > 100) {
-      throw new Error('Slippage must be between 0 and 100');
+      throw errorHandler.handleValidationError('Slippage must be between 0 and 100', 'slippage');
     }
 
     if (request.ethPrice <= 0 || request.toTokenPrice <= 0) {
-      throw new Error('Token prices must be positive');
+      throw errorHandler.handleValidationError('Token prices must be positive', 'tokenPrices');
     }
 
     if (!request.amount || parseFloat(request.amount) <= 0) {
-      throw new Error('Amount must be positive');
+      throw errorHandler.handleValidationError('Amount must be positive', 'amount');
     }
 
     if (
       !request.fromAddress ||
       request.fromAddress === '0x0000000000000000000000000000000000000000'
     ) {
-      throw new Error('Valid from address is required');
+      throw errorHandler.handleValidationError('Valid from address is required', 'fromAddress');
     }
   }
 }

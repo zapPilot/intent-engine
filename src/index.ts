@@ -45,25 +45,17 @@ app.get('/', (_req, res) => {
   });
 });
 
+// Basic health endpoint (redirect to comprehensive health check)
 app.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: config.server.nodeEnv,
-  });
+  res.redirect('/api/v1/health');
 });
 
 app.get('/health/ready', (_req, res) => {
-  res.json({
-    status: 'ready',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: 'connected',
-      redis: 'connected',
-      web3: 'connected',
-    },
-  });
+  res.redirect('/api/v1/health/ready');
+});
+
+app.get('/health/live', (_req, res) => {
+  res.redirect('/api/v1/health/live');
 });
 
 app.use('/api/v1', routes);
@@ -156,4 +148,5 @@ process.on('uncaughtException', error => {
   process.exit(1);
 });
 
+export { app };
 export default app;

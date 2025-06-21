@@ -128,7 +128,7 @@ describe('EnhancedSwapService', () => {
       (oneInchProvider.getEnhancedSwapData as jest.Mock).mockRejectedValue(new Error('Provider error'));
 
       await expect(enhancedSwapService.getSwapData(mockRequest))
-        .rejects.toThrow('Enhanced swap failed: Provider error');
+        .rejects.toThrow('1inch getEnhancedSwapData: Provider error');
     });
   });
 
