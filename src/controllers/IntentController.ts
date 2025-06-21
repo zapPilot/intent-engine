@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { IntentRequest, IntentResponse, IntentStatus, Transaction, RouteInfo } from '../types';
+import { IntentRequest, IntentResponse, Transaction, RouteInfo } from '../types';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 import { transactionBuilder } from '../services/TransactionBuilder';
@@ -89,39 +89,6 @@ export class IntentController {
     }
   });
 
-  public getIntentStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { intentId } = req.params;
-
-    logger.info('Getting intent status:', { intentId });
-
-    const status: IntentStatus = {
-      status: 'pending',
-      progress: 0,
-      currentStep: 'Initializing',
-      transactions: [],
-    };
-
-    return res.json(status);
-  });
-
-  public optimizeTransactions = asyncHandler(async (req: Request, res: Response) => {
-    const { transactions, optimizationGoal } = req.body;
-
-    logger.info('Optimizing transactions:', {
-      transactionCount: transactions?.length || 0,
-      optimizationGoal,
-    });
-
-    return res.json({
-      optimizedTransactions: transactions || [],
-      gasSavings: '0',
-      improvementMetrics: {
-        gasReduction: '0%',
-        speedImprovement: '0%',
-        reliabilityScore: 100,
-      },
-    });
-  });
 
   private generateIntentId(): string {
     return `intent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

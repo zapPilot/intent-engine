@@ -13,15 +13,6 @@ describe('Controller Basic Tests', () => {
       expect(typeof controller.executeIntent).toBe('function');
     });
 
-    it('should have getIntentStatus method', () => {
-      const controller = new IntentController();
-      expect(typeof controller.getIntentStatus).toBe('function');
-    });
-
-    it('should have optimizeTransactions method', () => {
-      const controller = new IntentController();
-      expect(typeof controller.optimizeTransactions).toBe('function');
-    });
   });
 
   describe('QuoteController', () => {

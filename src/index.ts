@@ -75,8 +75,6 @@ app.get('/api/v1', (_req, res) => {
     endpoints: [
       'POST /api/v1/intent/execute',
       'GET /api/v1/intent/quote',
-      'POST /api/v1/intent/optimize',
-      'GET /api/v1/intent/status/:intentId',
     ],
   });
 });

@@ -42,16 +42,6 @@ POST /api/v1/intent/execute
 GET /api/v1/intent/quote
 ```
 
-### Optimize Transactions
-```bash
-POST /api/v1/intent/optimize
-```
-
-### Check Status
-```bash
-GET /api/v1/intent/status/:intentId
-```
-
 ## Development
 
 - TypeScript for type safety
