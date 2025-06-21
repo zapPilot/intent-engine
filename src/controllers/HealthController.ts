@@ -16,7 +16,7 @@ export class HealthController {
   async getHealth(_req: Request, res: Response): Promise<void> {
     try {
       const startTime = Date.now();
-      
+
       // Basic system check
       const health = {
         status: 'healthy',
@@ -32,7 +32,7 @@ export class HealthController {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Health check failed', { error: errorMessage });
-      
+
       res.status(503).json({
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
@@ -68,7 +68,7 @@ export class HealthController {
 
       // Determine HTTP status based on overall health
       const statusCode = this.getStatusCodeFromHealth(systemHealth.overall);
-      
+
       this.logger.info('System health check completed', {
         requestId,
         overall: systemHealth.overall,
@@ -80,7 +80,7 @@ export class HealthController {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('System health check failed', { error: errorMessage });
-      
+
       res.status(503).json({
         overall: 'unhealthy',
         error: errorMessage,
@@ -110,7 +110,7 @@ export class HealthController {
       // Determine overall provider status
       const unhealthyCount = providers.filter(p => p.status === 'unhealthy').length;
       const degradedCount = providers.filter(p => p.status === 'degraded').length;
-      
+
       let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
       if (unhealthyCount >= 2) {
         overallStatus = 'unhealthy';
@@ -147,7 +147,7 @@ export class HealthController {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Providers health check failed', { error: errorMessage });
-      
+
       res.status(503).json({
         overall: 'unhealthy',
         error: errorMessage,
@@ -229,7 +229,7 @@ export class HealthController {
         provider: req.params['provider'],
         error: errorMessage,
       });
-      
+
       res.status(503).json({
         status: 'unhealthy',
         error: errorMessage,
@@ -253,8 +253,9 @@ export class HealthController {
       const responseTime = Date.now() - startTime;
 
       // For readiness, we're more strict - require all providers to be at least degraded
-      const isReady = systemHealth.providers.every(p => p.status !== 'unhealthy') &&
-                     systemHealth.overall !== 'unhealthy';
+      const isReady =
+        systemHealth.providers.every(p => p.status !== 'unhealthy') &&
+        systemHealth.overall !== 'unhealthy';
 
       const response = {
         ready: isReady,
@@ -279,7 +280,7 @@ export class HealthController {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Readiness probe failed', { error: errorMessage });
-      
+
       res.status(503).json({
         ready: false,
         error: errorMessage,
@@ -307,7 +308,7 @@ export class HealthController {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Liveness probe failed', { error: errorMessage });
-      
+
       res.status(503).json({
         alive: false,
         error: errorMessage,

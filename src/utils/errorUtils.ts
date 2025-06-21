@@ -180,7 +180,7 @@ export class ErrorHandler {
    */
   handleInternalError(error: any, operation?: string): IntentEngineError {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    
+
     const errorDetails: ErrorDetails = {
       type: ErrorType.INTERNAL_ERROR,
       message,
@@ -191,11 +191,11 @@ export class ErrorHandler {
         stack: error.stack,
       },
     };
-    
+
     if (operation) {
       errorDetails.operation = operation;
     }
-    
+
     const intentError = new IntentEngineError(errorDetails);
 
     logger.error('Internal error handled', {
@@ -338,9 +338,10 @@ export async function withRetry<T>(
       lastError = error;
 
       // Handle and classify the error
-      const intentError = error instanceof IntentEngineError 
-        ? error 
-        : errorHandler.handleProviderError(error, provider || 'unknown', opName || 'unknown');
+      const intentError =
+        error instanceof IntentEngineError
+          ? error
+          : errorHandler.handleProviderError(error, provider || 'unknown', opName || 'unknown');
 
       // Check if we should retry
       if (attempt === maxRetries || !errorHandler.shouldRetry(intentError, attempt, maxRetries)) {

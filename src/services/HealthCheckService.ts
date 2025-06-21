@@ -74,7 +74,7 @@ export class HealthCheckService {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           this.logger.error(`Health check failed for ${name}`, { error: errorMessage });
-          
+
           return {
             provider: name,
             endpoint: this.getProviderEndpoint(name),
@@ -111,11 +111,11 @@ export class HealthCheckService {
         lastCheck: result.lastCheck,
         responseTime: result.responseTime,
       };
-      
+
       if (result.error) {
         healthStatus.error = result.error;
       }
-      
+
       monitoring.updateHealthStatus(result.provider, healthStatus);
     });
 
@@ -328,7 +328,7 @@ export class HealthCheckService {
         method: 'GET',
         headers: {
           'User-Agent': 'Intent-Engine-Health-Check/1.0',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         signal: controller.signal,
       });
@@ -352,14 +352,19 @@ export class HealthCheckService {
   /**
    * Determine health status based on response time and success
    */
-  private determineHealthStatus(responseTime: number, success: boolean): 'healthy' | 'degraded' | 'unhealthy' {
+  private determineHealthStatus(
+    responseTime: number,
+    success: boolean
+  ): 'healthy' | 'degraded' | 'unhealthy' {
     if (!success) {
       return 'unhealthy';
     }
 
-    if (responseTime > 5000) { // 5 seconds
+    if (responseTime > 5000) {
+      // 5 seconds
       return 'unhealthy';
-    } else if (responseTime > 2000) { // 2 seconds
+    } else if (responseTime > 2000) {
+      // 2 seconds
       return 'degraded';
     }
 
@@ -391,7 +396,7 @@ export class HealthCheckService {
 
     const now = Date.now();
     const lastCheck = new Date(cached.lastCheck).getTime();
-    
+
     if (now - lastCheck > this.cacheExpiry) {
       this.providerHealthCache.delete(provider);
       return null;

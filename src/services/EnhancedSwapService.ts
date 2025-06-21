@@ -44,11 +44,11 @@ export interface UnifiedSwapResult {
  */
 export class EnhancedSwapService {
   private readonly logger = logger.child({ service: 'EnhancedSwapService' });
-  
+
   // Circuit breakers for each provider
   private readonly circuitBreakers = {
     '1inch': new CircuitBreaker(3, 30000),
-    'paraswap': new CircuitBreaker(3, 30000),
+    paraswap: new CircuitBreaker(3, 30000),
     '0x': new CircuitBreaker(3, 30000),
   };
 
@@ -182,15 +182,12 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await this.circuitBreakers['1inch'].execute(
-      () => withRetry(
-        () => oneInchProvider.getEnhancedSwapData(params),
-        {
-          maxRetries: 2,
-          operation: 'getEnhancedSwapData',
-          provider: '1inch',
-        }
-      )
+    const result = await this.circuitBreakers['1inch'].execute(() =>
+      withRetry(() => oneInchProvider.getEnhancedSwapData(params), {
+        maxRetries: 2,
+        operation: 'getEnhancedSwapData',
+        provider: '1inch',
+      })
     );
 
     return {
@@ -216,15 +213,12 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await this.circuitBreakers['paraswap'].execute(
-      () => withRetry(
-        () => paraswapProvider.getEnhancedSwapData(params),
-        {
-          maxRetries: 2,
-          operation: 'getEnhancedSwapData',
-          provider: 'paraswap',
-        }
-      )
+    const result = await this.circuitBreakers['paraswap'].execute(() =>
+      withRetry(() => paraswapProvider.getEnhancedSwapData(params), {
+        maxRetries: 2,
+        operation: 'getEnhancedSwapData',
+        provider: 'paraswap',
+      })
     );
 
     return {
@@ -251,15 +245,12 @@ export class EnhancedSwapService {
       toTokenPrice: request.toTokenPrice,
     };
 
-    const result = await this.circuitBreakers['0x'].execute(
-      () => withRetry(
-        () => zeroXProvider.getEnhancedSwapData(params),
-        {
-          maxRetries: 2,
-          operation: 'getEnhancedSwapData',
-          provider: '0x',
-        }
-      )
+    const result = await this.circuitBreakers['0x'].execute(() =>
+      withRetry(() => zeroXProvider.getEnhancedSwapData(params), {
+        maxRetries: 2,
+        operation: 'getEnhancedSwapData',
+        provider: '0x',
+      })
     );
 
     return {
@@ -285,7 +276,10 @@ export class EnhancedSwapService {
     }
 
     if (request.fromTokenDecimals < 0 || request.toTokenDecimals < 0) {
-      throw errorHandler.handleValidationError('Token decimals must be non-negative', 'tokenDecimals');
+      throw errorHandler.handleValidationError(
+        'Token decimals must be non-negative',
+        'tokenDecimals'
+      );
     }
 
     if (request.slippage < 0 || request.slippage > 100) {

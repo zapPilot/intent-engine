@@ -51,7 +51,8 @@ export class MonitoringService {
     }
 
     // Log warnings for slow operations
-    if (metric.duration > 10000) { // 10 seconds
+    if (metric.duration > 10000) {
+      // 10 seconds
       logger.warn('Slow operation detected', {
         operation: metric.operation,
         duration: metric.duration,
@@ -145,7 +146,10 @@ export class MonitoringService {
   /**
    * Get aggregated metrics for an operation
    */
-  getOperationMetrics(operation: string, timeRangeMs: number = 300000): {
+  getOperationMetrics(
+    operation: string,
+    timeRangeMs: number = 300000
+  ): {
     totalCount: number;
     successCount: number;
     failureCount: number;
@@ -158,9 +162,7 @@ export class MonitoringService {
     const cutoff = now - timeRangeMs;
 
     const relevantMetrics = this.metrics.filter(
-      (metric) =>
-        metric.operation === operation &&
-        new Date(metric.timestamp || 0).getTime() > cutoff
+      metric => metric.operation === operation && new Date(metric.timestamp || 0).getTime() > cutoff
     );
 
     if (relevantMetrics.length === 0) {
@@ -175,9 +177,9 @@ export class MonitoringService {
       };
     }
 
-    const successCount = relevantMetrics.filter((m) => m.success).length;
+    const successCount = relevantMetrics.filter(m => m.success).length;
     const failureCount = relevantMetrics.length - successCount;
-    const durations = relevantMetrics.map((m) => m.duration);
+    const durations = relevantMetrics.map(m => m.duration);
 
     return {
       totalCount: relevantMetrics.length,
@@ -226,9 +228,9 @@ export class MonitoringService {
 
     // Check service health
     const serviceStatuses = Object.values(services);
-    if (serviceStatuses.some((s) => s.status === 'unhealthy')) {
+    if (serviceStatuses.some(s => s.status === 'unhealthy')) {
       systemStatus = 'unhealthy';
-    } else if (serviceStatuses.some((s) => s.status === 'degraded')) {
+    } else if (serviceStatuses.some(s => s.status === 'degraded')) {
       systemStatus = 'degraded';
     }
 
@@ -255,10 +257,11 @@ export class MonitoringService {
   /**
    * Clear old metrics to prevent memory leaks
    */
-  clearOldMetrics(maxAgeMs: number = 3600000): void { // 1 hour default
+  clearOldMetrics(maxAgeMs: number = 3600000): void {
+    // 1 hour default
     const cutoff = Date.now() - maxAgeMs;
     this.metrics = this.metrics.filter(
-      (metric) => new Date(metric.timestamp || 0).getTime() > cutoff
+      metric => new Date(metric.timestamp || 0).getTime() > cutoff
     );
   }
 }
@@ -268,7 +271,10 @@ export const monitoring = MonitoringService.getInstance();
 
 // Cleanup old metrics every 5 minutes (only in production)
 if (process.env['NODE_ENV'] === 'production') {
-  setInterval(() => {
-    monitoring.clearOldMetrics();
-  }, 5 * 60 * 1000);
+  setInterval(
+    () => {
+      monitoring.clearOldMetrics();
+    },
+    5 * 60 * 1000
+  );
 }

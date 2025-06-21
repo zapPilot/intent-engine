@@ -1,27 +1,35 @@
+// Mock all dependencies before importing anything
+jest.mock('../src/controllers/IntentController', () => ({
+  IntentController: jest.fn().mockImplementation(() => ({
+    executeIntent: jest.fn((_req, res) => res.json({ success: true })),
+    optimizeTransactions: jest.fn((_req, res) => res.json({ optimized: true })),
+    getIntentStatus: jest.fn((_req, res) => res.json({ status: 'completed' })),
+  })),
+}));
+
+jest.mock('../src/controllers/QuoteController', () => ({
+  QuoteController: jest.fn().mockImplementation(() => ({
+    getQuote: jest.fn((_req, res) => res.json({ quote: 'test' })),
+    getEnhancedSwapData: jest.fn((_req, res) => res.json({ enhanced: 'swap' })),
+  })),
+}));
+
+jest.mock('../src/middleware/validation', () => ({
+  validateRequest: jest.fn(() => (_req: any, _res: any, next: any) => next()),
+  intentRequestSchema: jest.fn(),
+}));
+
+jest.mock('../src/routes/health', () => {
+  const { Router } = require('express');
+  const router = Router();
+  router.get('/', (_req: any, res: any) => res.json({ status: 'healthy' }));
+  return router;
+});
+
 // Test just the route structure without controller logic
 describe('Routes Structure', () => {
   describe('Route Imports', () => {
     it('should import routes module without errors', () => {
-      // Mock all dependencies first
-      jest.mock('../src/controllers/IntentController', () => ({
-        IntentController: jest.fn().mockImplementation(() => ({
-          executeIntent: jest.fn((_req, res) => res.json({ success: true })),
-          optimizeTransactions: jest.fn((_req, res) => res.json({ optimized: true })),
-          getIntentStatus: jest.fn((_req, res) => res.json({ status: 'completed' })),
-        })),
-      }));
-
-      jest.mock('../src/controllers/QuoteController', () => ({
-        QuoteController: jest.fn().mockImplementation(() => ({
-          getQuote: jest.fn((_req, res) => res.json({ quote: 'test' })),
-        })),
-      }));
-
-      jest.mock('../src/middleware/validation', () => ({
-        validateRequest: jest.fn(() => (_req: any, _res: any, next: any) => next()),
-        intentRequestSchema: jest.fn(),
-      }));
-
       // This should not throw
       expect(() => {
         require('../src/routes');
