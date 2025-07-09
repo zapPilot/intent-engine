@@ -318,6 +318,62 @@ The price service implements intelligent fallback logic across multiple provider
 - **Bulk Processing**: Efficient handling of multiple token price requests
 - **Error Resilience**: Graceful handling of provider failures and network issues
 
+## Development Toolchain
+
+### Code Quality & Formatting
+
+```bash
+# Run linter
+npm run lint
+
+# Fix linting issues automatically
+npm run lint:fix
+
+# Format code with Prettier
+npm run format
+
+# Check if code is formatted correctly
+npm run format:check
+
+# Run all quality checks (lint + format + tests)
+npm run quality
+
+# Fix all quality issues automatically
+npm run quality:fix
+```
+
+### Pre-commit Hooks
+
+The project uses Husky for git hooks:
+
+```bash
+# Install Husky hooks (runs automatically after npm install)
+npm run prepare
+
+# Pre-commit hook runs automatically on git commit:
+# - Lints and formats staged files
+# - Runs tests to ensure nothing is broken
+```
+
+### Git Workflow
+
+```bash
+# Install dependencies and setup hooks
+npm install
+
+# Make changes to code
+# ... edit files ...
+
+# Attempt to commit (pre-commit hook will run)
+git add .
+git commit -m "feat: add new feature"
+
+# If pre-commit fails, fix issues and try again
+npm run quality:fix
+git add .
+git commit -m "feat: add new feature"
+```
+
 ## Testing
 
 ```bash
