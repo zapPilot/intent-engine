@@ -1,10 +1,16 @@
-# Swap API Server
+# Intent Engine
 
-A Node.js Express API server that provides the best swap data from multiple DEX aggregators including 1inch, Paraswap, and 0x Protocol.
+A Node.js Express API server for intent-based DeFi operations, providing optimal swap execution and bulk token pricing with intelligent fallback logic.
 
 ## Features
 
+- **Intent-Based Swap Execution**: Automatically finds the best swap routes across multiple DEX aggregators
 - **Multi-DEX Support**: Integrates with 1inch, Paraswap, and 0x Protocol
+- **Bulk Token Pricing**: Get prices for multiple tokens with intelligent provider fallback
+- **Smart Rate Limiting**: Token bucket rate limiting with provider-specific configurations
+- **Intelligent Fallback**: Tries providers in priority order, stops at first success
+- **Comprehensive Caching**: In-memory caching with configurable TTL for price data
+- **Multiple Price Sources**: CoinMarketCap, CoinGecko with extensible architecture
 - **Retry Logic**: Automatic retry with exponential backoff for failed requests
 - **Input Validation**: Comprehensive parameter validation using express-validator
 - **Error Handling**: Robust error handling with meaningful error messages
@@ -16,7 +22,7 @@ A Node.js Express API server that provides the best swap data from multiple DEX 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd swap-api-server
+cd intent-engine
 
 # Install dependencies
 npm install
@@ -35,6 +41,9 @@ Create a `.env` file with the following variables:
 # DEX Aggregator API Keys
 ONE_INCH_API_KEY=your_1inch_api_key_here
 ZEROX_API_KEY=your_0x_api_key_here
+
+# Price API Keys
+COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here,your_second_key_here
 
 # Server Configuration
 PORT=3002
@@ -59,11 +68,13 @@ npm start
 
 ### API Endpoints
 
-#### Get Best Swap Data
+#### Get Best Swap Quote (Intent-Based)
 
 ```http
-GET /the_best_swap_data
+GET /swap/quote
 ```
+
+Automatically finds the best swap route across all available DEX aggregators.
 
 **Query Parameters:**
 - `chainId` (required): Blockchain network ID (1, 10, 137, 42161, 8453)
@@ -74,13 +85,12 @@ GET /the_best_swap_data
 - `amount` (required): Amount to swap (in smallest token unit)
 - `fromAddress` (required): User's wallet address
 - `slippage` (required): Slippage tolerance (0-100)
-- `provider` (required): DEX aggregator ('1inch', 'paraswap', '0x')
 - `to_token_price` (required): Destination token price in USD
 - `eth_price` (optional): ETH price in USD (default: 1000)
 
 **Example Request:**
 ```bash
-curl "http://localhost:3002/the_best_swap_data?chainId=1&fromTokenAddress=0xA0b86a33E6441c8e4B23b4bcBd3e5ccB30B4c1b2&fromTokenDecimals=18&toTokenAddress=0xdAC17F958D2ee523a2206206994597C13D831ec7&toTokenDecimals=6&amount=1000000000000000000&fromAddress=0x1234567890123456789012345678901234567890&slippage=1&provider=1inch&to_token_price=1000&eth_price=2000"
+curl "http://localhost:3002/swap/quote?chainId=1&fromTokenAddress=0xA0b86a33E6441c8e4B23b4bcBd3e5ccB30B4c1b2&fromTokenDecimals=18&toTokenAddress=0xdAC17F958D2ee523a2206206994597C13D831ec7&toTokenDecimals=6&amount=1000000000000000000&fromAddress=0x1234567890123456789012345678901234567890&slippage=1&to_token_price=1000"
 ```
 
 **Response:**
@@ -93,21 +103,139 @@ curl "http://localhost:3002/the_best_swap_data?chainId=1&fromTokenAddress=0xA0b8
   "data": "0x...",
   "gasCostUSD": 25.50,
   "gas": 200000,
-  "custom_slippage": 1,
-  "toUsd": 974.50
+  "custom_slippage": 100,
+  "toUsd": 974.50,
+  "provider": "1inch",
+  "allQuotes": [
+    {
+      "provider": "1inch",
+      "toUsd": 974.50,
+      "gasCostUSD": 25.50,
+      "toAmount": "1000000000"
+    },
+    {
+      "provider": "paraswap",
+      "toUsd": 970.20,
+      "gasCostUSD": 29.80,
+      "toAmount": "1000000000"
+    }
+  ]
 }
+```
+
+#### Get Bulk Token Prices
+
+```http
+GET /tokens/prices
+```
+
+Get prices for multiple tokens with intelligent fallback across price providers.
+
+**Query Parameters:**
+- `tokens` (required): Comma-separated token symbols (e.g., `btc,eth,usdc`)
+- `useCache` (optional): Whether to use cached prices (default: true)
+- `timeout` (optional): Request timeout in milliseconds (default: 5000)
+
+**Example Request:**
+```bash
+curl "http://localhost:3002/tokens/prices?tokens=btc,eth,usdc&useCache=true"
+```
+
+**Response:**
+```json
+{
+  "results": {
+    "btc": {
+      "success": true,
+      "price": 45000.50,
+      "symbol": "btc",
+      "provider": "coinmarketcap",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "fromCache": false,
+      "metadata": {
+        "tokenId": "1",
+        "marketCap": 850000000000,
+        "volume24h": 25000000000,
+        "percentChange24h": 2.5
+      }
+    },
+    "eth": {
+      "success": true,
+      "price": 2800.25,
+      "symbol": "eth",
+      "provider": "coinmarketcap",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "fromCache": false
+    }
+  },
+  "errors": [],
+  "totalRequested": 3,
+  "fromCache": 0,
+  "fromProviders": 2,
+  "failed": 1,
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### Get Single Token Price
+
+```http
+GET /tokens/price/:symbol
+```
+
+**Example Request:**
+```bash
+curl "http://localhost:3002/tokens/price/btc?useCache=false"
 ```
 
 #### Get Supported Providers
 
 ```http
-GET /supported_providers
+GET /swap/providers
 ```
 
 **Response:**
 ```json
 {
   "providers": ["1inch", "paraswap", "0x"]
+}
+```
+
+#### Get Price Providers Status
+
+```http
+GET /tokens/providers
+```
+
+**Response:**
+```json
+{
+  "providers": ["coinmarketcap", "coingecko"],
+  "status": {
+    "coinmarketcap": {
+      "name": "coinmarketcap",
+      "available": true,
+      "apiKeysCount": 2,
+      "currentKeyIndex": 0
+    },
+    "coingecko": {
+      "name": "coingecko",
+      "available": true,
+      "requiresApiKey": false
+    }
+  },
+  "rateLimits": {
+    "coinmarketcap": {
+      "tokens": 25,
+      "capacity": 30,
+      "rate": 0.5
+    },
+    "coingecko": {
+      "tokens": 95,
+      "capacity": 100,
+      "rate": 1.67
+    }
+  }
 }
 ```
 
@@ -130,14 +258,23 @@ GET /health
 ### Project Structure
 
 ```
-swap-api-server/
+intent-engine/
 ├── src/
 │   ├── services/
 │   │   ├── dexAggregators/
 │   │   │   ├── oneinch.js      # 1inch API integration
 │   │   │   ├── paraswap.js     # Paraswap API integration
 │   │   │   └── zerox.js        # 0x Protocol API integration
-│   │   └── swapService.js      # Main swap orchestration service
+│   │   ├── priceProviders/
+│   │   │   ├── coinmarketcap.js # CoinMarketCap API integration
+│   │   │   └── coingecko.js    # CoinGecko API integration
+│   │   ├── rateLimiting/
+│   │   │   ├── tokenBucket.js   # Token bucket rate limiter
+│   │   │   └── rateLimitManager.js # Rate limit orchestration
+│   │   ├── swapService.js      # Main swap orchestration service
+│   │   └── priceService.js     # Main price orchestration service
+│   ├── config/
+│   │   └── priceConfig.js      # Price provider configuration
 │   ├── utils/
 │   │   ├── retry.js            # Retry logic utilities
 │   │   └── validation.js       # Input validation middleware
@@ -148,7 +285,8 @@ swap-api-server/
 │   │   └── swap.js             # API route definitions
 │   └── app.js                  # Main application setup
 ├── test/
-│   └── swap.test.js            # Test suite
+│   ├── swap.test.js            # Swap functionality tests
+│   └── price.test.js           # Price functionality tests
 ├── package.json
 ├── .env.example
 └── README.md
@@ -163,6 +301,22 @@ Each DEX aggregator is implemented as a separate service class:
 - **ZeroXService**: Handles 0x allowance-holder API integration
 
 All services implement a common interface and return standardized response formats.
+
+### Price Provider Services
+
+The price service implements intelligent fallback logic across multiple providers:
+
+- **CoinMarketCapProvider**: Primary price provider with API key rotation
+- **CoinGeckoProvider**: Secondary provider with generous rate limits
+- **PriceService**: Orchestration service with caching and fallback logic
+
+### Key Features
+
+- **Priority-Based Fallback**: Providers are tried in configured priority order
+- **Rate Limiting**: Token bucket algorithm prevents API quota exhaustion
+- **Intelligent Caching**: Reduces API calls and improves response times
+- **Bulk Processing**: Efficient handling of multiple token price requests
+- **Error Resilience**: Graceful handling of provider failures and network issues
 
 ## Testing
 

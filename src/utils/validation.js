@@ -91,6 +91,55 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 /**
+ * Validation rules for bulk token prices endpoint
+ */
+const bulkPricesValidation = [
+  query('tokens')
+    .notEmpty()
+    .withMessage('tokens parameter is required')
+    .custom((value) => {
+      // Split by comma and clean up whitespace
+      const tokens = value.split(',').map(token => token.trim()).filter(token => token);
+      
+      if (tokens.length === 0) {
+        throw new Error('tokens cannot be empty');
+      }
+      
+      if (tokens.length > 100) {
+        throw new Error('tokens cannot exceed 100 items');
+      }
+      
+      // Validate each token symbol
+      for (const token of tokens) {
+        if (typeof token !== 'string' || token === '') {
+          throw new Error('all tokens must be non-empty strings');
+        }
+        
+        // Basic token symbol validation (alphanumeric, dashes, underscores)
+        if (!/^[a-zA-Z0-9_-]+$/.test(token)) {
+          throw new Error(`invalid token symbol: ${token}. Only alphanumeric characters, dashes, and underscores allowed`);
+        }
+        
+        if (token.length > 20) {
+          throw new Error(`token symbol too long: ${token}. Maximum 20 characters allowed`);
+        }
+      }
+      
+      return true;
+    }),
+  
+  query('useCache')
+    .optional()
+    .isBoolean()
+    .withMessage('useCache must be a boolean'),
+  
+  query('timeout')
+    .optional()
+    .isInt({ min: 1000, max: 30000 })
+    .withMessage('timeout must be between 1000 and 30000 milliseconds'),
+];
+
+/**
  * Validate that fromTokenAddress and toTokenAddress are different
  */
 const validateTokenAddresses = (req, res, next) => {
@@ -108,6 +157,7 @@ const validateTokenAddresses = (req, res, next) => {
 module.exports = {
   swapQuoteValidation,
   swapDataValidation,
+  bulkPricesValidation,
   handleValidationErrors,
   validateTokenAddresses,
 };
