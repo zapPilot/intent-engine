@@ -543,7 +543,6 @@ upsert operations to handle re-runs and data corrections safely.
 ### Phase 3 Candidates (Medium Priority)
 
 1. **Bundle Management**
-
    - `GET/PUT /bundle/:address` - Bundle address management
 
 2. **NFT Position Analysis**

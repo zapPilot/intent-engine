@@ -10,7 +10,7 @@ class SwapService {
   constructor() {
     this.providers = {
       '1inch': new OneInchService(),
-      'paraswap': new ParaswapService(),
+      paraswap: new ParaswapService(),
       '0x': new ZeroXService(),
     };
   }
@@ -23,9 +23,10 @@ class SwapService {
   async getBestSwapQuote(params) {
     const enhancedParams = {
       ...params,
-      ethPrice: params.eth_price && params.eth_price !== 'null' 
-        ? parseFloat(params.eth_price) 
-        : 1000,
+      ethPrice:
+        params.eth_price && params.eth_price !== 'null'
+          ? parseFloat(params.eth_price)
+          : 1000,
     };
 
     const quotes = await Promise.allSettled(
@@ -45,7 +46,10 @@ class SwapService {
             success: true,
           };
         } catch (error) {
-          console.error(`Error getting quote from ${providerName}:`, error.message);
+          console.error(
+            `Error getting quote from ${providerName}:`,
+            error.message
+          );
           return {
             provider: providerName,
             error: error.message,
@@ -95,9 +99,10 @@ class SwapService {
 
       const enhancedParams = {
         ...params,
-        ethPrice: params.eth_price && params.eth_price !== 'null' 
-          ? parseFloat(params.eth_price) 
-          : 1000,
+        ethPrice:
+          params.eth_price && params.eth_price !== 'null'
+            ? parseFloat(params.eth_price)
+            : 1000,
       };
 
       const swapData = await retryWithBackoff(
@@ -130,7 +135,7 @@ class SwapService {
    * @returns {boolean} - Whether provider is supported
    */
   isProviderSupported(provider) {
-    return this.providers.hasOwnProperty(provider);
+    return Object.prototype.hasOwnProperty.call(this.providers, provider);
   }
 }
 

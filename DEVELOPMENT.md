@@ -160,17 +160,20 @@ Recommended settings:
 ### Common Issues
 
 1. **Husky hooks not running**:
+
    ```bash
    npx husky install
    chmod +x .husky/pre-commit
    ```
 
 2. **ESLint errors on existing code**:
+
    ```bash
    npm run lint:fix
    ```
 
 3. **Prettier formatting conflicts**:
+
    ```bash
    npm run format
    ```
@@ -205,11 +208,13 @@ intent-engine/
 ## Best Practices
 
 1. **Always run quality checks before pushing**:
+
    ```bash
    npm run quality
    ```
 
 2. **Use meaningful commit messages**:
+
    ```bash
    git commit -m "feat: add token price caching"
    git commit -m "fix: resolve rate limiting issue"
@@ -217,6 +222,7 @@ intent-engine/
    ```
 
 3. **Keep dependencies updated**:
+
    ```bash
    npm audit
    npm update

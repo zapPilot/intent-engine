@@ -48,11 +48,10 @@ class ZeroXService {
     const response = await axios.get(this.baseURL, requestConfig);
     const data = response.data;
 
-    const gasCostUSD = (
-      (parseInt(data.transaction.gas) * parseInt(data.transaction.gasPrice)) / 
-      Math.pow(10, 18) * 
-      ethPrice
-    );
+    const gasCostUSD =
+      ((parseInt(data.transaction.gas) * parseInt(data.transaction.gasPrice)) /
+        Math.pow(10, 18)) *
+      ethPrice;
 
     return {
       toAmount: data.buyAmount,
@@ -63,12 +62,10 @@ class ZeroXService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.transaction.gas),
       custom_slippage: customSlippage,
-      toUsd: (
-        parseInt(data.buyAmount) * 
-        toTokenPrice / 
-        Math.pow(10, toTokenDecimals) - 
-        gasCostUSD
-      ),
+      toUsd:
+        (parseInt(data.buyAmount) * toTokenPrice) /
+          Math.pow(10, toTokenDecimals) -
+        gasCostUSD,
     };
   }
 
@@ -79,7 +76,9 @@ class ZeroXService {
    * @returns {number} - Minimum amount
    */
   getMinToAmount(toAmount, slippage) {
-    return Math.floor(parseInt(toAmount) * (100 - parseFloat(slippage)) / 100);
+    return Math.floor(
+      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
+    );
   }
 }
 

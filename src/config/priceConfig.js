@@ -255,7 +255,9 @@ function getProviderConfig(provider) {
  */
 function getTokenId(provider, symbol) {
   const mapping = priceConfig.tokenMappings[provider];
-  if (!mapping) return null;
+  if (!mapping) {
+    return null;
+  }
   return mapping[symbol.toLowerCase()] || null;
 }
 

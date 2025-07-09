@@ -7,14 +7,14 @@ class OneInchService {
   constructor() {
     this.baseURL = 'https://api.1inch.dev/swap';
     this.apiKey = process.env.ONE_INCH_API_KEY;
-    
+
     // Chain ID to protocol name prefix mapping
     this.chainPrefixMap = {
-      '1': '',         // Ethereum
-      '42161': 'ARBITRUM_',  // Arbitrum
-      '8453': 'BASE_',       // Base
-      '10': 'OPTIMISM_',     // Optimism
-      '137': 'POLYGON_',     // Polygon
+      1: '', // Ethereum
+      42161: 'ARBITRUM_', // Arbitrum
+      8453: 'BASE_', // Base
+      10: 'OPTIMISM_', // Optimism
+      137: 'POLYGON_', // Polygon
     };
   }
 
@@ -45,7 +45,7 @@ class OneInchService {
     const apiUrl = `${this.baseURL}/v5.2/${chainId}/swap`;
     const requestConfig = {
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       params: {
         src: fromTokenAddress,
@@ -61,11 +61,10 @@ class OneInchService {
     const response = await axios.get(apiUrl, requestConfig);
     const data = response.data;
 
-    const gasCostUSD = (
-      (parseInt(data.tx.gas) * parseInt(data.tx.gasPrice)) / 
-      Math.pow(10, 18) * 
-      ethPrice
-    );
+    const gasCostUSD =
+      ((parseInt(data.tx.gas) * parseInt(data.tx.gasPrice)) /
+        Math.pow(10, 18)) *
+      ethPrice;
 
     return {
       approve_to: data.tx.to,
@@ -76,12 +75,10 @@ class OneInchService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.tx.gasPrice),
       custom_slippage: slippage,
-      toUsd: (
-        parseInt(data.toAmount) * 
-        toTokenPrice / 
-        Math.pow(10, toTokenDecimals) - 
-        gasCostUSD
-      ),
+      toUsd:
+        (parseInt(data.toAmount) * toTokenPrice) /
+          Math.pow(10, toTokenDecimals) -
+        gasCostUSD,
     };
   }
 
@@ -92,7 +89,9 @@ class OneInchService {
    * @returns {number} - Minimum amount
    */
   getMinToAmount(toAmount, slippage) {
-    return Math.floor(parseInt(toAmount) * (100 - parseFloat(slippage)) / 100);
+    return Math.floor(
+      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
+    );
   }
 }
 

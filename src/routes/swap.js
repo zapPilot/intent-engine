@@ -1,12 +1,11 @@
 const express = require('express');
 const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
-const { 
+const {
   swapQuoteValidation,
-  swapDataValidation,
   bulkPricesValidation,
-  handleValidationErrors, 
-  validateTokenAddresses 
+  handleValidationErrors,
+  validateTokenAddresses,
 } = require('../utils/validation');
 
 const router = express.Router();
@@ -51,7 +50,7 @@ router.get(
       };
 
       const bestQuote = await swapService.getBestSwapQuote(swapParams);
-      
+
       res.json(bestQuote);
     } catch (error) {
       next(error);
@@ -78,21 +77,20 @@ router.get(
   handleValidationErrors,
   async (req, res, next) => {
     try {
-      const {
-        tokens,
-        useCache = 'true',
-        timeout = '5000',
-      } = req.query;
+      const { tokens, useCache = 'true', timeout = '5000' } = req.query;
 
       // Parse comma-separated tokens and clean up whitespace
-      const tokenSymbols = tokens.split(',').map(token => token.trim()).filter(token => token);
+      const tokenSymbols = tokens
+        .split(',')
+        .map(token => token.trim())
+        .filter(token => token);
       const options = {
         useCache: useCache === 'true',
         timeout: parseInt(timeout),
       };
 
       const result = await priceService.getBulkPrices(tokenSymbols, options);
-      
+
       res.json(result);
     } catch (error) {
       next(error);
@@ -104,26 +102,23 @@ router.get(
  * GET /tokens/price/:symbol
  * Get price for a single token
  */
-router.get(
-  '/tokens/price/:symbol',
-  async (req, res, next) => {
-    try {
-      const { symbol } = req.params;
-      const { useCache = 'true', timeout = '5000' } = req.query;
+router.get('/tokens/price/:symbol', async (req, res, next) => {
+  try {
+    const { symbol } = req.params;
+    const { useCache = 'true', timeout = '5000' } = req.query;
 
-      const options = {
-        useCache: useCache === 'true',
-        timeout: parseInt(timeout),
-      };
+    const options = {
+      useCache: useCache === 'true',
+      timeout: parseInt(timeout),
+    };
 
-      const result = await priceService.getPrice(symbol, options);
-      
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await priceService.getPrice(symbol, options);
+
+    res.json(result);
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * GET /tokens/providers
@@ -132,7 +127,7 @@ router.get(
 router.get('/tokens/providers', (req, res) => {
   const providers = priceService.getSupportedProviders();
   const status = priceService.getStatus();
-  res.json({ 
+  res.json({
     providers,
     status: status.providers,
     rateLimits: status.rateLimits,

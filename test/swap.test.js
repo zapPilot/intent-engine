@@ -4,9 +4,7 @@ const app = require('../src/app');
 describe('Swap API Endpoints', () => {
   describe('GET /health', () => {
     it('should return healthy status', async () => {
-      const response = await request(app)
-        .get('/health')
-        .expect(200);
+      const response = await request(app).get('/health').expect(200);
 
       expect(response.body.status).toBe('healthy');
       expect(response.body.timestamp).toBeDefined();
@@ -15,9 +13,7 @@ describe('Swap API Endpoints', () => {
 
   describe('GET /swap/providers', () => {
     it('should return list of supported providers', async () => {
-      const response = await request(app)
-        .get('/swap/providers')
-        .expect(200);
+      const response = await request(app).get('/swap/providers').expect(200);
 
       expect(response.body.providers).toEqual(['1inch', 'paraswap', '0x']);
     });

@@ -77,6 +77,7 @@ GET /swap/quote
 Automatically finds the best swap route across all available DEX aggregators.
 
 **Query Parameters:**
+
 - `chainId` (required): Blockchain network ID (1, 10, 137, 42161, 8453)
 - `fromTokenAddress` (required): Source token contract address
 - `fromTokenDecimals` (required): Source token decimals (0-18)
@@ -89,11 +90,13 @@ Automatically finds the best swap route across all available DEX aggregators.
 - `eth_price` (optional): ETH price in USD (default: 1000)
 
 **Example Request:**
+
 ```bash
 curl "http://localhost:3002/swap/quote?chainId=1&fromTokenAddress=0xA0b86a33E6441c8e4B23b4bcBd3e5ccB30B4c1b2&fromTokenDecimals=18&toTokenAddress=0xdAC17F958D2ee523a2206206994597C13D831ec7&toTokenDecimals=6&amount=1000000000000000000&fromAddress=0x1234567890123456789012345678901234567890&slippage=1&to_token_price=1000"
 ```
 
 **Response:**
+
 ```json
 {
   "approve_to": "0x...",
@@ -101,22 +104,22 @@ curl "http://localhost:3002/swap/quote?chainId=1&fromTokenAddress=0xA0b86a33E644
   "toAmount": "1000000000",
   "minToAmount": "990000000",
   "data": "0x...",
-  "gasCostUSD": 25.50,
+  "gasCostUSD": 25.5,
   "gas": 200000,
   "custom_slippage": 100,
-  "toUsd": 974.50,
+  "toUsd": 974.5,
   "provider": "1inch",
   "allQuotes": [
     {
       "provider": "1inch",
-      "toUsd": 974.50,
-      "gasCostUSD": 25.50,
+      "toUsd": 974.5,
+      "gasCostUSD": 25.5,
       "toAmount": "1000000000"
     },
     {
       "provider": "paraswap",
-      "toUsd": 970.20,
-      "gasCostUSD": 29.80,
+      "toUsd": 970.2,
+      "gasCostUSD": 29.8,
       "toAmount": "1000000000"
     }
   ]
@@ -132,22 +135,25 @@ GET /tokens/prices
 Get prices for multiple tokens with intelligent fallback across price providers.
 
 **Query Parameters:**
+
 - `tokens` (required): Comma-separated token symbols (e.g., `btc,eth,usdc`)
 - `useCache` (optional): Whether to use cached prices (default: true)
 - `timeout` (optional): Request timeout in milliseconds (default: 5000)
 
 **Example Request:**
+
 ```bash
 curl "http://localhost:3002/tokens/prices?tokens=btc,eth,usdc&useCache=true"
 ```
 
 **Response:**
+
 ```json
 {
   "results": {
     "btc": {
       "success": true,
-      "price": 45000.50,
+      "price": 45000.5,
       "symbol": "btc",
       "provider": "coinmarketcap",
       "timestamp": "2024-01-01T00:00:00.000Z",
@@ -184,6 +190,7 @@ GET /tokens/price/:symbol
 ```
 
 **Example Request:**
+
 ```bash
 curl "http://localhost:3002/tokens/price/btc?useCache=false"
 ```
@@ -195,6 +202,7 @@ GET /swap/providers
 ```
 
 **Response:**
+
 ```json
 {
   "providers": ["1inch", "paraswap", "0x"]
@@ -208,6 +216,7 @@ GET /tokens/providers
 ```
 
 **Response:**
+
 ```json
 {
   "providers": ["coinmarketcap", "coingecko"],
@@ -246,6 +255,7 @@ GET /health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -398,6 +408,7 @@ npm run test:coverage
 ## Error Handling
 
 The API provides comprehensive error handling for:
+
 - Invalid parameters
 - Network timeouts
 - Rate limiting

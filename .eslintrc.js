@@ -18,7 +18,7 @@ module.exports = {
   },
   rules: {
     // Error prevention
-    'no-console': 'warn',
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-debugger': 'error',
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'no-undef': 'error',
@@ -30,8 +30,8 @@ module.exports = {
     'prefer-template': 'error',
 
     // Code quality
-    'eqeqeq': ['error', 'always'],
-    'curly': ['error', 'all'],
+    eqeqeq: ['error', 'always'],
+    curly: ['error', 'all'],
     'no-eval': 'error',
     'no-implied-eval': 'error',
     'no-new-func': 'error',
@@ -54,7 +54,7 @@ module.exports = {
     'node/prefer-global/url': ['error', 'always'],
 
     // Security
-    'security/detect-object-injection': 'warn',
+    'security/detect-object-injection': 'off', // Too many false positives with bracket notation
     'security/detect-non-literal-regexp': 'warn',
     'security/detect-non-literal-fs-filename': 'warn',
     'security/detect-eval-with-expression': 'error',
@@ -67,6 +67,12 @@ module.exports = {
         'no-console': 'off',
         'node/no-unpublished-require': 'off',
         'security/detect-non-literal-fs-filename': 'off',
+      },
+    },
+    {
+      files: ['server.js', 'src/app.js', 'src/middleware/errorHandler.js'],
+      rules: {
+        'no-console': 'off', // Allow console in server startup and error handling
       },
     },
   ],

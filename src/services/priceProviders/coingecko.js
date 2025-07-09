@@ -43,7 +43,9 @@ class CoinGeckoProvider {
 
       const priceData = data[coinId];
       if (!priceData) {
-        throw new Error(`Price data not found for token ${symbol} (ID: ${coinId})`);
+        throw new Error(
+          `Price data not found for token ${symbol} (ID: ${coinId})`
+        );
       }
 
       return {
@@ -61,7 +63,9 @@ class CoinGeckoProvider {
       };
     } catch (error) {
       if (error.response) {
-        throw new Error(`CoinGecko API error: ${error.response.data?.error || error.message}`);
+        throw new Error(
+          `CoinGecko API error: ${error.response.data?.error || error.message}`
+        );
       } else if (error.request) {
         throw new Error(`CoinGecko network error: ${error.message}`);
       } else {
@@ -152,7 +156,9 @@ class CoinGeckoProvider {
       };
     } catch (error) {
       if (error.response) {
-        throw new Error(`CoinGecko API error: ${error.response.data?.error || error.message}`);
+        throw new Error(
+          `CoinGecko API error: ${error.response.data?.error || error.message}`
+        );
       } else if (error.request) {
         throw new Error(`CoinGecko network error: ${error.message}`);
       } else {
@@ -179,9 +185,12 @@ class CoinGeckoProvider {
       const response = await axios(config);
       const data = response.data;
 
-      const priceData = data.data?.attributes?.token_prices?.[address.toLowerCase()];
+      const priceData =
+        data.data?.attributes?.token_prices?.[address.toLowerCase()];
       if (!priceData) {
-        throw new Error(`Price data not found for token at address ${address} on ${chain}`);
+        throw new Error(
+          `Price data not found for token at address ${address} on ${chain}`
+        );
       }
 
       return {

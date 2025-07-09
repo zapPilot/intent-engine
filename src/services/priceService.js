@@ -1,7 +1,10 @@
 const CoinMarketCapProvider = require('./priceProviders/coinmarketcap');
 const CoinGeckoProvider = require('./priceProviders/coingecko');
 const RateLimitManager = require('./rateLimiting/rateLimitManager');
-const { getProvidersByPriority, getProviderConfig } = require('../config/priceConfig');
+const {
+  getProvidersByPriority,
+  getProviderConfig,
+} = require('../config/priceConfig');
 
 /**
  * Main Price Service with fallback logic and rate limiting
@@ -115,7 +118,7 @@ class PriceService {
 
       try {
         const result = await provider.getPrice(symbol, { timeout });
-        
+
         // Cache successful result
         if (useCache && result.success) {
           this.setCachedPrice(symbol, result);
@@ -127,7 +130,10 @@ class PriceService {
           providersAttempted: errors.length + 1,
         };
       } catch (error) {
-        console.error(`Error from provider ${providerName} for ${symbol}:`, error.message);
+        console.error(
+          `Error from provider ${providerName} for ${symbol}:`,
+          error.message
+        );
         errors.push({
           provider: providerName,
           error: error.message,
@@ -136,7 +142,9 @@ class PriceService {
     }
 
     // If all providers failed, throw error with details
-    throw new Error(`Failed to get price for ${symbol} from all providers: ${JSON.stringify(errors)}`);
+    throw new Error(
+      `Failed to get price for ${symbol} from all providers: ${JSON.stringify(errors)}`
+    );
   }
 
   /**
@@ -146,8 +154,8 @@ class PriceService {
    * @returns {Promise<Object>} - Bulk price response
    */
   async getBulkPrices(symbols, options = {}) {
-    const { useCache = true, timeout = 5000, parallelProviders = false } = options;
-    
+    const { useCache = true, timeout = 5000 } = options;
+
     const results = {};
     const errors = [];
     const remaining = new Set(symbols.map(s => s.toLowerCase()));
@@ -181,7 +189,9 @@ class PriceService {
 
     // Try each provider in priority order
     for (const providerName of providers) {
-      if (remaining.size === 0) break;
+      if (remaining.size === 0) {
+        break;
+      }
 
       const provider = this.providers[providerName];
       if (!provider || !provider.isAvailable()) {
@@ -201,7 +211,8 @@ class PriceService {
           timeout,
           useCache
         );
-        fromProviders += Object.keys(results).length - (symbols.length - remaining.size);
+        fromProviders +=
+          Object.keys(results).length - (symbols.length - remaining.size);
         continue;
       }
 
@@ -211,8 +222,10 @@ class PriceService {
       }
 
       try {
-        const bulkResult = await provider.getBulkPrices(Array.from(remaining), { timeout });
-        
+        const bulkResult = await provider.getBulkPrices(Array.from(remaining), {
+          timeout,
+        });
+
         // Process successful results
         for (const [symbol, priceData] of Object.entries(bulkResult.results)) {
           results[symbol] = {
@@ -232,9 +245,11 @@ class PriceService {
         if (bulkResult.errors) {
           errors.push(...bulkResult.errors);
         }
-
       } catch (error) {
-        console.error(`Bulk request error from provider ${providerName}:`, error.message);
+        console.error(
+          `Bulk request error from provider ${providerName}:`,
+          error.message
+        );
         // If bulk request fails, try individual requests as fallback
         await this.handleIndividualRequests(
           provider,
@@ -254,7 +269,9 @@ class PriceService {
       errors.push({
         symbol,
         error: 'Failed to get price from all providers',
-        providers: providers.filter(p => this.providers[p] && this.providers[p].isAvailable()),
+        providers: providers.filter(
+          p => this.providers[p] && this.providers[p].isAvailable()
+        ),
       });
     }
 
@@ -280,9 +297,20 @@ class PriceService {
    * @param {number} timeout - Request timeout
    * @param {boolean} useCache - Whether to use caching
    */
-  async handleIndividualRequests(provider, providerName, symbols, results, errors, remaining, timeout, useCache) {
+  async handleIndividualRequests(
+    provider,
+    providerName,
+    symbols,
+    results,
+    errors,
+    remaining,
+    timeout,
+    useCache
+  ) {
     for (const symbol of symbols) {
-      if (!remaining.has(symbol)) continue;
+      if (!remaining.has(symbol)) {
+        continue;
+      }
 
       // Check rate limit for each individual request
       if (!this.rateLimitManager.consumeTokens(providerName)) {

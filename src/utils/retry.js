@@ -19,13 +19,16 @@ function retryWithBackoff(fn, options = {}) {
   const operation = retry.operation(retryOptions);
 
   return new Promise((resolve, reject) => {
-    operation.attempt(async (currentAttempt) => {
+    operation.attempt(async currentAttempt => {
       try {
         const result = await fn();
         resolve(result);
       } catch (error) {
         if (operation.retry(error)) {
-          console.log(`Retry attempt ${currentAttempt} failed:`, error.message);
+          console.warn(
+            `Retry attempt ${currentAttempt} failed:`,
+            error.message
+          );
           return;
         }
         reject(operation.mainError());

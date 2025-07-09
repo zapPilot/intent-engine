@@ -6,17 +6,17 @@ const axios = require('axios');
 class ParaswapService {
   constructor() {
     this.baseURL = 'https://api.paraswap.io/swap';
-    
+
     // Chain ID to Paraswap proxy address mapping
     this.chainProxyMap = {
-      '1': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      '10': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      '56': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      '137': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      '1101': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      '8453': '0x93aAAe79a53759cD164340E4C8766E4Db5331cD7',
-      '42161': '0x216B4B4Ba9F3e719726886d34a177484278Bfcae',
-      '43114': '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      1: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      10: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      56: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      137: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      1101: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+      8453: '0x93aAAe79a53759cD164340E4C8766E4Db5331cD7',
+      42161: '0x216B4B4Ba9F3e719726886d34a177484278Bfcae',
+      43114: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
     };
   }
 
@@ -72,12 +72,10 @@ class ParaswapService {
       gasCostUSD: gasCostUSD,
       gas: data.priceRoute.gasCost,
       custom_slippage: customSlippage,
-      toUsd: (
-        parseInt(data.priceRoute.destAmount) * 
-        toTokenPrice / 
-        Math.pow(10, toTokenDecimals) - 
-        gasCostUSD
-      ),
+      toUsd:
+        (parseInt(data.priceRoute.destAmount) * toTokenPrice) /
+          Math.pow(10, toTokenDecimals) -
+        gasCostUSD,
     };
   }
 
@@ -88,7 +86,9 @@ class ParaswapService {
    * @returns {number} - Minimum amount
    */
   getMinToAmount(toAmount, slippage) {
-    return Math.floor(parseInt(toAmount) * (100 - parseFloat(slippage)) / 100);
+    return Math.floor(
+      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
+    );
   }
 }
 

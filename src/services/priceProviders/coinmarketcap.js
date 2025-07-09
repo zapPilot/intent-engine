@@ -23,7 +23,10 @@ class CoinMarketCapProvider {
       console.warn('COINMARKETCAP_API_KEY not configured');
       return [];
     }
-    return apiKeyString.split(',').map(key => key.trim()).filter(key => key);
+    return apiKeyString
+      .split(',')
+      .map(key => key.trim())
+      .filter(key => key);
   }
 
   /**
@@ -31,7 +34,9 @@ class CoinMarketCapProvider {
    * @returns {string|null} - Next API key or null if none available
    */
   getNextApiKey() {
-    if (this.apiKeys.length === 0) return null;
+    if (this.apiKeys.length === 0) {
+      return null;
+    }
     const key = this.apiKeys[this.currentKeyIndex];
     this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
     return key;
@@ -72,12 +77,16 @@ class CoinMarketCapProvider {
       const data = response.data;
 
       if (data.status.error_code !== 0) {
-        throw new Error(`CoinMarketCap API error: ${data.status.error_message}`);
+        throw new Error(
+          `CoinMarketCap API error: ${data.status.error_message}`
+        );
       }
 
       const priceData = data.data[tokenId]?.quote?.USD;
       if (!priceData) {
-        throw new Error(`Price data not found for token ${symbol} (ID: ${tokenId})`);
+        throw new Error(
+          `Price data not found for token ${symbol} (ID: ${tokenId})`
+        );
       }
 
       return {
@@ -96,7 +105,8 @@ class CoinMarketCapProvider {
     } catch (error) {
       if (error.response) {
         // API returned an error response
-        const errorMessage = error.response.data?.status?.error_message || error.message;
+        const errorMessage =
+          error.response.data?.status?.error_message || error.message;
         throw new Error(`CoinMarketCap API error: ${errorMessage}`);
       } else if (error.request) {
         // Network error
@@ -157,7 +167,9 @@ class CoinMarketCapProvider {
       const data = response.data;
 
       if (data.status.error_code !== 0) {
-        throw new Error(`CoinMarketCap API error: ${data.status.error_message}`);
+        throw new Error(
+          `CoinMarketCap API error: ${data.status.error_message}`
+        );
       }
 
       const results = {};
@@ -202,7 +214,8 @@ class CoinMarketCapProvider {
       };
     } catch (error) {
       if (error.response) {
-        const errorMessage = error.response.data?.status?.error_message || error.message;
+        const errorMessage =
+          error.response.data?.status?.error_message || error.message;
         throw new Error(`CoinMarketCap API error: ${errorMessage}`);
       } else if (error.request) {
         throw new Error(`CoinMarketCap network error: ${error.message}`);

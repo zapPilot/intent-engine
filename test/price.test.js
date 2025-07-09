@@ -27,9 +27,7 @@ describe('Price API Endpoints', () => {
     }, 10000);
 
     it('should return 400 for missing tokens parameter', async () => {
-      const response = await request(app)
-        .get('/tokens/prices')
-        .expect(400);
+      const response = await request(app).get('/tokens/prices').expect(400);
 
       expect(response.body.error).toBe('Validation failed');
       expect(response.body.details).toBeDefined();
@@ -97,9 +95,7 @@ describe('Price API Endpoints', () => {
 
   describe('GET /tokens/price/:symbol', () => {
     it('should return single token price', async () => {
-      const response = await request(app)
-        .get('/tokens/price/btc')
-        .expect(200);
+      const response = await request(app).get('/tokens/price/btc').expect(200);
 
       expect(response.body.success).toBe(true);
       expect(response.body.price).toBeDefined();
@@ -127,9 +123,7 @@ describe('Price API Endpoints', () => {
 
   describe('GET /tokens/providers', () => {
     it('should return list of supported price providers', async () => {
-      const response = await request(app)
-        .get('/tokens/providers')
-        .expect(200);
+      const response = await request(app).get('/tokens/providers').expect(200);
 
       expect(response.body.providers).toBeDefined();
       expect(Array.isArray(response.body.providers)).toBe(true);
