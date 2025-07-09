@@ -1,9 +1,9 @@
 const { body, query, validationResult } = require('express-validator');
 
 /**
- * Validation rules for swap data endpoint
+ * Validation rules for swap quote endpoint (aggregates all providers)
  */
-const swapDataValidation = [
+const swapQuoteValidation = [
   query('chainId')
     .notEmpty()
     .withMessage('chainId is required')
@@ -52,12 +52,6 @@ const swapDataValidation = [
     .isFloat({ min: 0, max: 100 })
     .withMessage('slippage must be a number between 0 and 100'),
   
-  query('provider')
-    .notEmpty()
-    .withMessage('provider is required')
-    .isIn(['1inch', 'paraswap', '0x'])
-    .withMessage('provider must be one of: 1inch, paraswap, 0x'),
-  
   query('eth_price')
     .optional()
     .isFloat({ min: 0 })
@@ -68,6 +62,18 @@ const swapDataValidation = [
     .withMessage('to_token_price is required')
     .isFloat({ min: 0 })
     .withMessage('to_token_price must be a positive number'),
+];
+
+/**
+ * Validation rules for swap data endpoint with specific provider
+ */
+const swapDataValidation = [
+  ...swapQuoteValidation,
+  query('provider')
+    .notEmpty()
+    .withMessage('provider is required')
+    .isIn(['1inch', 'paraswap', '0x'])
+    .withMessage('provider must be one of: 1inch, paraswap, 0x'),
 ];
 
 /**
@@ -100,6 +106,7 @@ const validateTokenAddresses = (req, res, next) => {
 };
 
 module.exports = {
+  swapQuoteValidation,
   swapDataValidation,
   handleValidationErrors,
   validateTokenAddresses,

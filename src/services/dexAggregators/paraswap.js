@@ -58,7 +58,6 @@ class ParaswapService {
         excludeDEXS: 'AugustusRFQ',
       },
     };
-
     const response = await axios.get(this.baseURL, requestConfig);
     const data = response.data;
 

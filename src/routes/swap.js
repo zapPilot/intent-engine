@@ -1,6 +1,7 @@
 const express = require('express');
 const SwapService = require('../services/swapService');
 const { 
+  swapQuoteValidation,
   swapDataValidation, 
   handleValidationErrors, 
   validateTokenAddresses 
@@ -10,12 +11,12 @@ const router = express.Router();
 const swapService = new SwapService();
 
 /**
- * GET /the_best_swap_data
- * Get the best swap data from specified DEX aggregator
+ * GET /swap/quote
+ * Get the best swap quote from all available DEX aggregators
  */
 router.get(
   '/swap/quote',
-  swapDataValidation,
+  swapQuoteValidation,
   handleValidationErrors,
   validateTokenAddresses,
   async (req, res, next) => {
@@ -29,7 +30,6 @@ router.get(
         amount,
         fromAddress,
         slippage,
-        provider,
         eth_price,
         to_token_price,
       } = req.query;
@@ -43,14 +43,13 @@ router.get(
         amount,
         fromAddress,
         slippage: parseFloat(slippage),
-        provider,
         eth_price,
         toTokenPrice: parseFloat(to_token_price),
       };
 
-      const swapData = await swapService.getBestSwapData(provider, swapParams);
+      const bestQuote = await swapService.getBestSwapQuote(swapParams);
       
-      res.json(swapData);
+      res.json(bestQuote);
     } catch (error) {
       next(error);
     }
