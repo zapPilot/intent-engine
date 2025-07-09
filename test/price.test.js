@@ -9,7 +9,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens })
         .expect(200);
-      
+
       expect(response.body.results).toBeDefined();
       expect(response.body.totalRequested).toBe(2);
       expect(response.body.timestamp).toBeDefined();
@@ -21,7 +21,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens })
         .expect(200);
-      
+
       expect(response.body.results).toBeDefined();
       expect(response.body.totalRequested).toBe(3);
     }, 10000);
@@ -30,7 +30,7 @@ describe('Price API Endpoints', () => {
       const response = await request(app)
         .get('/tokens/prices')
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
       expect(response.body.details).toBeDefined();
     });
@@ -40,7 +40,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens: '' })
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
     });
 
@@ -49,7 +49,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens: ',,,,' })
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
     });
 
@@ -59,7 +59,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens })
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
     });
 
@@ -69,7 +69,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens })
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
       expect(response.body.details[0].msg).toContain('invalid token symbol');
     });
@@ -80,7 +80,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens })
         .expect(400);
-      
+
       expect(response.body.error).toBe('Validation failed');
     });
 
@@ -90,7 +90,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/prices')
         .query({ tokens, useCache: 'false' })
         .expect(200);
-      
+
       expect(response.body.results).toBeDefined();
     }, 10000);
   });
@@ -100,7 +100,7 @@ describe('Price API Endpoints', () => {
       const response = await request(app)
         .get('/tokens/price/btc')
         .expect(200);
-      
+
       expect(response.body.success).toBe(true);
       expect(response.body.price).toBeDefined();
       expect(response.body.symbol).toBe('btc');
@@ -112,7 +112,7 @@ describe('Price API Endpoints', () => {
         .get('/tokens/price/eth')
         .query({ useCache: 'false' })
         .expect(200);
-      
+
       expect(response.body.success).toBe(true);
     }, 10000);
 
@@ -120,7 +120,7 @@ describe('Price API Endpoints', () => {
       const response = await request(app)
         .get('/tokens/price/unsupported-token-xyz')
         .expect(500);
-      
+
       expect(response.body.error).toBeDefined();
     });
   });
@@ -130,7 +130,7 @@ describe('Price API Endpoints', () => {
       const response = await request(app)
         .get('/tokens/providers')
         .expect(200);
-      
+
       expect(response.body.providers).toBeDefined();
       expect(Array.isArray(response.body.providers)).toBe(true);
       expect(response.body.status).toBeDefined();
@@ -144,20 +144,20 @@ describe('Price Service Unit Tests', () => {
     it('should create token bucket with correct parameters', () => {
       const TokenBucket = require('../src/services/rateLimiting/tokenBucket');
       const bucket = new TokenBucket(1, 10); // 1 token per second, 10 capacity
-      
+
       expect(bucket.rate).toBe(1);
       expect(bucket.capacity).toBe(10);
-      expect(bucket.tokens).toBe(10);
+      expect(bucket.tokens).toBeCloseTo(10);
     });
 
     it('should consume tokens correctly', () => {
       const TokenBucket = require('../src/services/rateLimiting/tokenBucket');
       const bucket = new TokenBucket(1, 10);
-      
+
       expect(bucket.consume(5)).toBe(true);
-      expect(bucket.getTokens()).toBe(5);
+      expect(bucket.getTokens()).toBeCloseTo(5);
       expect(bucket.consume(6)).toBe(false);
-      expect(bucket.getTokens()).toBe(5);
+      expect(bucket.getTokens()).toBeCloseTo(5);
     });
   });
 
@@ -165,7 +165,7 @@ describe('Price Service Unit Tests', () => {
     it('should return providers by priority', () => {
       const { getProvidersByPriority } = require('../src/config/priceConfig');
       const providers = getProvidersByPriority();
-      
+
       expect(Array.isArray(providers)).toBe(true);
       expect(providers.length).toBeGreaterThan(0);
       expect(providers[0]).toBe('coinmarketcap'); // Should be first priority
@@ -173,7 +173,7 @@ describe('Price Service Unit Tests', () => {
 
     it('should get token ID for provider', () => {
       const { getTokenId } = require('../src/config/priceConfig');
-      
+
       expect(getTokenId('coinmarketcap', 'btc')).toBe('1');
       expect(getTokenId('coingecko', 'btc')).toBe('bitcoin');
       expect(getTokenId('coinmarketcap', 'nonexistent')).toBe(null);

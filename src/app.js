@@ -18,11 +18,13 @@ app.use('/', swapRoutes);
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Swap API Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Supported providers: 1inch, paraswap, 0x`);
-});
+// Only start server if this file is run directly, not when imported
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Swap API Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Supported providers: 1inch, paraswap, 0x`);
+  });
+}
 
 module.exports = app;
