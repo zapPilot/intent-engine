@@ -21,10 +21,9 @@ function filterDustTokens(tokens, dustThreshold = 0.005) {
       }
 
       // Calculate USD value (convert from wei to decimal)
-      const amount = parseFloat(token.amount || 0) / 1e18;
+      const amount = parseFloat(token.amount || 0);
       const price = parseFloat(token.price);
       const value = amount * price;
-
       // Must be above dust threshold
       if (value <= dustThreshold) {
         return false;
@@ -52,7 +51,7 @@ function filterDustTokens(tokens, dustThreshold = 0.005) {
     })
     .map(token => ({
       ...token,
-      value: (parseFloat(token.amount) / 1e18) * parseFloat(token.price),
+      value: parseFloat(token.amount) * parseFloat(token.price),
     }))
     .sort((a, b) => b.value - a.value); // Sort by value descending
 }

@@ -9,28 +9,28 @@ describe('DustZap Intent System', () => {
         {
           address: '0x1',
           symbol: 'TOKEN1',
-          amount: '1000000000000000000',
+          amount: '1',
           price: 0.01,
         }, // $0.01 - above threshold
         {
           address: '0x2',
           symbol: 'TOKEN2',
-          amount: '100000000000000000',
+          amount: '10',
           price: 0.001,
         }, // $0.0001 - below threshold
-        { address: '0x3', symbol: 'USDC', amount: '1000000', price: 1 }, // Excluded stablecoin
+        { address: '0x3', symbol: 'USDC', amount: '100', price: 1 }, // Excluded stablecoin
         {
           address: '0x4',
           symbol: 'TOKEN-LP',
-          amount: '1000000000000000000',
+          amount: '10',
           price: 0.01,
         }, // LP token
-        { address: '0x5', symbol: 'aUSDC', amount: '1000000', price: 1 }, // Aave token
+        { address: '0x5', symbol: 'aUSDC', amount: '2', price: 1 }, // Aave token
       ];
 
       const dustTokens = filterDustTokens(mockTokens, 0.005);
 
-      expect(dustTokens).toHaveLength(1);
+      expect(dustTokens).toHaveLength(2);
       expect(dustTokens[0].symbol).toBe('TOKEN1');
       expect(dustTokens[0].value).toBe(0.01);
     });

@@ -21,7 +21,7 @@ class RebalanceBackendClient {
     try {
       const chainName = this.getChainName(chainId);
       const url = `${this.baseUrl}/user/${userAddress}/${chainName}/tokens`;
-
+      console.log('url', url);
       const response = await retryWithBackoff(
         () =>
           axios.get(url, {
@@ -38,11 +38,11 @@ class RebalanceBackendClient {
         }
       );
 
-      if (!response.data || !Array.isArray(response.data.tokens)) {
+      if (!response.data || !Array.isArray(response.data)) {
         throw new Error('Invalid response format from rebalance backend');
       }
 
-      return response.data.tokens;
+      return response.data;
     } catch (error) {
       console.error('Error fetching user token balances:', error.message);
 

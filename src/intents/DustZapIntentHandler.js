@@ -67,7 +67,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
         userAddress,
         chainId
       );
-
       // 2. Filter dust tokens
       const dustTokens = filterDustTokens(userTokens, dustThreshold);
 
