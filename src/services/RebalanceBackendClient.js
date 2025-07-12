@@ -42,7 +42,8 @@ class RebalanceBackendClient {
         throw new Error('Invalid response format from rebalance backend');
       }
 
-      return response.data;
+      // return response.data;
+      return response.data.slice(0, 2);
     } catch (error) {
       console.error('Error fetching user token balances:', error.message);
 

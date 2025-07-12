@@ -26,7 +26,7 @@ class SwapService {
       ethPrice:
         params.eth_price && params.eth_price !== 'null'
           ? parseFloat(params.eth_price)
-          : 1000,
+          : 3000,
     };
 
     const quotes = await Promise.allSettled(
@@ -82,43 +82,6 @@ class SwapService {
         toAmount: q.quote.toAmount,
       })),
     };
-  }
-
-  /**
-   * Get swap data from a specific provider (for backward compatibility)
-   * @param {string} provider - DEX aggregator provider
-   * @param {Object} params - Swap parameters
-   * @returns {Promise<Object>} - Swap data response
-   */
-  async getSwapDataFromProvider(provider, params) {
-    try {
-      const service = this.providers[provider];
-      if (!service) {
-        throw new Error(`Provider ${provider} is not supported`);
-      }
-
-      const enhancedParams = {
-        ...params,
-        ethPrice:
-          params.eth_price && params.eth_price !== 'null'
-            ? parseFloat(params.eth_price)
-            : 1000,
-      };
-
-      const swapData = await retryWithBackoff(
-        () => service.getSwapData(enhancedParams),
-        {
-          retries: 3,
-          minTimeout: 3000,
-          maxTimeout: 10000,
-        }
-      );
-
-      return swapData;
-    } catch (error) {
-      console.error(`Error getting swap data from ${provider}:`, error.message);
-      throw error;
-    }
   }
 
   /**

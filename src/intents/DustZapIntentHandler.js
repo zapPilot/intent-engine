@@ -85,17 +85,23 @@ class DustZapIntentHandler extends BaseIntentHandler {
       let totalValueUSD = 0;
 
       for (const batch of batches) {
-        await this.processBatch(batch, txBuilder, chainId, ethPrice);
+        await this.processBatch(
+          batch,
+          txBuilder,
+          chainId,
+          ethPrice,
+          userAddress
+        );
         totalValueUSD += calculateTotalValue(batch);
       }
 
-      // 6. Add platform fee transactions
-      await this.addFeeTransactions(
-        txBuilder,
-        totalValueUSD,
-        ethPrice,
-        referralAddress
-      );
+      // // 6. Add platform fee transactions
+      // await this.addFeeTransactions(
+      //   txBuilder,
+      //   totalValueUSD,
+      //   ethPrice,
+      //   referralAddress
+      // );
 
       // 7. Build response with metadata
       const transactions = txBuilder.getTransactions();
@@ -131,11 +137,24 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {number} chainId - Chain ID
    * @param {number} ethPrice - ETH price in USD
    */
-  async processBatch(batch, txBuilder, chainId, ethPrice) {
+  async processBatch(batch, txBuilder, chainId, ethPrice, userAddress) {
     for (const token of batch) {
       try {
         // Get best swap quote
-        const swapQuote = await this.getBestSwapQuote(token, chainId, ethPrice);
+        console.log('token', token);
+        const requestParam = {
+          chainId: chainId,
+          fromTokenAddress: token.id,
+          fromTokenDecimals: token.decimals,
+          toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+          amount: token.raw_amount,
+          fromAddress: userAddress,
+          slippage: 1, // 1% slippage
+          eth_price: ethPrice,
+          toTokenPrice: token.price,
+        };
+        console.log('requestParam', requestParam);
+        const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
 
         // Add approve transaction
         txBuilder.addApprove(
@@ -151,32 +170,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
         // Continue with other tokens (graceful degradation)
       }
     }
-  }
-
-  /**
-   * Get best swap quote for a token
-   * @param {Object} token - Token object
-   * @param {number} chainId - Chain ID
-   * @param {number} ethPrice - ETH price in USD
-   * @returns {Promise<Object>} - Best swap quote
-   */
-  async getBestSwapQuote(token, chainId, ethPrice) {
-    const swapParams = {
-      chain_id: chainId,
-      from_token_address: token.address,
-      to_token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-      amount: token.amount,
-      slippage_tolerance: 1, // 1% slippage
-      eth_price: ethPrice,
-    };
-
-    const result = await this.swapService.getBestSwapQuote(swapParams);
-
-    if (!result || !result.quote) {
-      throw new Error(`No swap quote available for ${token.symbol}`);
-    }
-
-    return result.quote;
   }
 
   /**
