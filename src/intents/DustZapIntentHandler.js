@@ -59,7 +59,13 @@ class DustZapIntentHandler extends BaseIntentHandler {
     this.validate(request);
 
     const { userAddress, chainId, params } = request;
-    const { dustThreshold = 0.005, referralAddress } = params;
+    const {
+      dustThreshold = 0.005,
+      referralAddress,
+      toTokenAddress,
+      toTokenDecimals,
+      slippage,
+    } = params;
 
     try {
       // 1. Get user token balances
@@ -90,7 +96,10 @@ class DustZapIntentHandler extends BaseIntentHandler {
           txBuilder,
           chainId,
           ethPrice,
-          userAddress
+          userAddress,
+          toTokenAddress,
+          toTokenDecimals,
+          slippage
         );
         totalValueUSD += calculateTotalValue(batch);
       }
@@ -137,16 +146,19 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {number} chainId - Chain ID
    * @param {number} ethPrice - ETH price in USD
    */
-  async processBatch(batch, txBuilder, chainId, ethPrice, userAddress) {
+  async processBatch(
+    batch,
+    txBuilder,
+    chainId,
+    ethPrice,
+    userAddress,
+    toTokenAddress,
+    toTokenDecimals,
+    slippage
+  ) {
     for (const token of batch) {
       try {
         // Get best swap quote
-        console.log(
-          'token',
-          token,
-          token.id,
-          '=========================================='
-        );
         // const requestParam = {
         //   chainId: chainId,
         //   fromTokenAddress: token.id,
@@ -160,24 +172,22 @@ class DustZapIntentHandler extends BaseIntentHandler {
         // };
         const requestParam = {
           chainId: chainId,
-          fromTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-          fromTokenDecimals: 6,
-          toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-          toTokenDecimals: 18,
-          amount: '100000000',
-          fromAddress: '0x43cd745Bd5FbFc8CfD79ebC855f949abc79a1E0C',
-          slippage: 1,
-          eth_price: undefined,
+          fromTokenAddress: token.id,
+          fromTokenDecimals: token.decimals,
+          toTokenAddress: toTokenAddress,
+          toTokenDecimals: toTokenDecimals,
+          amount: token.raw_amount,
+          fromAddress: userAddress,
+          slippage: slippage, // unit is percentage
+          eth_price: ethPrice,
           toTokenPrice: 2600,
         };
-        console.log('requestParam', requestParam);
         const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
-        console.log('successfully get quote!!!!!!!!!!!!!!!!!!!!!!!');
         // Add approve transaction
         txBuilder.addApprove(
           token.id,
           swapQuote.to, // Router address
-          token.amount
+          token.raw_amount
         );
 
         // Add swap transaction
