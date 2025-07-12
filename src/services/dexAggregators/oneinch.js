@@ -43,7 +43,6 @@ class OneInchService {
     ];
 
     const apiUrl = `${this.baseURL}/v5.2/${chainId}/swap`;
-    console.log('apiUrl', apiUrl);
     const requestConfig = {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -58,7 +57,6 @@ class OneInchService {
         'liquidity-sources': excludedProtocols.join(','),
       },
     };
-    console.log('1inch requestConfig==================', requestConfig);
     const response = await axios.get(apiUrl, requestConfig);
     const data = response.data;
 

@@ -6,7 +6,7 @@
  * Valid test addresses for consistent testing
  */
 const TEST_ADDRESSES = {
-  VALID_USER: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+  VALID_USER: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
   VALID_TOKEN: '0xA0b86a33E6441c8d59fb4b4df95c4FfAfFd46037',
   INVALID_ADDRESS: '0xinvalid',
 };

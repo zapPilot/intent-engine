@@ -19,17 +19,14 @@ class TransactionBuilder {
       );
     }
 
-    if (!data) {
-      throw new Error('Invalid transaction: data field is required');
-    }
-
-    this.transactions.push({
+    const tx = {
       to,
       value: value.toString(),
-      data,
       description: description || 'Transaction',
       gasLimit: gasLimit || '21000',
-    });
+      ...(data && { data }), // Only adds 'data' if it is truthy (not undefined/null/empty string)
+    };
+    this.transactions.push(tx);
 
     return this;
   }
@@ -81,7 +78,6 @@ class TransactionBuilder {
     return this.addTransaction({
       to: recipient,
       value: amount.toString(),
-      data: '0x',
       description: description || 'ETH transfer',
       gasLimit: '21000',
     });

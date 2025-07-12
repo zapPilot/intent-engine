@@ -48,7 +48,6 @@ router.get(
         eth_price,
         toTokenPrice: parseFloat(to_token_price),
       };
-      console.log('swapParams', swapParams);
 
       const bestQuote = await swapService.getBestSwapQuote(swapParams);
 

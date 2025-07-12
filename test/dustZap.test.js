@@ -123,7 +123,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/dustZap')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 'invalid',
             params: {},
           })
@@ -137,7 +137,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/dustZap')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
           })
           .expect(400);
@@ -152,7 +152,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
             params: {},
           })
@@ -169,7 +169,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
             params: {
               fromToken: '0xa0b86a33e6441c8d59fb4b4df95c4ffaffd46037',
@@ -187,7 +187,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapOut')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
             params: {},
           })
@@ -204,7 +204,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapOut')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
             params: {
               vault: 'stablecoin-vault',
@@ -222,7 +222,7 @@ describe('DustZap Intent System', () => {
         const response = await request(app)
           .post('/api/v1/intents/rebalance')
           .send({
-            userAddress: '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0',
+            userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             chainId: 1,
             params: {},
           })
@@ -299,7 +299,7 @@ describe('DustZap Intent System', () => {
         '0x1111111111111111111111111111111111111111'
       );
       expect(transactions[1].value).toBe('100000000000000000');
-      expect(transactions[1].data).toBe('0x');
+      expect(transactions[1].data).toBe(undefined);
     });
 
     test('should calculate total gas correctly', () => {

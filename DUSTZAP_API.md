@@ -14,7 +14,7 @@ POST /api/v1/intents/dustZap
 
 ```json
 {
-  "userAddress": "0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0",
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
   "chainId": 1,
   "params": {
     "dustThreshold": 0.005,
@@ -63,7 +63,7 @@ POST /api/v1/intents/dustZap
       "gasLimit": "21000"
     },
     {
-      "to": "0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0",
+      "to": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
       "value": "430000000000000",
       "data": "0x",
       "description": "Treasury fee (30%)",

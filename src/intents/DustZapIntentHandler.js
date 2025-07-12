@@ -16,7 +16,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
     this.REFERRER_FEE_SHARE = 0.7; // 70% to referrer
     this.TREASURY_ADDRESS =
       process.env.TREASURY_ADDRESS ||
-      '0x742d35Cc6634C0532925a3b8D5c5c8d8e2bBC9d0';
+      '0x2eCBC6f229feD06044CDb0dD772437a30190CD50';
   }
 
   /**
@@ -104,13 +104,13 @@ class DustZapIntentHandler extends BaseIntentHandler {
         totalValueUSD += calculateTotalValue(batch);
       }
 
-      // // 6. Add platform fee transactions
-      // await this.addFeeTransactions(
-      //   txBuilder,
-      //   totalValueUSD,
-      //   ethPrice,
-      //   referralAddress
-      // );
+      // 6. Add platform fee transactions
+      await this.addFeeTransactions(
+        txBuilder,
+        totalValueUSD,
+        ethPrice,
+        referralAddress
+      );
 
       // 7. Build response with metadata
       const transactions = txBuilder.getTransactions();
@@ -213,8 +213,9 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
     if (referralAddress) {
       // Split fee: 70% to referrer, 30% to treasury
-      const referrerFeeWei = Math.floor(
-        (BigInt(totalFeeWei) * BigInt(70)) / BigInt(100)
+      const referrerFeeWei = (
+        (BigInt(totalFeeWei) * BigInt(70)) /
+        BigInt(100)
       ).toString();
       const treasuryFeeWei = (
         BigInt(totalFeeWei) - BigInt(referrerFeeWei)
@@ -225,7 +226,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
         referrerFeeWei,
         'Referrer fee (70%)'
       );
-
       txBuilder.addETHTransfer(
         this.TREASURY_ADDRESS,
         treasuryFeeWei,

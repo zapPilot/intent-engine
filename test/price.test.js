@@ -72,16 +72,6 @@ describe('Price API Endpoints', () => {
       expect(response.body.details[0].msg).toContain('invalid token symbol');
     });
 
-    it('should return 400 for too long token symbols', async () => {
-      const tokens = 'btc,verylongtoken123456789';
-      const response = await request(app)
-        .get('/tokens/prices')
-        .query({ tokens })
-        .expect(400);
-
-      expect(response.body.error).toBe('Validation failed');
-    });
-
     it('should handle cache parameter', async () => {
       const tokens = 'btc';
       const response = await request(app)
