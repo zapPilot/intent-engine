@@ -53,7 +53,9 @@ function retryWithBackoff(fn, options = {}, shouldRetryFn = null) {
 
 /**
  * Provider-specific retry strategies
+ * Note: Console logs are intentionally used for retry debugging/monitoring
  */
+/* eslint-disable no-console */
 const RetryStrategies = {
   /**
    * 1inch retry strategy
@@ -62,7 +64,7 @@ const RetryStrategies = {
    * @param {Object} options - Retry options
    * @returns {boolean} - Whether to retry
    */
-  oneInch: (error, attempt, options) => {
+  oneInch: (error, _attempt, _options) => {
     // Don't retry on these conditions
     if (error.response) {
       const { status, data } = error.response;
@@ -112,7 +114,7 @@ const RetryStrategies = {
    * @param {Object} options - Retry options
    * @returns {boolean} - Whether to retry
    */
-  paraswap: (error, attempt, options) => {
+  paraswap: (error, _attempt, _options) => {
     if (error.response) {
       const { status, data } = error.response;
 
@@ -160,7 +162,7 @@ const RetryStrategies = {
    * @param {Object} options - Retry options
    * @returns {boolean} - Whether to retry
    */
-  zeroX: (error, attempt, options) => {
+  zeroX: (error, _attempt, _options) => {
     if (error.response) {
       const { status, data } = error.response;
 
