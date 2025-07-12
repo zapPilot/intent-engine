@@ -1,6 +1,7 @@
 /**
  * Transaction Builder - Composes batch transactions for intent execution
  */
+const { isAddress } = require('ethers');
 class TransactionBuilder {
   constructor() {
     this.transactions = [];
@@ -12,8 +13,7 @@ class TransactionBuilder {
    */
   addTransaction(transaction) {
     const { to, value = '0', data, description, gasLimit } = transaction;
-
-    if (!to || !/^0x[a-fA-F0-9]{40}$/.test(to)) {
+    if (!to || !isAddress(to)) {
       throw new Error(
         'Invalid transaction: to address must be valid Ethereum address'
       );

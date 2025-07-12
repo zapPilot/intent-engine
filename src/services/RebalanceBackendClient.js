@@ -21,7 +21,6 @@ class RebalanceBackendClient {
     try {
       const chainName = this.getChainName(chainId);
       const url = `${this.baseUrl}/user/${userAddress}/${chainName}/tokens`;
-      console.log('url', url);
       const response = await retryWithBackoff(
         () =>
           axios.get(url, {
@@ -43,7 +42,7 @@ class RebalanceBackendClient {
       }
 
       // return response.data;
-      return response.data.slice(0, 2);
+      return response.data.slice(1, 3);
     } catch (error) {
       console.error('Error fetching user token balances:', error.message);
 

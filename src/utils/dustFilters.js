@@ -12,7 +12,6 @@ function filterDustTokens(tokens, dustThreshold = 0.005) {
   if (!Array.isArray(tokens)) {
     return [];
   }
-
   return tokens
     .filter(token => {
       // Must have valid price data

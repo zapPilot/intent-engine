@@ -141,24 +141,41 @@ class DustZapIntentHandler extends BaseIntentHandler {
     for (const token of batch) {
       try {
         // Get best swap quote
-        console.log('token', token);
+        console.log(
+          'token',
+          token,
+          token.id,
+          '=========================================='
+        );
+        // const requestParam = {
+        //   chainId: chainId,
+        //   fromTokenAddress: token.id,
+        //   fromTokenDecimals: token.decimals,
+        //   toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+        //   amount: token.raw_amount,
+        //   fromAddress: userAddress,
+        //   slippage: 1, // 1% slippage
+        //   eth_price: ethPrice,
+        //   toTokenPrice: token.price,
+        // };
         const requestParam = {
           chainId: chainId,
-          fromTokenAddress: token.id,
-          fromTokenDecimals: token.decimals,
-          toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-          amount: token.raw_amount,
-          fromAddress: userAddress,
-          slippage: 1, // 1% slippage
-          eth_price: ethPrice,
-          toTokenPrice: token.price,
+          fromTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          fromTokenDecimals: 6,
+          toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          toTokenDecimals: 18,
+          amount: '100000000',
+          fromAddress: '0x43cd745Bd5FbFc8CfD79ebC855f949abc79a1E0C',
+          slippage: 1,
+          eth_price: undefined,
+          toTokenPrice: 2600,
         };
         console.log('requestParam', requestParam);
         const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
-
+        console.log('successfully get quote!!!!!!!!!!!!!!!!!!!!!!!');
         // Add approve transaction
         txBuilder.addApprove(
-          token.address,
+          token.id,
           swapQuote.to, // Router address
           token.amount
         );
