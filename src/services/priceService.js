@@ -48,7 +48,6 @@ class PriceService {
     const cacheKey = symbol.toLowerCase();
     const cached = this.cache.get(cacheKey);
     const timeout = this.cacheTimeouts.get(cacheKey);
-
     if (cached && timeout && Date.now() < timeout) {
       return cached;
     }
@@ -118,7 +117,7 @@ class PriceService {
 
       try {
         const result = await provider.getPrice(symbol, { timeout });
-
+        console.log('result', result, '===================================');
         // Cache successful result
         if (useCache && result.success) {
           this.setCachedPrice(symbol, result);
@@ -225,7 +224,6 @@ class PriceService {
         const bulkResult = await provider.getBulkPrices(Array.from(remaining), {
           timeout,
         });
-
         // Process successful results
         for (const [symbol, priceData] of Object.entries(bulkResult.results)) {
           results[symbol] = {

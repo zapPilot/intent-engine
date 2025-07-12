@@ -92,6 +92,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
           txBuilder,
           chainId,
           ethPrice,
+          ethPrice,
           userAddress,
           toTokenAddress,
           toTokenDecimals,
@@ -147,6 +148,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
     txBuilder,
     chainId,
     ethPrice,
+    toTokenPrice,
     userAddress,
     toTokenAddress,
     toTokenDecimals,
@@ -155,17 +157,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
     for (const token of batch) {
       try {
         // Get best swap quote
-        // const requestParam = {
-        //   chainId: chainId,
-        //   fromTokenAddress: token.id,
-        //   fromTokenDecimals: token.decimals,
-        //   toTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-        //   amount: token.raw_amount,
-        //   fromAddress: userAddress,
-        //   slippage: 1, // 1% slippage
-        //   eth_price: ethPrice,
-        //   toTokenPrice: token.price,
-        // };
         const requestParam = {
           chainId: chainId,
           fromTokenAddress: token.id,
@@ -176,7 +167,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
           fromAddress: userAddress,
           slippage: slippage, // unit is percentage
           eth_price: ethPrice,
-          toTokenPrice: 2600,
+          toTokenPrice: toTokenPrice,
         };
         const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
         // Add approve transaction
@@ -243,13 +234,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @returns {Promise<number>} - ETH price in USD
    */
   async getETHPrice() {
-    try {
-      const prices = await this.priceService.getTokenPrices(['ethereum']);
-      return prices.ethereum?.usd || 3000; // Fallback to $3000
-    } catch (error) {
-      console.warn('Failed to get ETH price, using fallback:', error.message);
-      return 3000; // Fallback price
-    }
+    const priceObj = await this.priceService.getPrice('eth');
+    return priceObj.price;
   }
 
   /**
