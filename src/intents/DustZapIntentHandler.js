@@ -59,6 +59,27 @@ class DustZapIntentHandler extends BaseIntentHandler {
   async execute(request) {
     this.validate(request);
 
+    try {
+      // 1. Prepare execution context with all required data
+      const executionContext = await this.prepareExecutionContext(request);
+
+      // 2. Process all batches and generate transactions
+      const processedData = await this.processAllBatches(executionContext);
+
+      // 3. Build and return response with metadata
+      return this.buildResponse(executionContext, processedData);
+    } catch (error) {
+      console.error('DustZap execution error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Prepare execution context with all required data
+   * @param {Object} request - Intent request
+   * @returns {Promise<Object>} - Execution context object
+   */
+  async prepareExecutionContext(request) {
     const { userAddress, chainId, params } = request;
     const {
       dustThreshold = DUST_ZAP_CONFIG.DEFAULT_DUST_THRESHOLD,
@@ -68,80 +89,118 @@ class DustZapIntentHandler extends BaseIntentHandler {
       slippage,
     } = params;
 
-    try {
-      // 1. Get user token balances
-      const userTokens = await this.rebalanceClient.getUserTokenBalances(
-        userAddress,
-        chainId
-      );
-      // 2. Filter dust tokens
-      const dustTokens = filterDustTokens(userTokens, dustThreshold);
+    // 1. Get user token balances
+    const userTokens = await this.rebalanceClient.getUserTokenBalances(
+      userAddress,
+      chainId
+    );
 
-      if (dustTokens.length === 0) {
-        throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
-      }
-
-      // 3. Get ETH price for fee calculations
-      const ethPrice = await this.getETHPrice();
-
-      // 4. Group tokens into batches
-      const batches = groupIntoBatches(
-        dustTokens,
-        DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
-      );
-
-      // 5. Generate transactions for all batches
-      const txBuilder = new TransactionBuilder();
-      let totalValueUSD = 0;
-
-      for (const batch of batches) {
-        await this.processBatch(
-          batch,
-          txBuilder,
-          chainId,
-          ethPrice,
-          ethPrice,
-          userAddress,
-          toTokenAddress,
-          toTokenDecimals,
-          slippage
-        );
-        totalValueUSD += calculateTotalValue(batch);
-      }
-
-      // 6. Add platform fee transactions
-      await this.addFeeTransactions(
-        txBuilder,
-        totalValueUSD,
-        ethPrice,
-        referralAddress
-      );
-
-      // 7. Build response with metadata
-      const transactions = txBuilder.getTransactions();
-      const batchInfo = this.buildBatchInfo(batches);
-
-      return {
-        success: true,
-        intentType: 'dustZap',
-        transactions,
-        metadata: {
-          totalTokens: dustTokens.length,
-          batchInfo,
-          feeInfo: this.buildFeeInfo(
-            transactions,
-            totalValueUSD,
-            ethPrice,
-            referralAddress
-          ),
-          estimatedTotalGas: txBuilder.getTotalGas(),
-          dustThreshold,
-        },
-      };
-    } catch (error) {
-      console.error('DustZap execution error:', error);
-      throw error;
+    // 2. Filter dust tokens
+    const dustTokens = filterDustTokens(userTokens, dustThreshold);
+    if (dustTokens.length === 0) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
     }
+
+    // 3. Get ETH price for fee calculations
+    const ethPrice = await this.getETHPrice();
+
+    // 4. Group tokens into batches
+    const batches = groupIntoBatches(
+      dustTokens,
+      DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
+    );
+
+    return {
+      userAddress,
+      chainId,
+      params: {
+        dustThreshold,
+        referralAddress,
+        toTokenAddress,
+        toTokenDecimals,
+        slippage,
+      },
+      dustTokens,
+      ethPrice,
+      batches,
+    };
+  }
+
+  /**
+   * Process all batches and generate transactions
+   * @param {Object} executionContext - Execution context
+   * @returns {Promise<Object>} - Processed data with transactions and totals
+   */
+  async processAllBatches(executionContext) {
+    const { batches, chainId, ethPrice, userAddress, params } =
+      executionContext;
+    const { toTokenAddress, toTokenDecimals, slippage, referralAddress } =
+      params;
+
+    const txBuilder = new TransactionBuilder();
+    let totalValueUSD = 0;
+
+    // Process each batch of dust tokens
+    for (const batch of batches) {
+      await this.processBatch(
+        batch,
+        txBuilder,
+        chainId,
+        ethPrice,
+        ethPrice,
+        userAddress,
+        toTokenAddress,
+        toTokenDecimals,
+        slippage
+      );
+      totalValueUSD += calculateTotalValue(batch);
+    }
+
+    // Add platform fee transactions
+    await this.addFeeTransactions(
+      txBuilder,
+      totalValueUSD,
+      ethPrice,
+      referralAddress
+    );
+
+    return {
+      txBuilder,
+      totalValueUSD,
+    };
+  }
+
+  /**
+   * Build response with metadata
+   * @param {Object} executionContext - Execution context
+   * @param {Object} processedData - Processed transaction data
+   * @returns {Object} - Complete intent response
+   */
+  buildResponse(executionContext, processedData) {
+    const { dustTokens, batches, ethPrice, params } = executionContext;
+    const { txBuilder, totalValueUSD } = processedData;
+    const { dustThreshold, referralAddress } = params;
+
+    const transactions = txBuilder.getTransactions();
+    const batchInfo = this.buildBatchInfo(batches);
+
+    return {
+      success: true,
+      intentType: 'dustZap',
+      transactions,
+      metadata: {
+        totalTokens: dustTokens.length,
+        batchInfo,
+        feeInfo: this.buildFeeInfo(
+          transactions,
+          totalValueUSD,
+          ethPrice,
+          referralAddress
+        ),
+        estimatedTotalGas: txBuilder.getTotalGas(),
+        dustThreshold,
+      },
+    };
   }
 
   /**
