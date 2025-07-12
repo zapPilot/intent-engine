@@ -1,7 +1,7 @@
 const OneInchService = require('./dexAggregators/oneinch');
 const ParaswapService = require('./dexAggregators/paraswap');
 const ZeroXService = require('./dexAggregators/zerox');
-const { retryWithBackoff } = require('../utils/retry');
+const { retryWithBackoff, RetryStrategies } = require('../utils/retry');
 
 /**
  * Main Swap Service that orchestrates all DEX aggregators
@@ -32,13 +32,17 @@ class SwapService {
     const quotes = await Promise.allSettled(
       Object.entries(this.providers).map(async ([providerName, service]) => {
         try {
+          // Get provider-specific retry strategy
+          const retryStrategy = this.getRetryStrategy(providerName);
+
           const quote = await retryWithBackoff(
             () => service.getSwapData(enhancedParams),
             {
               retries: 2,
               minTimeout: 1000,
               maxTimeout: 5000,
-            }
+            },
+            retryStrategy
           );
           return {
             provider: providerName,
@@ -99,6 +103,21 @@ class SwapService {
    */
   isProviderSupported(provider) {
     return Object.prototype.hasOwnProperty.call(this.providers, provider);
+  }
+
+  /**
+   * Get provider-specific retry strategy
+   * @param {string} providerName - Name of the provider
+   * @returns {Function|null} - Retry strategy function or null for default behavior
+   */
+  getRetryStrategy(providerName) {
+    const strategyMap = {
+      '1inch': RetryStrategies.oneInch,
+      paraswap: RetryStrategies.paraswap,
+      '0x': RetryStrategies.zeroX,
+    };
+
+    return strategyMap[providerName] || null;
   }
 }
 
