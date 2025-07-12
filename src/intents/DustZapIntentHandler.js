@@ -1,6 +1,7 @@
 const BaseIntentHandler = require('./BaseIntentHandler');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const feeConfig = require('../config/feeConfig');
+const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
 const {
   filterDustTokens,
   groupIntoBatches,
@@ -24,25 +25,29 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
     const { params } = request;
     if (!params) {
-      throw new Error('Missing params object');
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_PARAMS);
     }
 
     const { dustThreshold, targetToken, referralAddress } = params;
 
     if (dustThreshold !== undefined) {
       if (typeof dustThreshold !== 'number' || dustThreshold < 0) {
-        throw new Error('dustThreshold must be a non-negative number');
+        throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_DUST_THRESHOLD);
       }
     }
 
-    if (targetToken && targetToken !== 'ETH') {
-      throw new Error('Only ETH target token is currently supported');
+    if (
+      targetToken &&
+      !DUST_ZAP_CONFIG.SUPPORTED_TARGET_TOKENS.includes(targetToken)
+    ) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.UNSUPPORTED_TARGET_TOKEN);
     }
 
-    if (referralAddress && !/^0x[a-fA-F0-9]{40}$/.test(referralAddress)) {
-      throw new Error(
-        'Invalid referralAddress: must be a valid Ethereum address'
-      );
+    if (
+      referralAddress &&
+      !DUST_ZAP_CONFIG.VALIDATION.ETH_ADDRESS_PATTERN.test(referralAddress)
+    ) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_REFERRAL_ADDRESS);
     }
   }
 
@@ -56,7 +61,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
     const { userAddress, chainId, params } = request;
     const {
-      dustThreshold = 0.005,
+      dustThreshold = DUST_ZAP_CONFIG.DEFAULT_DUST_THRESHOLD,
       referralAddress,
       toTokenAddress,
       toTokenDecimals,
@@ -73,14 +78,17 @@ class DustZapIntentHandler extends BaseIntentHandler {
       const dustTokens = filterDustTokens(userTokens, dustThreshold);
 
       if (dustTokens.length === 0) {
-        throw new Error('No dust tokens found above threshold');
+        throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
       }
 
       // 3. Get ETH price for fee calculations
       const ethPrice = await this.getETHPrice();
 
       // 4. Group tokens into batches
-      const batches = groupIntoBatches(dustTokens, 10);
+      const batches = groupIntoBatches(
+        dustTokens,
+        DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
+      );
 
       // 5. Generate transactions for all batches
       const txBuilder = new TransactionBuilder();
@@ -196,14 +204,21 @@ class DustZapIntentHandler extends BaseIntentHandler {
   addFeeTransactions(txBuilder, totalValueUSD, ethPrice, referralAddress) {
     const feeInfo = feeConfig.calculateFees(totalValueUSD);
     const totalFeeETH = feeInfo.totalFeeUSD / ethPrice;
-    const totalFeeWei = Math.floor(totalFeeETH * 1e18).toString();
+    const totalFeeWei = Math.floor(
+      totalFeeETH * DUST_ZAP_CONFIG.WEI_FACTOR
+    ).toString();
 
     if (referralAddress) {
       // Split fee: referrer share to referrer, remainder to treasury
       const referrerFeeWei = (
         (BigInt(totalFeeWei) *
-          BigInt(Math.floor(feeConfig.referrerFeeShare * 100))) /
-        BigInt(100)
+          BigInt(
+            Math.floor(
+              feeConfig.referrerFeeShare *
+                DUST_ZAP_CONFIG.FEE_PERCENTAGE_PRECISION
+            )
+          )) /
+        BigInt(DUST_ZAP_CONFIG.FEE_PERCENTAGE_PRECISION)
       ).toString();
       const treasuryFeeWei = (
         BigInt(totalFeeWei) - BigInt(referrerFeeWei)
@@ -248,7 +263,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
     const batchInfo = [];
 
     for (const batch of batches) {
-      const transactionCount = batch.length * 2; // approve + swap per token
+      const transactionCount =
+        batch.length * DUST_ZAP_CONFIG.TRANSACTIONS_PER_TOKEN; // approve + swap per token
       batchInfo.push({
         startIndex: currentIndex,
         endIndex: currentIndex + transactionCount - 1,
@@ -277,11 +293,20 @@ class DustZapIntentHandler extends BaseIntentHandler {
       endIndex: transactions.length - 1,
       totalFeeUsd: feeInfo.totalFeeUSD,
       referrerFeeEth: referralAddress
-        ? ((feeInfo.referrerFeeUSD / ethPrice) * 1e18).toString()
+        ? (
+            (feeInfo.referrerFeeUSD / ethPrice) *
+            DUST_ZAP_CONFIG.WEI_FACTOR
+          ).toString()
         : '0',
       treasuryFeeEth: referralAddress
-        ? ((feeInfo.treasuryFeeUSD / ethPrice) * 1e18).toString()
-        : ((feeInfo.totalFeeUSD / ethPrice) * 1e18).toString(),
+        ? (
+            (feeInfo.treasuryFeeUSD / ethPrice) *
+            DUST_ZAP_CONFIG.WEI_FACTOR
+          ).toString()
+        : (
+            (feeInfo.totalFeeUSD / ethPrice) *
+            DUST_ZAP_CONFIG.WEI_FACTOR
+          ).toString(),
     };
   }
 }
