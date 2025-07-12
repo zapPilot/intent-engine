@@ -1,5 +1,6 @@
 const BaseIntentHandler = require('./BaseIntentHandler');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
+const feeConfig = require('../config/feeConfig');
 const {
   filterDustTokens,
   groupIntoBatches,
@@ -12,11 +13,6 @@ const {
 class DustZapIntentHandler extends BaseIntentHandler {
   constructor(swapService, priceService, rebalanceClient) {
     super(swapService, priceService, rebalanceClient);
-    this.PLATFORM_FEE_RATE = 0.0001; // 0.01%
-    this.REFERRER_FEE_SHARE = 0.7; // 70% to referrer
-    this.TREASURY_ADDRESS =
-      process.env.TREASURY_ADDRESS ||
-      '0x2eCBC6f229feD06044CDb0dD772437a30190CD50';
   }
 
   /**
@@ -207,15 +203,15 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {string} referralAddress - Optional referral address
    */
   addFeeTransactions(txBuilder, totalValueUSD, ethPrice, referralAddress) {
-    const totalFeeUSD = totalValueUSD * this.PLATFORM_FEE_RATE;
-    const totalFeeETH = totalFeeUSD / ethPrice;
+    const feeInfo = feeConfig.calculateFees(totalValueUSD);
+    const totalFeeETH = feeInfo.totalFeeUSD / ethPrice;
     const totalFeeWei = Math.floor(totalFeeETH * 1e18).toString();
 
     if (referralAddress) {
-      // Split fee: 70% to referrer, 30% to treasury
+      // Split fee: referrer share to referrer, remainder to treasury
       const referrerFeeWei = (
         (BigInt(totalFeeWei) *
-          BigInt(Math.floor(this.REFERRER_FEE_SHARE * 100))) /
+          BigInt(Math.floor(feeConfig.referrerFeeShare * 100))) /
         BigInt(100)
       ).toString();
       const treasuryFeeWei = (
@@ -225,17 +221,17 @@ class DustZapIntentHandler extends BaseIntentHandler {
       txBuilder.addETHTransfer(
         referralAddress,
         referrerFeeWei,
-        `Referrer fee (${this.REFERRER_FEE_SHARE * 100}%)`
+        `Referrer fee (${feeInfo.referrerFeePercentage}%)`
       );
       txBuilder.addETHTransfer(
-        this.TREASURY_ADDRESS,
+        feeConfig.treasuryAddress,
         treasuryFeeWei,
-        `Treasury fee (${100 - this.REFERRER_FEE_SHARE * 100}%)`
+        `Treasury fee (${feeInfo.treasuryFeePercentage}%)`
       );
     } else {
       // All fee to treasury
       txBuilder.addETHTransfer(
-        this.TREASURY_ADDRESS,
+        feeConfig.treasuryAddress,
         totalFeeWei,
         'Platform fee (100%)'
       );
@@ -287,25 +283,19 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @returns {Object} - Fee info object
    */
   buildFeeInfo(transactions, totalValueUSD, ethPrice, referralAddress) {
-    const totalFeeUSD = totalValueUSD * this.PLATFORM_FEE_RATE;
+    const feeInfo = feeConfig.calculateFees(totalValueUSD);
     const feeTransactionCount = referralAddress ? 2 : 1;
 
     return {
       startIndex: transactions.length - feeTransactionCount,
       endIndex: transactions.length - 1,
-      totalFeeUsd: totalFeeUSD,
+      totalFeeUsd: feeInfo.totalFeeUSD,
       referrerFeeEth: referralAddress
-        ? (
-            ((totalFeeUSD * this.REFERRER_FEE_SHARE) / ethPrice) *
-            1e18
-          ).toString()
+        ? ((feeInfo.referrerFeeUSD / ethPrice) * 1e18).toString()
         : '0',
       treasuryFeeEth: referralAddress
-        ? (
-            ((totalFeeUSD * (1 - this.REFERRER_FEE_SHARE)) / ethPrice) *
-            1e18
-          ).toString()
-        : ((totalFeeUSD / ethPrice) * 1e18).toString(),
+        ? ((feeInfo.treasuryFeeUSD / ethPrice) * 1e18).toString()
+        : ((feeInfo.totalFeeUSD / ethPrice) * 1e18).toString(),
     };
   }
 }
