@@ -214,7 +214,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
     if (referralAddress) {
       // Split fee: 70% to referrer, 30% to treasury
       const referrerFeeWei = (
-        (BigInt(totalFeeWei) * BigInt(70)) /
+        (BigInt(totalFeeWei) *
+          BigInt(Math.floor(this.REFERRER_FEE_SHARE * 100))) /
         BigInt(100)
       ).toString();
       const treasuryFeeWei = (
@@ -224,12 +225,12 @@ class DustZapIntentHandler extends BaseIntentHandler {
       txBuilder.addETHTransfer(
         referralAddress,
         referrerFeeWei,
-        'Referrer fee (70%)'
+        `Referrer fee (${this.REFERRER_FEE_SHARE * 100}%)`
       );
       txBuilder.addETHTransfer(
         this.TREASURY_ADDRESS,
         treasuryFeeWei,
-        'Treasury fee (30%)'
+        `Treasury fee (${100 - this.REFERRER_FEE_SHARE * 100}%)`
       );
     } else {
       // All fee to treasury
