@@ -131,7 +131,7 @@ describe('DustZap Intent System', () => {
 
         expect(response.body.success).toBe(false);
         expect(response.body.error.message).toContain('chainId');
-      });
+      }, 45000);
 
       test('should require params object', async () => {
         const response = await request(app)

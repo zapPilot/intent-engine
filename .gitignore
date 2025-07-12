@@ -119,3 +119,6 @@ Thumbs.db
 # claude-monitor
 uploads/
 usage_tracking2.json
+
+# dev files
+result.json
