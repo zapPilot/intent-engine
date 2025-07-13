@@ -41,6 +41,10 @@ class SwapService {
               retries: 2,
               minTimeout: 1000,
               maxTimeout: 5000,
+              context: {
+                providerName,
+                enhancedParams,
+              },
             },
             retryStrategy
           );

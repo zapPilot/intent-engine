@@ -40,7 +40,7 @@ function retryWithBackoff(fn, options = {}, shouldRetryFn = null) {
         // Otherwise use standard retry logic
         if (operation.retry(error)) {
           console.warn(
-            `Retry attempt ${currentAttempt} failed:`,
+            `!!!!!!!!!!!!!!!!!!!!Retry attempt ${currentAttempt} failed${JSON.stringify(retryOptions.context, null, 2)}:`,
             error.message
           );
           return;
@@ -118,8 +118,8 @@ const RetryStrategies = {
     if (error.response) {
       const { status, data } = error.response;
 
-      // HTTP 400: Bad request
-      if (status === 400) {
+      // HTTP 404: means no liquidity
+      if (status === 404) {
         console.log(`Paraswap: Not retrying HTTP 400 error: ${error.message}`);
         return false;
       }
@@ -163,37 +163,10 @@ const RetryStrategies = {
    * @returns {boolean} - Whether to retry
    */
   zeroX: (error, _attempt, _options) => {
-    if (error.response) {
-      const { status, data } = error.response;
-
-      if (status === 400) {
-        console.log(`0x: Not retrying HTTP 400 error: ${error.message}`);
-        return false;
-      }
-
-      const errorMessage = data?.message || data?.reason || error.message || '';
-      const nonRetryablePatterns = [
-        'asset not supported',
-        'insufficient asset liquidity',
-        'no quotes available',
-        'invalid token',
-      ];
-
-      if (
-        nonRetryablePatterns.some(pattern =>
-          errorMessage.toLowerCase().includes(pattern)
-        )
-      ) {
-        console.log(`0x: Not retrying due to error pattern: ${errorMessage}`);
-        return false;
-      }
-
-      if (status === 401 || status === 403) {
-        console.log(`0x: Not retrying authentication error: ${status}`);
-        return false;
-      }
+    if (error.isNoLiquidity) {
+      console.log('0x: Not retrying due to no liquidity');
+      return false;
     }
-
     return true;
   },
 };

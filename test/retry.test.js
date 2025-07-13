@@ -102,10 +102,7 @@ describe('Enhanced Retry System', () => {
   describe('RetryStrategies.zeroX', () => {
     it('should not retry on asset not supported errors', () => {
       const error = {
-        response: {
-          status: 400,
-          data: { reason: 'Asset not supported' },
-        },
+        isNoLiquidity: true,
       };
 
       const shouldRetry = RetryStrategies.zeroX(error, 1, {});

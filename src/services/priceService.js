@@ -117,7 +117,6 @@ class PriceService {
 
       try {
         const result = await provider.getPrice(symbol, { timeout });
-        console.log('result', result, '===================================');
         // Cache successful result
         if (useCache && result.success) {
           this.setCachedPrice(symbol, result);
