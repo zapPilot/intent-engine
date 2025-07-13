@@ -132,27 +132,21 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @returns {Promise<Object>} - Processed data with transactions and totals
    */
   async processAllBatches(executionContext) {
-    const { batches, chainId, ethPrice, userAddress, params } =
-      executionContext;
-    const { toTokenAddress, toTokenDecimals, slippage, referralAddress } =
-      params;
+    const { batches, ethPrice, params } = executionContext;
+    const { referralAddress } = params;
 
     const txBuilder = new TransactionBuilder();
     let totalValueUSD = 0;
 
     // Process each batch of dust tokens
     for (const batch of batches) {
-      await this.processBatch(
+      const batchContext = this.createBatchProcessingContext(
         batch,
         txBuilder,
-        chainId,
-        ethPrice,
-        ethPrice,
-        userAddress,
-        toTokenAddress,
-        toTokenDecimals,
-        slippage
+        executionContext
       );
+
+      await this.processBatch(batchContext);
       totalValueUSD += calculateTotalValue(batch);
     }
 
@@ -204,23 +198,54 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Process a batch of dust tokens
+   * Create batch processing context
    * @param {Array} batch - Batch of dust tokens
    * @param {TransactionBuilder} txBuilder - Transaction builder instance
-   * @param {number} chainId - Chain ID
-   * @param {number} ethPrice - ETH price in USD
+   * @param {Object} executionContext - Execution context
+   * @returns {Object} - Batch processing context
    */
-  async processBatch(
-    batch,
-    txBuilder,
-    chainId,
-    ethPrice,
-    toTokenPrice,
-    userAddress,
-    toTokenAddress,
-    toTokenDecimals,
-    slippage
-  ) {
+  createBatchProcessingContext(batch, txBuilder, executionContext) {
+    const { chainId, ethPrice, userAddress, params } = executionContext;
+    const { toTokenAddress, toTokenDecimals, slippage } = params;
+
+    return {
+      batch,
+      txBuilder,
+      chainId,
+      ethPrice,
+      toTokenPrice: ethPrice, // Fix: was duplicated ethPrice parameter
+      userAddress,
+      toTokenAddress,
+      toTokenDecimals,
+      slippage,
+    };
+  }
+
+  /**
+   * Process a batch of dust tokens
+   * @param {Object} context - Batch processing context
+   * @param {Array} context.batch - Batch of dust tokens
+   * @param {TransactionBuilder} context.txBuilder - Transaction builder instance
+   * @param {number} context.chainId - Chain ID
+   * @param {number} context.ethPrice - ETH price in USD
+   * @param {number} context.toTokenPrice - Target token price in USD
+   * @param {string} context.userAddress - User address
+   * @param {string} context.toTokenAddress - Target token address
+   * @param {number} context.toTokenDecimals - Target token decimals
+   * @param {number} context.slippage - Slippage tolerance
+   */
+  async processBatch(context) {
+    const {
+      batch,
+      txBuilder,
+      chainId,
+      ethPrice,
+      toTokenPrice,
+      userAddress,
+      toTokenAddress,
+      toTokenDecimals,
+      slippage,
+    } = context;
     for (const token of batch) {
       try {
         // Get best swap quote
