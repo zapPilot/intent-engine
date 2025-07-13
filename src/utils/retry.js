@@ -40,7 +40,7 @@ function retryWithBackoff(fn, options = {}, shouldRetryFn = null) {
         // Otherwise use standard retry logic
         if (operation.retry(error)) {
           console.warn(
-            `!!!!!!!!!!!!!!!!!!!!Retry attempt ${currentAttempt} failed${JSON.stringify(retryOptions.context, null, 2)}:`,
+            `Retry attempt ${currentAttempt} failed. ${JSON.stringify(retryOptions.context, null, 2)}:`,
             error.message
           );
           return;
@@ -70,8 +70,11 @@ const RetryStrategies = {
       const { status, data } = error.response;
 
       // HTTP 400: Bad request - usually unsupported token or invalid params
-      if (status === 400) {
-        console.log(`1inch: Not retrying HTTP 400 error: ${error.message}`);
+      // HTTP 429: Rate limit exceeded
+      if (status === 400 || status === 429) {
+        console.log(
+          `1inch: Not retrying HTTP ${status} error: ${error.message}`
+        );
         return false;
       }
 
@@ -119,8 +122,12 @@ const RetryStrategies = {
       const { status, data } = error.response;
 
       // HTTP 404: means no liquidity
-      if (status === 404) {
-        console.log(`Paraswap: Not retrying HTTP 400 error: ${error.message}`);
+      // HTTP 500: means internal server error
+      // HTTP 400: means huge price impact
+      if (status === 404 || status === 500 || status === 400) {
+        console.log(
+          `Paraswap: Not retrying HTTP ${status} error: ${error.message}`
+        );
         return false;
       }
 
@@ -163,7 +170,14 @@ const RetryStrategies = {
    * @returns {boolean} - Whether to retry
    */
   zeroX: (error, _attempt, _options) => {
-    if (error.isNoLiquidity) {
+    if (error.response) {
+      const { status } = error.response;
+      if (status === 400 || status === 404) {
+        // means no liquidity
+        console.log(`0x: Not retrying HTTP ${status} error: ${error.message}`);
+        return false;
+      }
+    } else if (error.liquidityAvailable === false) {
       console.log('0x: Not retrying due to no liquidity');
       return false;
     }

@@ -102,7 +102,7 @@ describe('Enhanced Retry System', () => {
   describe('RetryStrategies.zeroX', () => {
     it('should not retry on asset not supported errors', () => {
       const error = {
-        isNoLiquidity: true,
+        liquidityAvailable: false,
       };
 
       const shouldRetry = RetryStrategies.zeroX(error, 1, {});

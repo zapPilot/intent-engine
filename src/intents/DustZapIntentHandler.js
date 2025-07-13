@@ -368,7 +368,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @returns {Object} - Fee info object
    */
   buildFeeInfo(transactions, totalValueUSD, referralAddress) {
-    console.log('totalValueUSD', totalValueUSD);
     const feeInfo = feeConfig.calculateFees(totalValueUSD);
     const feeTransactionCount = referralAddress ? 2 : 1;
     return {

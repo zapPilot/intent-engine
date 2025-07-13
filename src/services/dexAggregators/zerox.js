@@ -48,7 +48,7 @@ class ZeroXService {
     const response = await axios.get(this.baseURL, requestConfig);
     if (response.data.liquidityAvailable === false) {
       const err = new Error('liquidityAvailable: false');
-      err.isNoLiquidity = true; // Custom property for retry strategy
+      err.liquidityAvailable = false; // Custom property for retry strategy
       throw err;
     }
     const data = response.data;
