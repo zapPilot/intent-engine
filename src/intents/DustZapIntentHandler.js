@@ -171,7 +171,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @returns {Object} - Complete intent response
    */
   buildResponse(executionContext, processedData) {
-    const { dustTokens, batches, ethPrice, params } = executionContext;
+    const { dustTokens, batches, params } = executionContext;
     const { txBuilder, totalValueUSD } = processedData;
     const { dustThreshold, referralAddress } = params;
 
@@ -188,7 +188,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
         feeInfo: this.buildFeeInfo(
           transactions,
           totalValueUSD,
-          ethPrice,
           referralAddress
         ),
         estimatedTotalGas: txBuilder.getTotalGas(),
@@ -368,29 +367,21 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {string} referralAddress - Referral address
    * @returns {Object} - Fee info object
    */
-  buildFeeInfo(transactions, totalValueUSD, ethPrice, referralAddress) {
+  buildFeeInfo(transactions, totalValueUSD, referralAddress) {
+    console.log('totalValueUSD', totalValueUSD);
     const feeInfo = feeConfig.calculateFees(totalValueUSD);
     const feeTransactionCount = referralAddress ? 2 : 1;
-
+    console.log('feeInfo', feeInfo, '====================================');
+    console.log(
+      'referralAddress===================================',
+      referralAddress
+    );
     return {
       startIndex: transactions.length - feeTransactionCount,
       endIndex: transactions.length - 1,
       totalFeeUsd: feeInfo.totalFeeUSD,
-      referrerFeeEth: referralAddress
-        ? (
-            (feeInfo.referrerFeeUSD / ethPrice) *
-            DUST_ZAP_CONFIG.WEI_FACTOR
-          ).toString()
-        : '0',
-      treasuryFeeEth: referralAddress
-        ? (
-            (feeInfo.treasuryFeeUSD / ethPrice) *
-            DUST_ZAP_CONFIG.WEI_FACTOR
-          ).toString()
-        : (
-            (feeInfo.totalFeeUSD / ethPrice) *
-            DUST_ZAP_CONFIG.WEI_FACTOR
-          ).toString(),
+      referrerFeeUSD: feeInfo.referrerFeeUSD,
+      treasuryFee: feeInfo.treasuryFeeUSD,
     };
   }
 }

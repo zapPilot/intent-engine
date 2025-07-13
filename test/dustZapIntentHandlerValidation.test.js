@@ -297,33 +297,28 @@ describe('DustZapIntentHandler Validation', () => {
     it('should build fee info without referral address', () => {
       const transactions = Array.from({ length: 10 }, (_, i) => ({ id: i }));
       const totalValueUSD = 1000;
-      const ethPrice = 3000;
+      const referralAddress = undefined;
 
       const feeInfo = handler.buildFeeInfo(
         transactions,
         totalValueUSD,
-        ethPrice
+        referralAddress
       );
-
-      expect(feeInfo).toEqual({
-        startIndex: 9, // Last transaction
-        endIndex: 9,
-        totalFeeUsd: 0.1, // 1000 * 0.0001
-        referrerFeeEth: '0',
-        treasuryFeeEth: ((0.1 / 3000) * 1e18).toString(),
-      });
+      expect(feeInfo.startIndex).toBe(9);
+      expect(feeInfo.endIndex).toBe(9);
+      expect(feeInfo.totalFeeUsd).toBeCloseTo(0.1, 10);
+      expect(feeInfo.referrerFeeUSD).toBeCloseTo(0.06999999999999999, 10);
+      expect(feeInfo.treasuryFee).toBeCloseTo(0.03, 10);
     });
 
     it('should build fee info with referral address', () => {
       const transactions = Array.from({ length: 10 }, (_, i) => ({ id: i }));
       const totalValueUSD = 1000;
-      const ethPrice = 3000;
       const referralAddress = '0x1234567890123456789012345678901234567890';
 
       const feeInfo = handler.buildFeeInfo(
         transactions,
         totalValueUSD,
-        ethPrice,
         referralAddress
       );
 
@@ -334,14 +329,8 @@ describe('DustZapIntentHandler Validation', () => {
       expect(feeInfo.startIndex).toBe(8);
       expect(feeInfo.endIndex).toBe(9);
       expect(feeInfo.totalFeeUsd).toBeCloseTo(totalFeeUSD, 10);
-      expect(parseFloat(feeInfo.referrerFeeEth)).toBeCloseTo(
-        (referrerFeeUSD / 3000) * 1e18,
-        0
-      );
-      expect(parseFloat(feeInfo.treasuryFeeEth)).toBeCloseTo(
-        (treasuryFeeUSD / 3000) * 1e18,
-        0
-      );
+      expect(feeInfo.referrerFeeUSD).toBeCloseTo(referrerFeeUSD, 10);
+      expect(feeInfo.treasuryFee).toBeCloseTo(treasuryFeeUSD, 10);
     });
   });
 

@@ -52,7 +52,8 @@ function filterDustTokens(tokens, dustThreshold = 0.005) {
       ...token,
       value: parseFloat(token.amount) * parseFloat(token.price),
     }))
-    .sort((a, b) => b.value - a.value); // Sort by value descending
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3); // Sort by value descending
 }
 
 /**
