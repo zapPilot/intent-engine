@@ -11,6 +11,38 @@ module.exports = {
   DEFAULT_BATCH_SIZE: 10,
 
   /**
+   * SSE streaming configuration
+   * Controls token-level streaming behavior for better UX
+   */
+  SSE_STREAMING: {
+    /**
+     * Enable SSE streaming for dust zap operations
+     */
+    ENABLED: true,
+
+    /**
+     * Stream granularity: process and stream each token individually
+     * This provides smooth progress feedback to users
+     */
+    STREAM_BATCH_SIZE: 1,
+
+    /**
+     * SSE connection timeout in milliseconds
+     */
+    CONNECTION_TIMEOUT: 300000, // 5 minutes
+
+    /**
+     * Maximum concurrent SSE connections per user
+     */
+    MAX_CONCURRENT_STREAMS: 3,
+
+    /**
+     * Stream cleanup interval in milliseconds
+     */
+    CLEANUP_INTERVAL: 60000, // 1 minute
+  },
+
+  /**
    * Number of transactions generated per token
    * Each token requires: 1 approve + 1 swap = 2 transactions
    */

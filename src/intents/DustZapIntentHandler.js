@@ -1,7 +1,9 @@
 const BaseIntentHandler = require('./BaseIntentHandler');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
-const feeConfig = require('../config/feeConfig');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
+const FeeCalculationService = require('../services/FeeCalculationService');
+const SmartFeeInsertionService = require('../services/SmartFeeInsertionService');
+const IntentIdGenerator = require('../utils/intentIdGenerator');
 const {
   filterDustTokens,
   groupIntoBatches,
@@ -14,6 +16,16 @@ const {
 class DustZapIntentHandler extends BaseIntentHandler {
   constructor(swapService, priceService, rebalanceClient) {
     super(swapService, priceService, rebalanceClient);
+    this.feeCalculationService = new FeeCalculationService();
+    this.smartFeeInsertionService = new SmartFeeInsertionService();
+
+    // In-memory storage for execution contexts (in production, use Redis or similar)
+    this.executionContexts = new Map();
+
+    // Cleanup expired contexts periodically
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupExpiredContexts();
+    }, DUST_ZAP_CONFIG.SSE_STREAMING.CLEANUP_INTERVAL);
   }
 
   /**
@@ -54,20 +66,32 @@ class DustZapIntentHandler extends BaseIntentHandler {
   /**
    * Execute dustZap intent
    * @param {Object} request - Intent request
-   * @returns {Promise<Object>} - Intent response with transactions
+   * @param {Object} options - Execution options
+   * @param {boolean} options.useSSE - Whether to use SSE streaming (default: check config)
+   * @returns {Promise<Object>} - Intent response with transactions or stream info
    */
-  async execute(request) {
+  async execute(request, options = {}) {
     this.validate(request);
+
+    const useSSE =
+      options.useSSE !== undefined
+        ? options.useSSE
+        : DUST_ZAP_CONFIG.SSE_STREAMING.ENABLED;
 
     try {
       // 1. Prepare execution context with all required data
       const executionContext = await this.prepareExecutionContext(request);
 
-      // 2. Process all batches and generate transactions
-      const processedData = await this.processAllBatches(executionContext);
+      if (useSSE) {
+        // 2. Return SSE streaming response immediately
+        return this.buildSSEResponse(executionContext);
+      } else {
+        // 2. Process all batches and generate transactions (legacy mode)
+        const processedData = await this.processAllBatches(executionContext);
 
-      // 3. Build and return response with metadata
-      return this.buildResponse(executionContext, processedData);
+        // 3. Build and return response with metadata
+        return this.buildResponse(executionContext, processedData);
+      }
     } catch (error) {
       console.error('DustZap execution error:', error);
       throw error;
@@ -127,7 +151,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Process all batches and generate transactions
+   * Process all batches and generate transactions with smart fee insertion
    * @param {Object} executionContext - Execution context
    * @returns {Promise<Object>} - Processed data with transactions and totals
    */
@@ -138,7 +162,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
     const txBuilder = new TransactionBuilder();
     let totalValueUSD = 0;
 
-    // Process each batch of dust tokens
+    // PHASE 1: Process all swap transactions first (without fees)
     for (const batch of batches) {
       const batchContext = this.createBatchProcessingContext(
         batch,
@@ -150,22 +174,83 @@ class DustZapIntentHandler extends BaseIntentHandler {
       totalValueUSD += calculateTotalValue(batch);
     }
 
-    // Add platform fee transactions
-    await this.addFeeTransactions(
-      txBuilder,
-      totalValueUSD,
-      ethPrice,
-      referralAddress
-    );
+    // PHASE 2: Calculate smart fee insertion strategy
+    const { feeTransactions, feeAmounts } =
+      this.feeCalculationService.createFeeTransactionData(
+        totalValueUSD,
+        ethPrice,
+        referralAddress
+      );
+
+    // Calculate insertion strategy using smart service
+    const insertionStrategy =
+      this.smartFeeInsertionService.calculateInsertionStrategy(
+        batches,
+        feeAmounts.totalFeeETH,
+        txBuilder.getTransactionCount(),
+        feeTransactions.length
+      );
+
+    // Validate the insertion strategy for safety
+    if (
+      !this.smartFeeInsertionService.validateInsertionStrategy(
+        insertionStrategy,
+        txBuilder.getTransactionCount()
+      )
+    ) {
+      console.warn(
+        'Fee insertion strategy validation failed, falling back to end insertion'
+      );
+      // Fallback: insert fees at the end (legacy behavior)
+      this.feeCalculationService.addFeeTransactions(
+        txBuilder,
+        totalValueUSD,
+        ethPrice,
+        referralAddress
+      );
+    } else {
+      // PHASE 3: Insert fee transactions at calculated random points
+      txBuilder.insertFeeTransactionsRandomly(
+        feeTransactions,
+        insertionStrategy.insertionPoints
+      );
+    }
 
     return {
       txBuilder,
       totalValueUSD,
+      insertionStrategy, // Include strategy metadata for debugging/monitoring
     };
   }
 
   /**
-   * Build response with metadata
+   * Build SSE streaming response (immediate return)
+   * @param {Object} executionContext - Execution context
+   * @returns {Object} - SSE streaming response
+   */
+  buildSSEResponse(executionContext) {
+    const { dustTokens, userAddress } = executionContext;
+    const intentId = IntentIdGenerator.generate('dustZap', userAddress);
+
+    // Store execution context for SSE processing
+    this.storeExecutionContext(intentId, executionContext);
+
+    return {
+      success: true,
+      intentType: 'dustZap',
+      mode: 'streaming',
+      intentId,
+      streamUrl: `/api/dustzap/${intentId}/stream`,
+      metadata: {
+        totalTokens: dustTokens.length,
+        estimatedDuration: this.estimateProcessingDuration(dustTokens.length),
+        streamingEnabled: true,
+      },
+    };
+  }
+
+  /**
+   * Build traditional response with metadata (legacy mode)
    * @param {Object} executionContext - Execution context
    * @param {Object} processedData - Processed transaction data
    * @returns {Object} - Complete intent response
@@ -181,12 +266,12 @@ class DustZapIntentHandler extends BaseIntentHandler {
     return {
       success: true,
       intentType: 'dustZap',
+      mode: 'immediate',
       transactions,
       metadata: {
         totalTokens: dustTokens.length,
         batchInfo,
-        feeInfo: this.buildFeeInfo(
-          transactions,
+        feeInfo: this.feeCalculationService.buildFeeInfo(
           totalValueUSD,
           referralAddress
         ),
@@ -278,56 +363,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Add platform fee transactions
-   * @param {TransactionBuilder} txBuilder - Transaction builder instance
-   * @param {number} totalValueUSD - Total swap value in USD
-   * @param {number} ethPrice - ETH price in USD
-   * @param {string} referralAddress - Optional referral address
-   */
-  addFeeTransactions(txBuilder, totalValueUSD, ethPrice, referralAddress) {
-    const feeInfo = feeConfig.calculateFees(totalValueUSD);
-    const totalFeeETH = feeInfo.totalFeeUSD / ethPrice;
-    const totalFeeWei = Math.floor(
-      totalFeeETH * DUST_ZAP_CONFIG.WEI_FACTOR
-    ).toString();
-
-    if (referralAddress) {
-      // Split fee: referrer share to referrer, remainder to treasury
-      const referrerFeeWei = (
-        (BigInt(totalFeeWei) *
-          BigInt(
-            Math.floor(
-              feeConfig.referrerFeeShare *
-                DUST_ZAP_CONFIG.FEE_PERCENTAGE_PRECISION
-            )
-          )) /
-        BigInt(DUST_ZAP_CONFIG.FEE_PERCENTAGE_PRECISION)
-      ).toString();
-      const treasuryFeeWei = (
-        BigInt(totalFeeWei) - BigInt(referrerFeeWei)
-      ).toString();
-
-      txBuilder.addETHTransfer(
-        referralAddress,
-        referrerFeeWei,
-        `Referrer fee (${feeInfo.referrerFeePercentage}%)`
-      );
-      txBuilder.addETHTransfer(
-        feeConfig.treasuryAddress,
-        treasuryFeeWei,
-        `Treasury fee (${feeInfo.treasuryFeePercentage}%)`
-      );
-    } else {
-      // All fee to treasury
-      txBuilder.addETHTransfer(
-        feeConfig.treasuryAddress,
-        totalFeeWei,
-        'Platform fee (100%)'
-      );
-    }
-  }
-
-  /**
    * Get current ETH price
    * @returns {Promise<number>} - ETH price in USD
    */
@@ -360,23 +395,202 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Build fee info metadata
-   * @param {Array} transactions - Transaction array
-   * @param {number} totalValueUSD - Total value in USD
-   * @param {number} ethPrice - ETH price
-   * @param {string} referralAddress - Referral address
-   * @returns {Object} - Fee info object
+   * Store execution context for SSE processing
+   * @param {string} intentId - Intent ID
+   * @param {Object} executionContext - Execution context to store
    */
-  buildFeeInfo(transactions, totalValueUSD, referralAddress) {
-    const feeInfo = feeConfig.calculateFees(totalValueUSD);
-    const feeTransactionCount = referralAddress ? 2 : 1;
-    return {
-      startIndex: transactions.length - feeTransactionCount,
-      endIndex: transactions.length - 1,
-      totalFeeUsd: feeInfo.totalFeeUSD,
-      referrerFeeUSD: feeInfo.referrerFeeUSD,
-      treasuryFee: feeInfo.treasuryFeeUSD,
-    };
+  storeExecutionContext(intentId, executionContext) {
+    this.executionContexts.set(intentId, {
+      ...executionContext,
+      intentId, // Store the intent ID for cleanup
+      createdAt: Date.now(),
+    });
+  }
+
+  /**
+   * Retrieve execution context for SSE processing
+   * @param {string} intentId - Intent ID
+   * @returns {Object|null} - Execution context or null if not found
+   */
+  getExecutionContext(intentId) {
+    return this.executionContexts.get(intentId) || null;
+  }
+
+  /**
+   * Remove execution context after processing
+   * @param {string} intentId - Intent ID
+   */
+  removeExecutionContext(intentId) {
+    this.executionContexts.delete(intentId);
+  }
+
+  /**
+   * Estimate processing duration based on token count
+   * @param {number} tokenCount - Number of tokens to process
+   * @returns {string} - Estimated duration range
+   */
+  estimateProcessingDuration(tokenCount) {
+    // Rough estimate: 1-2 seconds per token (includes API calls, gas estimation, etc.)
+    const minSeconds = Math.max(5, tokenCount * 1);
+    const maxSeconds = Math.max(10, tokenCount * 2);
+
+    if (maxSeconds < 60) {
+      return `${minSeconds}-${maxSeconds} seconds`;
+    } else {
+      const minMinutes = Math.floor(minSeconds / 60);
+      const maxMinutes = Math.ceil(maxSeconds / 60);
+      return `${minMinutes}-${maxMinutes} minutes`;
+    }
+  }
+
+  /**
+   * Process tokens with SSE streaming (token-level granularity)
+   * @param {Object} executionContext - Execution context
+   * @param {Function} streamWriter - Function to write SSE events
+   * @returns {Promise<Object>} - Final processing results
+   */
+  async processTokensWithSSEStreaming(executionContext, streamWriter) {
+    const { dustTokens, params } = executionContext;
+    const { referralAddress } = params;
+
+    const allTransactions = [];
+    let totalValueUSD = 0;
+    let processedTokens = 0;
+
+    try {
+      // Process each token individually for maximum granularity
+      for (let i = 0; i < dustTokens.length; i++) {
+        const token = dustTokens[i];
+
+        try {
+          // Create a mini-batch with just this token
+          const tokenBatch = [token];
+          const txBuilder = new TransactionBuilder();
+
+          // Process this single token
+          const batchContext = this.createBatchProcessingContext(
+            tokenBatch,
+            txBuilder,
+            executionContext
+          );
+
+          await this.processBatch(batchContext);
+          const tokenTransactions = txBuilder.getTransactions();
+
+          // Add to running totals
+          allTransactions.push(...tokenTransactions);
+          totalValueUSD += calculateTotalValue(tokenBatch);
+          processedTokens++;
+
+          // Stream this token's completion
+          streamWriter({
+            type: 'token_ready',
+            tokenIndex: i,
+            tokenSymbol: token.symbol,
+            tokenAddress: token.id,
+            transactions: tokenTransactions,
+            progress: processedTokens / dustTokens.length,
+            processedTokens,
+            totalTokens: dustTokens.length,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (tokenError) {
+          console.warn(
+            `Failed to process token ${token.symbol}:`,
+            tokenError.message
+          );
+
+          // Increment processed count even for failures
+          processedTokens++;
+
+          // Stream token failure but continue
+          streamWriter({
+            type: 'token_failed',
+            tokenIndex: i,
+            tokenSymbol: token.symbol,
+            error: tokenError.message,
+            progress: processedTokens / dustTokens.length,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Add fee transactions using smart insertion
+      const { feeTransactions } =
+        this.feeCalculationService.createFeeTransactionData(
+          totalValueUSD,
+          executionContext.ethPrice,
+          referralAddress
+        );
+
+      // For SSE streaming, append fees at the end for simplicity
+      // (Could be enhanced with smart insertion in the future)
+      const feeTransactionObjects = feeTransactions.map(fee => ({
+        to: fee.recipient,
+        value: fee.amount.toString(),
+        description: fee.description,
+        gasLimit: '21000',
+      }));
+
+      allTransactions.push(...feeTransactionObjects);
+
+      // Stream completion with all transactions
+      const finalResult = {
+        type: 'complete',
+        transactions: allTransactions,
+        metadata: {
+          totalTokens: dustTokens.length,
+          processedTokens,
+          totalValueUSD,
+          feeInfo: this.feeCalculationService.buildFeeInfo(
+            totalValueUSD,
+            referralAddress
+          ),
+          estimatedTotalGas: allTransactions
+            .reduce(
+              (sum, tx) => sum + BigInt(tx.gasLimit || '21000'),
+              BigInt(0)
+            )
+            .toString(),
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      streamWriter(finalResult);
+
+      return {
+        allTransactions,
+        totalValueUSD,
+        processedTokens,
+      };
+    } catch (error) {
+      console.error('Token processing error:', error);
+
+      streamWriter({
+        type: 'error',
+        error: error.message,
+        processedTokens,
+        totalTokens: dustTokens.length,
+        timestamp: new Date().toISOString(),
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup expired execution contexts
+   */
+  cleanupExpiredContexts() {
+    const now = Date.now();
+    const maxAge = DUST_ZAP_CONFIG.SSE_STREAMING.CONNECTION_TIMEOUT;
+
+    for (const [intentId, context] of this.executionContexts.entries()) {
+      if (now - context.createdAt > maxAge) {
+        this.executionContexts.delete(intentId);
+        console.log(`Cleaned up expired execution context: ${intentId}`);
+      }
+    }
   }
 }
 

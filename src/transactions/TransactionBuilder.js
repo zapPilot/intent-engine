@@ -118,6 +118,93 @@ class TransactionBuilder {
   getTransactionCount() {
     return this.transactions.length;
   }
+
+  /**
+   * Insert transactions at specific indices
+   * @param {Array} transactions - Array of transaction objects to insert
+   * @param {Array} insertionPoints - Array of indices where transactions should be inserted
+   * @returns {TransactionBuilder} - Builder instance for chaining
+   */
+  insertTransactionsAtIndices(transactions, insertionPoints) {
+    if (transactions.length !== insertionPoints.length) {
+      throw new Error(
+        'Number of transactions must match number of insertion points'
+      );
+    }
+
+    // Validate insertion points
+    const maxIndex = this.transactions.length;
+    const invalidIndices = insertionPoints.filter(
+      index => index < 0 || index > maxIndex
+    );
+    if (invalidIndices.length > 0) {
+      throw new Error(
+        `Invalid insertion indices: ${invalidIndices.join(', ')}`
+      );
+    }
+
+    // Sort insertion points in descending order to maintain indices during insertion
+    const sortedInsertions = transactions
+      .map((tx, i) => ({ transaction: tx, index: insertionPoints[i] }))
+      .sort((a, b) => b.index - a.index);
+
+    // Insert transactions from highest index to lowest to preserve indices
+    for (const { transaction, index } of sortedInsertions) {
+      this.transactions.splice(index, 0, transaction);
+    }
+
+    return this;
+  }
+
+  /**
+   * Create transaction objects for fee payments
+   * @param {Array} feeTransactions - Array of fee transaction data
+   * @returns {Array} - Array of formatted transaction objects
+   */
+  createFeeTransactionObjects(feeTransactions) {
+    return feeTransactions.map(fee => ({
+      to: fee.recipient,
+      value: fee.amount.toString(),
+      description: fee.description || 'Fee payment',
+      gasLimit: '21000',
+    }));
+  }
+
+  /**
+   * Insert fee transactions at random points using insertion strategy
+   * @param {Array} feeTransactionData - Array of fee transaction data
+   * @param {Array} insertionPoints - Array of indices for insertion
+   * @returns {TransactionBuilder} - Builder instance for chaining
+   */
+  insertFeeTransactionsRandomly(feeTransactionData, insertionPoints) {
+    const feeTransactions =
+      this.createFeeTransactionObjects(feeTransactionData);
+    return this.insertTransactionsAtIndices(feeTransactions, insertionPoints);
+  }
+
+  /**
+   * Get transaction at specific index
+   * @param {number} index - Transaction index
+   * @returns {Object|null} - Transaction object or null if invalid index
+   */
+  getTransactionAt(index) {
+    if (index < 0 || index >= this.transactions.length) {
+      return null;
+    }
+    return { ...this.transactions[index] };
+  }
+
+  /**
+   * Remove transaction at specific index
+   * @param {number} index - Transaction index to remove
+   * @returns {TransactionBuilder} - Builder instance for chaining
+   */
+  removeTransactionAt(index) {
+    if (index >= 0 && index < this.transactions.length) {
+      this.transactions.splice(index, 1);
+    }
+    return this;
+  }
 }
 
 module.exports = TransactionBuilder;

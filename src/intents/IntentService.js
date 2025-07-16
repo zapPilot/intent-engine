@@ -50,8 +50,18 @@ class IntentService {
         throw new Error('Intent handler returned invalid result');
       }
 
-      if (!result.transactions || !Array.isArray(result.transactions)) {
-        throw new Error('Intent handler must return transactions array');
+      // SSE streaming mode returns intentId instead of immediate transactions
+      if (result.mode === 'streaming') {
+        if (!result.intentId || !result.streamUrl) {
+          throw new Error(
+            'SSE streaming response must include intentId and streamUrl'
+          );
+        }
+      } else {
+        // Traditional mode requires immediate transactions
+        if (!result.transactions || !Array.isArray(result.transactions)) {
+          throw new Error('Intent handler must return transactions array');
+        }
       }
 
       return result;

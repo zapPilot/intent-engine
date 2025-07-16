@@ -293,31 +293,32 @@ describe('DustZapIntentHandler Validation', () => {
     });
   });
 
-  describe('buildFeeInfo', () => {
+  describe('buildFeeInfo (via service)', () => {
     it('should build fee info without referral address', () => {
-      const transactions = Array.from({ length: 10 }, (_, i) => ({ id: i }));
       const totalValueUSD = 1000;
       const referralAddress = undefined;
 
-      const feeInfo = handler.buildFeeInfo(
-        transactions,
+      const feeInfo = handler.feeCalculationService.buildFeeInfo(
         totalValueUSD,
         referralAddress
       );
-      expect(feeInfo.startIndex).toBe(9);
-      expect(feeInfo.endIndex).toBe(9);
+
+      // SECURITY: Verify that startIndex/endIndex are NOT exposed
+      expect(feeInfo.startIndex).toBeUndefined();
+      expect(feeInfo.endIndex).toBeUndefined();
+
+      // Verify fee amounts are still present for transparency
       expect(feeInfo.totalFeeUsd).toBeCloseTo(0.1, 10);
-      expect(feeInfo.referrerFeeUSD).toBeCloseTo(0.06999999999999999, 10);
+      expect(feeInfo.referrerFeeUSD).toBeCloseTo(0.07, 10);
       expect(feeInfo.treasuryFee).toBeCloseTo(0.03, 10);
+      expect(feeInfo.feeTransactionCount).toBe(1);
     });
 
     it('should build fee info with referral address', () => {
-      const transactions = Array.from({ length: 10 }, (_, i) => ({ id: i }));
       const totalValueUSD = 1000;
       const referralAddress = '0x1234567890123456789012345678901234567890';
 
-      const feeInfo = handler.buildFeeInfo(
-        transactions,
+      const feeInfo = handler.feeCalculationService.buildFeeInfo(
         totalValueUSD,
         referralAddress
       );
@@ -326,15 +327,19 @@ describe('DustZapIntentHandler Validation', () => {
       const referrerFeeUSD = totalFeeUSD * 0.7; // 70%
       const treasuryFeeUSD = totalFeeUSD * 0.3; // 30%
 
-      expect(feeInfo.startIndex).toBe(8);
-      expect(feeInfo.endIndex).toBe(9);
+      // SECURITY: Verify that startIndex/endIndex are NOT exposed
+      expect(feeInfo.startIndex).toBeUndefined();
+      expect(feeInfo.endIndex).toBeUndefined();
+
+      // Verify fee amounts and count are present
       expect(feeInfo.totalFeeUsd).toBeCloseTo(totalFeeUSD, 10);
       expect(feeInfo.referrerFeeUSD).toBeCloseTo(referrerFeeUSD, 10);
       expect(feeInfo.treasuryFee).toBeCloseTo(treasuryFeeUSD, 10);
+      expect(feeInfo.feeTransactionCount).toBe(2);
     });
   });
 
-  describe('addFeeTransactions', () => {
+  describe('addFeeTransactions (via service)', () => {
     let mockTxBuilder;
 
     beforeEach(() => {
@@ -347,7 +352,11 @@ describe('DustZapIntentHandler Validation', () => {
       const totalValueUSD = 1000;
       const ethPrice = 3000;
 
-      handler.addFeeTransactions(mockTxBuilder, totalValueUSD, ethPrice);
+      handler.feeCalculationService.addFeeTransactions(
+        mockTxBuilder,
+        totalValueUSD,
+        ethPrice
+      );
 
       expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledTimes(1);
       expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledWith(
@@ -362,7 +371,7 @@ describe('DustZapIntentHandler Validation', () => {
       const ethPrice = 3000;
       const referralAddress = '0x1234567890123456789012345678901234567890';
 
-      handler.addFeeTransactions(
+      handler.feeCalculationService.addFeeTransactions(
         mockTxBuilder,
         totalValueUSD,
         ethPrice,
