@@ -89,6 +89,7 @@ class RebalanceBackendClient {
       42161: 'arb',
       10: 'op',
       1: 'eth',
+      8453: 'base',
       59144: 'scrl',
       252: 'frax',
       1101: 'pze',
