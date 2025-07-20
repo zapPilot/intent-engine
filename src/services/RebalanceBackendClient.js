@@ -19,7 +19,7 @@ class RebalanceBackendClient {
    */
   async getUserTokenBalances(userAddress, chainId) {
     try {
-      const chainName = this.getChainName(chainId);
+      const chainName = this.getDebankChainName(chainId);
       const url = `${this.baseUrl}/user/${userAddress}/${chainName}/tokens`;
       const response = await retryWithBackoff(
         () =>
@@ -84,6 +84,21 @@ class RebalanceBackendClient {
     return chainName;
   }
 
+  getDebankChainName(chainId) {
+    const DEBANK_CHAIN_2_DEFILLAMA_MAPPING = {
+      42161: 'arb',
+      10: 'op',
+      1: 'eth',
+      59144: 'scrl',
+      252: 'frax',
+      1101: 'pze',
+    };
+    const chainName = DEBANK_CHAIN_2_DEFILLAMA_MAPPING[chainId];
+    if (!chainName) {
+      throw new Error(`Unsupported chain ID: ${chainId}`);
+    }
+    return chainName;
+  }
   /**
    * Health check for rebalance backend
    * @returns {Promise<boolean>} - True if backend is healthy
