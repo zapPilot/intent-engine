@@ -7,7 +7,7 @@ module.exports = {
   testEnvironment: 'node',
 
   // Suppress console output during tests (Option 1)
-  silent: true,
+  silent: false, // Changed to false to allow console.log output
 
   // Setup file for console mocking and test utilities (Option 2)
   setupFilesAfterEnv: ['<rootDir>/test/setup.js'],

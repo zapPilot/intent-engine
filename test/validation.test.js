@@ -17,6 +17,12 @@ describe('DustZapIntentHandler Validation', () => {
     );
   });
 
+  afterEach(() => {
+    if (handler) {
+      handler.cleanup();
+    }
+  });
+
   describe('toTokenAddress validation', () => {
     it('should throw error when toTokenAddress is missing', () => {
       const request = {

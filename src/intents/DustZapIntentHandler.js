@@ -783,6 +783,16 @@ class DustZapIntentHandler extends BaseIntentHandler {
       }
     }
   }
+
+  /**
+   * Cleanup method for tests - clears the interval timer
+   */
+  cleanup() {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
 }
 
 module.exports = DustZapIntentHandler;
