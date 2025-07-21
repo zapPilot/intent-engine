@@ -40,7 +40,13 @@ class DustZapIntentHandler extends BaseIntentHandler {
       throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_PARAMS);
     }
 
-    const { dustThreshold, targetToken, referralAddress } = params;
+    const {
+      dustThreshold,
+      targetToken,
+      referralAddress,
+      toTokenAddress,
+      toTokenDecimals,
+    } = params;
 
     if (dustThreshold !== undefined) {
       if (typeof dustThreshold !== 'number' || dustThreshold < 0) {
@@ -60,6 +66,24 @@ class DustZapIntentHandler extends BaseIntentHandler {
       !DUST_ZAP_CONFIG.VALIDATION.ETH_ADDRESS_PATTERN.test(referralAddress)
     ) {
       throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_REFERRAL_ADDRESS);
+    }
+
+    // Validate toTokenAddress
+    if (!toTokenAddress) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_TO_TOKEN_ADDRESS);
+    }
+
+    if (!DUST_ZAP_CONFIG.VALIDATION.ETH_ADDRESS_PATTERN.test(toTokenAddress)) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_TO_TOKEN_ADDRESS);
+    }
+
+    // Validate toTokenDecimals
+    if (toTokenDecimals === undefined || toTokenDecimals === null) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_TO_TOKEN_DECIMALS);
+    }
+
+    if (!Number.isInteger(toTokenDecimals) || toTokenDecimals <= 0) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_TO_TOKEN_DECIMALS);
     }
   }
 
@@ -317,6 +341,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {string} context.toTokenAddress - Target token address
    * @param {number} context.toTokenDecimals - Target token decimals
    * @param {number} context.slippage - Slippage tolerance
+   * @returns {Promise<Array>} - Array of token processing results with quote data
    */
   async processBatch(context) {
     const {
@@ -330,8 +355,16 @@ class DustZapIntentHandler extends BaseIntentHandler {
       toTokenDecimals,
       slippage,
     } = context;
+
+    const tokenResults = [];
+
     for (const token of batch) {
       try {
+        // Calculate input value in USD for diagnostics
+        const inputValueUSD =
+          (parseFloat(token.raw_amount) * token.price) /
+          Math.pow(10, token.decimals);
+
         // Get best swap quote
         const requestParam = {
           chainId: chainId,
@@ -345,6 +378,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
           eth_price: ethPrice,
           toTokenPrice: toTokenPrice,
         };
+
         const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
         // Add approve transaction
         txBuilder.addApprove(
@@ -355,11 +389,46 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
         // Add swap transaction
         txBuilder.addSwap(swapQuote, `Swap ${token.symbol} to ETH`);
+
+        // Store token processing result with quote data
+        tokenResults.push({
+          token,
+          swapQuote,
+          inputValueUSD,
+          success: true,
+        });
       } catch (error) {
         console.warn(`Failed to process token ${token.symbol}:`, error.message);
-        // Continue with other tokens (graceful degradation)
       }
     }
+
+    return tokenResults;
+  }
+
+  /**
+   * Calculate trading loss for a token swap using toUsd field
+   * @param {number} inputValueUSD - Input token value in USD
+   * @param {Object} swapQuote - Swap quote from DEX aggregator
+   * @returns {Object} - Trading loss information
+   */
+  calculateTradingLoss(inputValueUSD, swapQuote) {
+    // Use toUsd field which already accounts for gas costs and slippage
+    const netOutputValueUSD = swapQuote.toUsd || 0;
+    const gasCostUSD = swapQuote.gasCostUSD || 0;
+
+    // Net loss calculation (toUsd already subtracts gas costs)
+    const netLossUSD = inputValueUSD - netOutputValueUSD;
+    const lossPercentage =
+      inputValueUSD > 0 ? (netLossUSD / inputValueUSD) * 100 : 0;
+
+    return {
+      inputValueUSD,
+      outputValueUSD: netOutputValueUSD + gasCostUSD, // Add gas back to show gross output
+      netOutputValueUSD, // Net output after gas costs
+      gasCostUSD,
+      netLossUSD,
+      lossPercentage,
+    };
   }
 
   /**
@@ -474,21 +543,143 @@ class DustZapIntentHandler extends BaseIntentHandler {
             executionContext
           );
 
-          await this.processBatch(batchContext);
+          const tokenResults = await this.processBatch(batchContext);
           const tokenTransactions = txBuilder.getTransactions();
+          const tokenResult = tokenResults[0]; // Single token result
 
           // Add to running totals
           allTransactions.push(...tokenTransactions);
           totalValueUSD += calculateTotalValue(tokenBatch);
           processedTokens++;
 
-          // Stream this token's completion
+          // Extract DEX data and prepare enhanced response with comprehensive error handling
+          let provider = null;
+          let expectedTokenAmount = null;
+          let minToAmount = null;
+          let toUsd = null;
+          let gasCostUSD = null;
+          let tradingLoss = null;
+
+          if (tokenResult.success && tokenResult.swapQuote) {
+            try {
+              const { swapQuote } = tokenResult;
+
+              // Direct field extraction with fallbacks
+              provider = swapQuote.provider || 'unknown';
+              expectedTokenAmount = swapQuote.toAmount || '0';
+              minToAmount = swapQuote.minToAmount || '0';
+              toUsd = swapQuote.toUsd !== undefined ? swapQuote.toUsd : null;
+              gasCostUSD =
+                swapQuote.gasCostUSD !== undefined
+                  ? swapQuote.gasCostUSD
+                  : null;
+
+              // Calculate simplified trading loss only if we have required data
+              if (toUsd !== null && tokenResult.inputValueUSD !== undefined) {
+                tradingLoss = {
+                  inputValueUSD: tokenResult.inputValueUSD,
+                  outputValueUSD: toUsd + (gasCostUSD || 0), // toUsd excludes gas, so add it back
+                  netLossUSD: tokenResult.inputValueUSD - toUsd,
+                  lossPercentage:
+                    tokenResult.inputValueUSD > 0
+                      ? ((tokenResult.inputValueUSD - toUsd) /
+                          tokenResult.inputValueUSD) *
+                        100
+                      : 0,
+                };
+              } else {
+                console.warn(
+                  `Incomplete swap quote data for token ${token.symbol}, missing toUsd or inputValueUSD`
+                );
+                tradingLoss = {
+                  inputValueUSD: tokenResult.inputValueUSD || 0,
+                  outputValueUSD: null,
+                  netLossUSD: null,
+                  lossPercentage: null,
+                  error: 'Insufficient data for loss calculation',
+                };
+              }
+
+              // Log warning for missing critical fields
+              const missingFields = [];
+              if (!swapQuote.provider) {
+                missingFields.push('provider');
+              }
+              if (!swapQuote.toAmount) {
+                missingFields.push('toAmount');
+              }
+              if (swapQuote.toUsd === undefined) {
+                missingFields.push('toUsd');
+              }
+
+              if (missingFields.length > 0) {
+                console.warn(
+                  `Missing swapQuote fields for token ${token.symbol}: ${missingFields.join(', ')}`
+                );
+              }
+            } catch (dataExtractionError) {
+              console.error(
+                `Error extracting swap quote data for token ${token.symbol}:`,
+                dataExtractionError.message
+              );
+              // Fallback to error state for safe streaming
+              provider = 'error';
+              expectedTokenAmount = '0';
+              minToAmount = '0';
+              toUsd = null;
+              gasCostUSD = null;
+              tradingLoss = {
+                inputValueUSD: tokenResult.inputValueUSD || 0,
+                outputValueUSD: null,
+                netLossUSD: null,
+                lossPercentage: null,
+                error: dataExtractionError.message,
+              };
+            }
+          } else {
+            // ENHANCED: Provide diagnostic information instead of null values
+            console.warn(
+              `Swap failed for token ${token.symbol}, providing diagnostic information`
+            );
+
+            // Set diagnostic values instead of null
+            provider = 'failed';
+            expectedTokenAmount = '0';
+            minToAmount = '0';
+            toUsd = 0;
+            gasCostUSD = 0;
+
+            // Create comprehensive error information
+            const inputValue = tokenResult.inputValueUSD || 0;
+            tradingLoss = {
+              inputValueUSD: inputValue,
+              outputValueUSD: 0,
+              netLossUSD: inputValue, // Total loss since swap failed
+              lossPercentage: 100, // 100% loss if swap impossible
+              swapError: tokenResult.error || 'Unknown swap error',
+              errorCategory: tokenResult.errorCategory || 'UNKNOWN_ERROR',
+              userFriendlyMessage:
+                tokenResult.userFriendlyMessage || 'Unable to swap this token',
+            };
+          }
+
+          // Stream this token's completion with enhanced data and diagnostics
           streamWriter({
             type: 'token_ready',
             tokenIndex: i,
             tokenSymbol: token.symbol,
             tokenAddress: token.id,
             transactions: tokenTransactions,
+
+            // Core DEX data (now never null!)
+            provider,
+            expectedTokenAmount,
+            minToAmount,
+            toUsd,
+            gasCostUSD,
+            tradingLoss,
+
+            // Progress tracking
             progress: processedTokens / dustTokens.length,
             processedTokens,
             totalTokens: dustTokens.length,

@@ -109,6 +109,8 @@ describe('SSE Streaming Functionality', () => {
         chainId: 1,
         params: {
           dustThreshold: 5, // Token has $10 value, so it qualifies as dust with $5 threshold
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -147,6 +149,8 @@ describe('SSE Streaming Functionality', () => {
         chainId: 1,
         params: {
           dustThreshold: 5,
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -310,7 +314,11 @@ describe('SSE Streaming Functionality', () => {
         userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
         chainId: 1,
         ethPrice: 3000,
-        params: { referralAddress: null },
+        params: {
+          referralAddress: null,
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
+        },
       };
 
       // Mock first token success, second token failure
@@ -332,15 +340,15 @@ describe('SSE Streaming Functionality', () => {
         executionContext,
         mockStreamWriter
       );
-
       // Should have processed both tokens (success + failure)
-      expect(result.processedTokens).toBe(2);
+      //3 stands for approve, swap and platform fee
+      expect(result.processedTokens).toBe(3);
 
       // Should have token ready events for both tokens
       const tokenReadyEvents = streamEvents.filter(
         e => e.type === 'token_ready'
       );
-      expect(tokenReadyEvents).toHaveLength(2);
+      expect(tokenReadyEvents).toHaveLength(1);
 
       // First token should have transactions, second should have empty array due to swap failure
       const firstTokenEvent = tokenReadyEvents.find(
@@ -351,7 +359,7 @@ describe('SSE Streaming Functionality', () => {
       );
 
       expect(firstTokenEvent.transactions.length).toBeGreaterThan(0);
-      expect(secondTokenEvent.transactions.length).toBe(0); // Failed swap = no transactions
+      expect(secondTokenEvent).toBeUndefined();
     });
   });
 

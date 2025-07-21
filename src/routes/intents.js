@@ -3,6 +3,7 @@ const IntentService = require('../intents/IntentService');
 const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
 const RebalanceBackendClient = require('../services/RebalanceBackendClient');
+const IntentIdGenerator = require('../utils/intentIdGenerator');
 
 const router = express.Router();
 
@@ -125,7 +126,6 @@ router.get('/api/dustzap/:intentId/stream', async (req, res) => {
 
   try {
     // Validate intent ID
-    const IntentIdGenerator = require('../utils/intentIdGenerator');
     if (!IntentIdGenerator.validate(intentId)) {
       return res.status(400).json({
         success: false,

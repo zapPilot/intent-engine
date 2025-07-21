@@ -67,12 +67,89 @@ class SwapService {
       })
     );
 
-    // Filter successful quotes
+    // Filter successful quotes and analyze failures
     const successfulQuotes = quotes
       .filter(result => result.status === 'fulfilled' && result.value.success)
       .map(result => result.value);
+
     if (successfulQuotes.length === 0) {
-      throw new Error('No providers returned successful quotes');
+      // Analyze failed quotes to provide better error categorization
+      const failedQuotes = quotes
+        .filter(
+          result => result.status === 'fulfilled' && !result.value.success
+        )
+        .map(result => result.value);
+
+      const rejectedQuotes = quotes
+        .filter(result => result.status === 'rejected')
+        .map(result => result.reason);
+
+      // Categorize the error based on failure patterns
+      const allErrors = [
+        ...failedQuotes.map(q => q.error),
+        ...rejectedQuotes.map(r => r.message),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      let enhancedErrorMessage = 'No providers returned successful quotes';
+
+      if (
+        allErrors.includes('liquidity') ||
+        allErrors.includes('insufficient')
+      ) {
+        enhancedErrorMessage =
+          'NO_LIQUIDITY: Insufficient liquidity available for this token pair';
+      } else if (
+        allErrors.includes('unsupported') ||
+        allErrors.includes('not found') ||
+        allErrors.includes('invalid token')
+      ) {
+        enhancedErrorMessage =
+          'UNSUPPORTED_TOKEN: Token not supported by available DEX aggregators';
+      } else if (
+        allErrors.includes('rate limit') ||
+        allErrors.includes('api') ||
+        allErrors.includes('quota')
+      ) {
+        enhancedErrorMessage =
+          'API_ERROR: DEX aggregator API rate limit or service issue';
+      } else if (
+        allErrors.includes('network') ||
+        allErrors.includes('timeout') ||
+        allErrors.includes('connection')
+      ) {
+        enhancedErrorMessage =
+          'NETWORK_ERROR: Network connection issue with DEX aggregators';
+      } else if (
+        allErrors.includes('amount') ||
+        allErrors.includes('balance') ||
+        allErrors.includes('insufficient funds')
+      ) {
+        enhancedErrorMessage =
+          'INVALID_AMOUNT: Invalid token amount or insufficient balance';
+      } else if (
+        allErrors.includes('slippage') ||
+        allErrors.includes('price impact')
+      ) {
+        enhancedErrorMessage =
+          'HIGH_SLIPPAGE: Price impact too high for this swap';
+      }
+
+      const error = new Error(enhancedErrorMessage);
+      error.details = {
+        failedProviders: failedQuotes.length,
+        rejectedProviders: rejectedQuotes.length,
+        allProviderErrors: failedQuotes.map(q => ({
+          provider: q.provider,
+          error: q.error,
+        })),
+        tokenPair: `${enhancedParams.fromTokenAddress} -> ${enhancedParams.toTokenAddress}`,
+        amount: enhancedParams.amount,
+        chainId: enhancedParams.chainId,
+      };
+
+      throw error;
     }
 
     // Find the best quote based on toUsd (highest net value after gas costs)

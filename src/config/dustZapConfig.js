@@ -106,5 +106,10 @@ module.exports = {
       'Invalid referralAddress: must be a valid Ethereum address',
     NO_DUST_TOKENS: 'No dust tokens found above threshold',
     PRICE_FETCH_FAILED: 'Failed to fetch ETH price',
+    MISSING_TO_TOKEN_ADDRESS: 'toTokenAddress is required for dust conversion',
+    MISSING_TO_TOKEN_DECIMALS:
+      'toTokenDecimals is required for dust conversion',
+    INVALID_TO_TOKEN_ADDRESS: 'toTokenAddress must be a valid Ethereum address',
+    INVALID_TO_TOKEN_DECIMALS: 'toTokenDecimals must be a positive integer',
   },
 };

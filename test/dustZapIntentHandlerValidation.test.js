@@ -41,6 +41,8 @@ describe('DustZapIntentHandler Validation', () => {
           dustThreshold: 0.01,
           targetToken: 'ETH',
           referralAddress: '0x1234567890123456789012345678901234567890',
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -92,6 +94,8 @@ describe('DustZapIntentHandler Validation', () => {
         chainId: 1,
         params: {
           dustThreshold: 0,
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -102,7 +106,10 @@ describe('DustZapIntentHandler Validation', () => {
       const validRequest = {
         userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
         chainId: 1,
-        params: {},
+        params: {
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
+        },
       };
 
       expect(() => handler.validate(validRequest)).not.toThrow();
@@ -128,6 +135,8 @@ describe('DustZapIntentHandler Validation', () => {
         chainId: 1,
         params: {
           targetToken: 'ETH',
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -138,7 +147,10 @@ describe('DustZapIntentHandler Validation', () => {
       const validRequest = {
         userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
         chainId: 1,
-        params: {},
+        params: {
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
+        },
       };
 
       expect(() => handler.validate(validRequest)).not.toThrow();
@@ -192,6 +204,8 @@ describe('DustZapIntentHandler Validation', () => {
         chainId: 1,
         params: {
           referralAddress: '0x1234567890123456789012345678901234567890',
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
@@ -202,7 +216,10 @@ describe('DustZapIntentHandler Validation', () => {
       const validRequest = {
         userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
         chainId: 1,
-        params: {},
+        params: {
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
+        },
       };
 
       expect(() => handler.validate(validRequest)).not.toThrow();
@@ -216,6 +233,8 @@ describe('DustZapIntentHandler Validation', () => {
           dustThreshold: 0.005,
           targetToken: 'ETH',
           referralAddress: '0x1234567890123456789012345678901234567890',
+          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+          toTokenDecimals: 18,
         },
       };
 
