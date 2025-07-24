@@ -10,7 +10,7 @@ describe('SSE Streaming Functionality', () => {
 
   beforeEach(() => {
     mockSwapService = {
-      getBestSwapQuote: jest.fn(),
+      getSecondBestSwapQuote: jest.fn(),
     };
     mockPriceService = {
       getPrice: jest.fn(),
@@ -137,7 +137,7 @@ describe('SSE Streaming Functionality', () => {
           raw_amount: '1000000000000000000',
         },
       ]);
-      mockSwapService.getBestSwapQuote.mockResolvedValue({
+      mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
         to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         value: '0',
         data: '0x',
@@ -250,7 +250,7 @@ describe('SSE Streaming Functionality', () => {
       };
 
       // Mock swap service to return valid quotes
-      mockSwapService.getBestSwapQuote.mockResolvedValue({
+      mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
         to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         value: '0',
         data: '0x',
@@ -322,7 +322,7 @@ describe('SSE Streaming Functionality', () => {
       };
 
       // Mock first token success, second token failure
-      mockSwapService.getBestSwapQuote
+      mockSwapService.getSecondBestSwapQuote
         .mockResolvedValueOnce({
           to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
           value: '0',

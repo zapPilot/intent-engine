@@ -49,7 +49,7 @@ router.get(
         toTokenPrice: parseFloat(to_token_price),
       };
 
-      const bestQuote = await swapService.getBestSwapQuote(swapParams);
+      const bestQuote = await swapService.getSecondBestSwapQuote(swapParams);
 
       res.json(bestQuote);
     } catch (error) {

@@ -8,7 +8,7 @@ describe('DustZapIntentHandler Validation', () => {
 
   beforeEach(() => {
     mockSwapService = {
-      getBestSwapQuote: jest.fn(),
+      getSecondBestSwapQuote: jest.fn(),
     };
     mockPriceService = {
       getPrice: jest.fn(),

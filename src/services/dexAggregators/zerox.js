@@ -69,8 +69,7 @@ class ZeroXService {
       custom_slippage: customSlippage,
       toUsd:
         (parseInt(data.buyAmount) * toTokenPrice) /
-          Math.pow(10, toTokenDecimals) -
-        gasCostUSD,
+        Math.pow(10, toTokenDecimals),
     };
   }
 

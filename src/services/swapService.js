@@ -20,7 +20,7 @@ class SwapService {
    * @param {Object} params - Swap parameters
    * @returns {Promise<Object>} - Best swap quote with provider info
    */
-  async getBestSwapQuote(params) {
+  async getSecondBestSwapQuote(params) {
     const enhancedParams = {
       ...params,
       ethPrice:

@@ -76,7 +76,7 @@ describe('SwapService Unit Tests', () => {
     });
   });
 
-  describe('getBestSwapQuote', () => {
+  describe('getSecondBestSwapQuote', () => {
     beforeEach(() => {
       // Mock the DEX aggregator services
       swapService.providers['1inch'].getSwapData = jest.fn();
@@ -109,7 +109,7 @@ describe('SwapService Unit Tests', () => {
         slippage: 1,
       };
 
-      const result = await swapService.getBestSwapQuote(params);
+      const result = await swapService.getSecondBestSwapQuote(params);
 
       // Check that ethPrice was added with default value
       expect(swapService.providers['1inch'].getSwapData).toHaveBeenCalledWith({
@@ -156,7 +156,7 @@ describe('SwapService Unit Tests', () => {
         eth_price: '3500',
       };
 
-      await swapService.getBestSwapQuote(params);
+      await swapService.getSecondBestSwapQuote(params);
 
       expect(swapService.providers['1inch'].getSwapData).toHaveBeenCalledWith({
         ...params,
@@ -189,7 +189,7 @@ describe('SwapService Unit Tests', () => {
         eth_price: 'null',
       };
 
-      await swapService.getBestSwapQuote(params);
+      await swapService.getSecondBestSwapQuote(params);
 
       expect(swapService.providers['1inch'].getSwapData).toHaveBeenCalledWith({
         ...params,
@@ -227,7 +227,7 @@ describe('SwapService Unit Tests', () => {
         slippage: 1,
       };
 
-      const result = await swapService.getBestSwapQuote(params);
+      const result = await swapService.getSecondBestSwapQuote(params);
 
       expect(result.provider).toBe('paraswap');
       expect(result.toUsd).toBe(105);
@@ -254,7 +254,7 @@ describe('SwapService Unit Tests', () => {
         slippage: 1,
       };
 
-      await expect(swapService.getBestSwapQuote(params)).rejects.toThrow(
+      await expect(swapService.getSecondBestSwapQuote(params)).rejects.toThrow(
         'No providers returned successful quotes'
       );
     });
@@ -285,7 +285,7 @@ describe('SwapService Unit Tests', () => {
         slippage: 1,
       };
 
-      const result = await swapService.getBestSwapQuote(params);
+      const result = await swapService.getSecondBestSwapQuote(params);
 
       expect(result.provider).toBe('1inch');
       expect(result.allQuotes).toHaveLength(1);

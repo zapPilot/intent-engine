@@ -76,8 +76,7 @@ class OneInchService {
       custom_slippage: slippage,
       toUsd:
         (parseInt(data.toAmount) * toTokenPrice) /
-          Math.pow(10, toTokenDecimals) -
-        gasCostUSD,
+        Math.pow(10, toTokenDecimals),
     };
   }
 

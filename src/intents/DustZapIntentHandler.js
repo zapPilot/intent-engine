@@ -379,7 +379,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
           toTokenPrice: toTokenPrice,
         };
 
-        const swapQuote = await this.swapService.getBestSwapQuote(requestParam);
+        const swapQuote =
+          await this.swapService.getSecondBestSwapQuote(requestParam);
         // Add approve transaction
         txBuilder.addApprove(
           token.id,
@@ -403,32 +404,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
     }
 
     return tokenResults;
-  }
-
-  /**
-   * Calculate trading loss for a token swap using toUsd field
-   * @param {number} inputValueUSD - Input token value in USD
-   * @param {Object} swapQuote - Swap quote from DEX aggregator
-   * @returns {Object} - Trading loss information
-   */
-  calculateTradingLoss(inputValueUSD, swapQuote) {
-    // Use toUsd field which already accounts for gas costs and slippage
-    const netOutputValueUSD = swapQuote.toUsd || 0;
-    const gasCostUSD = swapQuote.gasCostUSD || 0;
-
-    // Net loss calculation (toUsd already subtracts gas costs)
-    const netLossUSD = inputValueUSD - netOutputValueUSD;
-    const lossPercentage =
-      inputValueUSD > 0 ? (netLossUSD / inputValueUSD) * 100 : 0;
-
-    return {
-      inputValueUSD,
-      outputValueUSD: netOutputValueUSD + gasCostUSD, // Add gas back to show gross output
-      netOutputValueUSD, // Net output after gas costs
-      gasCostUSD,
-      netLossUSD,
-      lossPercentage,
-    };
   }
 
   /**
