@@ -152,19 +152,30 @@ class SwapService {
       throw error;
     }
 
-    // Find the best quote based on toUsd (highest net value after gas costs)
-    const bestQuote = successfulQuotes.reduce((best, current) => {
-      return current.quote.toUsd > best.quote.toUsd ? current : best;
-    });
+    // Calculate net value (toUsd - gasCostUSD) and sort quotes by net value descending
+    const quotesWithNetValue = successfulQuotes.map(quote => ({
+      ...quote,
+      netValue: quote.quote.toUsd - (quote.quote.gasCostUSD || 0),
+    }));
+
+    // Sort by net value descending (best first)
+    quotesWithNetValue.sort((a, b) => b.netValue - a.netValue);
+
+    // Select second-best quote if available, otherwise use the best (only) quote
+    const selectedQuote =
+      quotesWithNetValue.length > 1
+        ? quotesWithNetValue[1]
+        : quotesWithNetValue[0];
 
     return {
-      ...bestQuote.quote,
-      provider: bestQuote.provider,
-      allQuotes: successfulQuotes.map(q => ({
+      ...selectedQuote.quote,
+      provider: selectedQuote.provider,
+      allQuotes: quotesWithNetValue.map(q => ({
         provider: q.provider,
         toUsd: q.quote.toUsd,
         gasCostUSD: q.quote.gasCostUSD,
         toAmount: q.quote.toAmount,
+        netValue: q.netValue,
       })),
     };
   }
