@@ -384,7 +384,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
         // Add approve transaction
         txBuilder.addApprove(
           token.id,
-          swapQuote.to, // Router address
+          swapQuote.approve_to, // Router address
           token.raw_amount
         );
 

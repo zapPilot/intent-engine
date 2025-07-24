@@ -183,6 +183,9 @@ router.get('/api/dustzap/:intentId/stream', async (req, res) => {
     // Process tokens and stream results
     await processTokensWithStreaming(dustZapHandler, executionContext, res);
 
+    // Add small delay to ensure complete event is processed before connection closes
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Close the connection
     res.end();
   } catch (error) {
