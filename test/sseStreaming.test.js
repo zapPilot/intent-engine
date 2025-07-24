@@ -139,6 +139,7 @@ describe('SSE Streaming Functionality', () => {
       ]);
       mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
         to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        approve_to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         value: '0',
         data: '0x',
         gas: '150000',
@@ -252,6 +253,7 @@ describe('SSE Streaming Functionality', () => {
       // Mock swap service to return valid quotes
       mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
         to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        approve_to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         value: '0',
         data: '0x',
         gas: '150000',
@@ -325,6 +327,7 @@ describe('SSE Streaming Functionality', () => {
       mockSwapService.getSecondBestSwapQuote
         .mockResolvedValueOnce({
           to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          approve_to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
           value: '0',
           data: '0x',
           gas: '150000',
