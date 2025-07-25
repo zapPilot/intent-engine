@@ -60,65 +60,6 @@ describe('FeeCalculationService', () => {
     });
   });
 
-  describe('addFeeTransactions', () => {
-    let mockTxBuilder;
-
-    beforeEach(() => {
-      mockTxBuilder = {
-        addETHTransfer: jest.fn(),
-      };
-    });
-
-    it('should add single transaction without referral', () => {
-      const totalValueUSD = 1000;
-      const ethPrice = 3000;
-
-      const result = feeService.addFeeTransactions(
-        mockTxBuilder,
-        totalValueUSD,
-        ethPrice
-      );
-
-      expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledTimes(1);
-      expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledWith(
-        expect.any(String), // treasury address
-        result.totalFeeWei,
-        'Platform fee (100%)'
-      );
-      expect(result.hasReferral).toBe(false);
-    });
-
-    it('should add split transactions with referral', () => {
-      const totalValueUSD = 1000;
-      const ethPrice = 3000;
-      const referralAddress = '0x1234567890123456789012345678901234567890';
-
-      const result = feeService.addFeeTransactions(
-        mockTxBuilder,
-        totalValueUSD,
-        ethPrice,
-        referralAddress
-      );
-
-      expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledTimes(2);
-
-      // Check referrer transaction
-      expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledWith(
-        referralAddress,
-        result.referrerFeeWei,
-        'Referrer fee (70%)'
-      );
-
-      // Check treasury transaction (allow for floating point precision in percentage)
-      expect(mockTxBuilder.addETHTransfer).toHaveBeenCalledWith(
-        expect.any(String), // treasury address
-        result.treasuryFeeWei,
-        expect.stringMatching(/^Treasury fee \(30.*%\)$/)
-      );
-      expect(result.hasReferral).toBe(true);
-    });
-  });
-
   describe('buildFeeInfo', () => {
     it('should build fee info metadata without referral', () => {
       const totalValueUSD = 1000;

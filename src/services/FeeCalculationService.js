@@ -74,51 +74,6 @@ class FeeCalculationService {
   }
 
   /**
-   * Add fee transactions to the transaction builder (legacy method)
-   * @param {TransactionBuilder} txBuilder - Transaction builder instance
-   * @param {number} totalValueUSD - Total swap value in USD
-   * @param {number} ethPrice - ETH price in USD
-   * @param {string} referralAddress - Optional referral address
-   * @returns {Object} - Fee calculation results for metadata
-   */
-  addFeeTransactions(
-    txBuilder,
-    totalValueUSD,
-    ethPrice,
-    referralAddress = null
-  ) {
-    const feeAmounts = this.calculateFeeAmounts(
-      totalValueUSD,
-      ethPrice,
-      referralAddress
-    );
-
-    if (referralAddress) {
-      // Split fee: referrer share to referrer, remainder to treasury
-      txBuilder.addETHTransfer(
-        referralAddress,
-        feeAmounts.referrerFeeWei,
-        `Referrer fee (${feeAmounts.referrerFeePercentage}%)`
-      );
-
-      txBuilder.addETHTransfer(
-        feeConfig.treasuryAddress,
-        feeAmounts.treasuryFeeWei,
-        `Treasury fee (${feeAmounts.treasuryFeePercentage}%)`
-      );
-    } else {
-      // All fee to treasury
-      txBuilder.addETHTransfer(
-        feeConfig.treasuryAddress,
-        feeAmounts.totalFeeWei,
-        'Platform fee (100%)'
-      );
-    }
-
-    return feeAmounts;
-  }
-
-  /**
    * Create fee transaction data for random insertion
    * @param {number} totalValueUSD - Total swap value in USD
    * @param {number} ethPrice - ETH price in USD
