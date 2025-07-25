@@ -263,6 +263,41 @@ GET /health
 }
 ```
 
+## Interactive API Documentation
+
+### Swagger UI
+
+Access the interactive API documentation at:
+
+```
+http://localhost:3002/api-docs
+```
+
+The Swagger UI provides:
+
+- **Complete API Reference**: All endpoints with detailed parameters and response schemas
+- **Interactive Testing**: Test endpoints directly in your browser
+- **Request/Response Examples**: Real examples for all endpoints
+- **Schema Documentation**: Detailed data models and validation rules
+- **Authentication Info**: API key requirements and usage
+
+### Development Testing
+
+For development and testing, use the comprehensive HTTP request collections in `docs/http-examples/`:
+
+- **`intents.http`** - Intent-based operations (DustZap, ZapIn, ZapOut, Optimize)
+- **`swaps.http`** - DEX aggregator swap operations and quotes
+- **`prices.http`** - Token price data with fallback providers
+- **`health.http`** - Health checks, monitoring, and utility endpoints
+
+These files work with:
+
+- [VS Code REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension
+- IntelliJ HTTP Client
+- Any tool that supports `.http` files
+
+See `docs/http-examples/README.md` for detailed usage instructions.
+
 ## Architecture
 
 ### Project Structure
@@ -284,7 +319,8 @@ intent-engine/
 │   │   ├── swapService.js      # Main swap orchestration service
 │   │   └── priceService.js     # Main price orchestration service
 │   ├── config/
-│   │   └── priceConfig.js      # Price provider configuration
+│   │   ├── priceConfig.js      # Price provider configuration
+│   │   └── swaggerConfig.js    # Swagger/OpenAPI configuration
 │   ├── utils/
 │   │   ├── retry.js            # Retry logic utilities
 │   │   └── validation.js       # Input validation middleware
@@ -292,8 +328,16 @@ intent-engine/
 │   │   ├── cors.js             # CORS configuration
 │   │   └── errorHandler.js     # Global error handling
 │   ├── routes/
-│   │   └── swap.js             # API route definitions
+│   │   ├── swap.js             # Swap API route definitions
+│   │   └── intents.js          # Intent API route definitions
 │   └── app.js                  # Main application setup
+├── docs/
+│   └── http-examples/          # HTTP request examples for testing
+│       ├── intents.http        # Intent endpoint examples
+│       ├── swaps.http          # Swap endpoint examples
+│       ├── prices.http         # Price endpoint examples
+│       ├── health.http         # Health check examples
+│       └── README.md           # HTTP examples documentation
 ├── test/
 │   ├── swap.test.js            # Swap functionality tests
 │   └── price.test.js           # Price functionality tests

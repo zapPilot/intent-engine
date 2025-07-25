@@ -1,0 +1,174 @@
+### Intent Engine API - Health Check & Utility Endpoints
+### Base URL: http://localhost:3002
+
+##########################
+### Health Check Endpoints ###
+##########################
+
+### Basic health check
+GET {{baseUrl}}/health
+Content-Type: application/json
+
+###
+
+### Intent service health check (comprehensive)
+GET {{baseUrl}}/api/v1/intents/health
+Content-Type: application/json
+
+###
+
+##########################
+### Service Status ###
+##########################
+
+### Get price provider status
+GET {{baseUrl}}/tokens/providers
+Content-Type: application/json
+
+###
+
+### Get DEX provider status
+GET {{baseUrl}}/swap/providers
+Content-Type: application/json
+
+###
+
+### Get supported intent types
+GET {{baseUrl}}/api/v1/intents
+Content-Type: application/json
+
+###
+
+##########################
+### API Documentation ###
+##########################
+
+### Access Swagger UI (open in browser)
+### http://localhost:3002/api-docs
+
+### Get OpenAPI spec as JSON
+GET {{baseUrl}}/api-docs.json
+Accept: application/json
+
+###
+
+##########################
+### Variables ###
+##########################
+
+@baseUrl = http://localhost:3002
+
+##########################
+### Development Workflow ###
+##########################
+
+### 1. Check if API is running
+GET {{baseUrl}}/health
+
+###
+
+### 2. Verify all services are healthy
+GET {{baseUrl}}/api/v1/intents/health
+
+###
+
+### 3. Check available providers
+GET {{baseUrl}}/swap/providers
+
+###
+
+### 4. Check price provider status
+GET {{baseUrl}}/tokens/providers
+
+###
+
+### 5. Get supported intent types
+GET {{baseUrl}}/api/v1/intents
+
+###
+
+##########################
+### Monitoring & Debugging ###
+##########################
+
+### Health check for monitoring (minimal response)
+GET {{baseUrl}}/health
+Content-Type: application/json
+
+###
+
+### Detailed health check for debugging
+GET {{baseUrl}}/api/v1/intents/health
+Content-Type: application/json
+
+###
+
+### Provider rate limit status
+GET {{baseUrl}}/tokens/providers
+Content-Type: application/json
+
+###
+
+##########################
+### Load Testing Preparation ###
+##########################
+
+### Warmup request 1 - Health
+GET {{baseUrl}}/health
+
+###
+
+### Warmup request 2 - Price providers
+GET {{baseUrl}}/tokens/providers
+
+###
+
+### Warmup request 3 - Swap providers  
+GET {{baseUrl}}/swap/providers
+
+###
+
+### Warmup request 4 - Test price fetch
+GET {{baseUrl}}/tokens/price/btc?useCache=false
+
+###
+
+### Warmup request 5 - Test intent health
+GET {{baseUrl}}/api/v1/intents/health
+
+###
+
+##########################
+### Error Scenarios ###
+##########################
+
+### Non-existent endpoint
+GET {{baseUrl}}/api/v1/nonexistent
+Content-Type: application/json
+
+###
+
+### Method not allowed
+POST {{baseUrl}}/health
+Content-Type: application/json
+{}
+
+###
+
+##########################
+### CORS Testing ###
+##########################
+
+### CORS preflight request simulation
+OPTIONS {{baseUrl}}/api/v1/intents
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: Content-Type
+
+###
+
+### CORS actual request
+GET {{baseUrl}}/health
+Origin: http://localhost:3000
+
+###
