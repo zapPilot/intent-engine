@@ -1,0 +1,191 @@
+### Intent Engine API - Intent Endpoints
+### Base URL: http://localhost:3002
+
+##########################
+### Intent Endpoints ###
+##########################
+
+### Get supported intent types
+GET {{baseUrl}}/api/v1/intents
+Content-Type: application/json
+
+###
+
+### DustZap Intent - Convert dust tokens to ETH
+POST {{baseUrl}}/api/v1/intents/dustZap
+Content-Type: application/json
+
+{
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
+  "chainId": 1,
+  "params": {
+    "dustThreshold": 5,
+    "targetToken": "ETH",
+    "toTokenAddress": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "toTokenDecimals": 18,
+    "slippage": 1,
+    "referralAddress": "0x1234567890123456789012345678901234567890"
+  }
+}
+
+###
+
+### DustZap Intent - Without referral address
+POST {{baseUrl}}/api/v1/intents/dustZap
+Content-Type: application/json
+
+{
+  "userAddress": "0x742d35Cc6A5C7b8E9dC85c70D8c15516e8b3eEeF",
+  "chainId": 42161,
+  "params": {
+    "dustThreshold": 10,
+    "targetToken": "ETH",
+    "toTokenAddress": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "toTokenDecimals": 18,
+    "slippage": 0.5
+  }
+}
+
+###
+
+### DustZap SSE Streaming - Replace {intentId} with actual intent ID from dustZap response
+### Example: dustZap_1640995200000_abc123_def456789abcdef0
+GET {{baseUrl}}/api/dustzap/dustZap_1640995200000_abc123_def456789abcdef0/stream
+Accept: text/event-stream
+Cache-Control: no-cache
+
+###
+
+### Intent service health check
+GET {{baseUrl}}/api/v1/intents/health
+Content-Type: application/json
+
+###
+
+##########################
+### Placeholder Intents ###
+##########################
+
+### ZapIn Intent (Not implemented yet)
+POST {{baseUrl}}/api/v1/intents/zapIn
+Content-Type: application/json
+
+{
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
+  "chainId": 1,
+  "params": {
+    "fromToken": "0xA0b86a33E6441c8e4B23b4bcBd3e5ccB30B4c1b2",
+    "vault": "stablecoin-vault",
+    "amount": "1000000000000000000",
+    "slippageTolerance": 0.5
+  }
+}
+
+###
+
+### ZapOut Intent (Not implemented yet)
+POST {{baseUrl}}/api/v1/intents/zapOut
+Content-Type: application/json
+
+{
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
+  "chainId": 1,
+  "params": {
+    "vault": "stablecoin-vault",
+    "percentage": 50,
+    "toToken": "0xA0b86a33E6441c8e4B23b4bcBd3e5ccB30B4c1b2",
+    "slippageTolerance": 0.5
+  }
+}
+
+###
+
+### Optimize Intent - Multiple operations
+POST {{baseUrl}}/api/v1/intents/optimize
+Content-Type: application/json
+
+{
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
+  "chainId": 1,
+  "params": {
+    "operations": ["dustZap", "rebalance"],
+    "dustThreshold": 5,
+    "slippageTolerance": 0.5
+  }
+}
+
+###
+
+### Optimize Intent - DustZap only
+POST {{baseUrl}}/api/v1/intents/optimize
+Content-Type: application/json
+
+{
+  "userAddress": "0x742d35Cc6A5C7b8E9dC85c70D8c15516e8b3eEeF",
+  "chainId": 42161,
+  "params": {
+    "operations": ["dustZap"],
+    "dustThreshold": 10,
+    "slippageTolerance": 1.0
+  }
+}
+
+###
+
+### Legacy rebalance endpoint (deprecated)
+POST {{baseUrl}}/api/v1/intents/rebalance
+Content-Type: application/json
+
+{
+  "userAddress": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
+  "chainId": 1,
+  "params": {}
+}
+
+###
+
+##########################
+### Variables ###
+##########################
+
+@baseUrl = http://localhost:3002
+
+##########################
+### Test Different Chains ###
+##########################
+
+### DustZap on Arbitrum
+POST {{baseUrl}}/api/v1/intents/dustZap
+Content-Type: application/json
+
+{
+  "userAddress": "0x742d35Cc6A5C7b8E9dC85c70D8c15516e8b3eEeF",
+  "chainId": 42161,
+  "params": {
+    "dustThreshold": 5,
+    "targetToken": "ETH",
+    "toTokenAddress": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "toTokenDecimals": 18,
+    "slippage": 1
+  }
+}
+
+###
+
+### DustZap on Base
+POST {{baseUrl}}/api/v1/intents/dustZap
+Content-Type: application/json
+
+{
+  "userAddress": "0x742d35Cc6A5C7b8E9dC85c70D8c15516e8b3eEeF",
+  "chainId": 8453,
+  "params": {
+    "dustThreshold": 5,
+    "targetToken": "ETH",
+    "toTokenAddress": "0x4200000000000000000000000000000000000006",
+    "toTokenDecimals": 18,
+    "slippage": 1
+  }
+}
+
+###

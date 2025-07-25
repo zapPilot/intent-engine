@@ -115,3 +115,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# claude-monitor
+uploads/
+usage_tracking2.json
+
+# dev files
+result.json

@@ -1,0 +1,210 @@
+### Intent Engine API - Price Endpoints
+### Base URL: http://localhost:3002
+
+##########################
+### Token Price Endpoints ###
+##########################
+
+### Get bulk token prices - Major cryptocurrencies
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc,usdt,dai&useCache=true&timeout=5000
+Content-Type: application/json
+
+###
+
+### Get bulk token prices - Altcoins
+GET {{baseUrl}}/tokens/prices?tokens=ada,sol,dot,matic,link&useCache=true&timeout=5000
+Content-Type: application/json
+
+###
+
+### Get bulk token prices - DeFi tokens
+GET {{baseUrl}}/tokens/prices?tokens=uni,aave,comp,mkr,crv&useCache=false&timeout=10000
+Content-Type: application/json
+
+###
+
+### Get bulk token prices - Mixed portfolio
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,bnb,ada,doge,matic,avax,near,atom,xlm&useCache=true
+Content-Type: application/json
+
+###
+
+### Get single token price - Bitcoin
+GET {{baseUrl}}/tokens/price/btc?useCache=true&timeout=5000
+Content-Type: application/json
+
+###
+
+### Get single token price - Ethereum
+GET {{baseUrl}}/tokens/price/eth?useCache=false&timeout=3000
+Content-Type: application/json
+
+###
+
+### Get single token price - USDC
+GET {{baseUrl}}/tokens/price/usdc?useCache=true
+Content-Type: application/json
+
+###
+
+### Get single token price - Solana
+GET {{baseUrl}}/tokens/price/sol?useCache=false&timeout=8000
+Content-Type: application/json
+
+###
+
+### Get price provider status and rate limits
+GET {{baseUrl}}/tokens/providers
+Content-Type: application/json
+
+###
+
+##########################
+### Error Cases ###
+##########################
+
+### Invalid token symbol
+GET {{baseUrl}}/tokens/price/invalidtoken?useCache=true
+Content-Type: application/json
+
+###
+
+### Bulk request with invalid tokens
+GET {{baseUrl}}/tokens/prices?tokens=btc,invalidtoken,eth,anotherbadtoken&useCache=true
+Content-Type: application/json
+
+###
+
+### Missing tokens parameter
+GET {{baseUrl}}/tokens/prices?useCache=true
+Content-Type: application/json
+
+###
+
+### Empty tokens parameter
+GET {{baseUrl}}/tokens/prices?tokens=&useCache=true
+Content-Type: application/json
+
+###
+
+### Very short timeout (likely to fail)
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth&timeout=1
+Content-Type: application/json
+
+###
+
+##########################
+### Cache Testing ###
+##########################
+
+### Request with cache enabled (default)
+GET {{baseUrl}}/tokens/price/btc?useCache=true
+Content-Type: application/json
+
+###
+
+### Request with cache disabled
+GET {{baseUrl}}/tokens/price/btc?useCache=false
+Content-Type: application/json
+
+###
+
+### Bulk request without cache
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc&useCache=false
+Content-Type: application/json
+
+###
+
+### Bulk request with cache (should be faster on subsequent calls)
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc&useCache=true
+Content-Type: application/json
+
+###
+
+##########################
+### Performance Testing ###
+##########################
+
+### Small batch (fast)
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth&useCache=true
+Content-Type: application/json
+
+###
+
+### Medium batch
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc,usdt,dai,bnb,ada,sol,dot,matic&useCache=true
+Content-Type: application/json
+
+###
+
+### Large batch (may take longer)
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc,usdt,dai,bnb,ada,sol,dot,matic,link,uni,aave,comp,mkr,crv,snx,yfi,1inch,sushi&useCache=true&timeout=15000
+Content-Type: application/json
+
+###
+
+##########################
+### Timeout Testing ###
+##########################
+
+### Conservative timeout
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc&timeout=10000&useCache=false
+Content-Type: application/json
+
+###
+
+### Aggressive timeout
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc&timeout=2000&useCache=false
+Content-Type: application/json
+
+###
+
+### Very long timeout for comprehensive data
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc,usdt,dai,bnb,ada,sol,dot,matic,link,uni,aave,comp,mkr&timeout=30000&useCache=false
+Content-Type: application/json
+
+###
+
+##########################
+### Variables ###
+##########################
+
+@baseUrl = http://localhost:3002
+
+##########################
+### Common Token Symbols ###
+##########################
+
+# Major Cryptocurrencies:
+# btc, eth, bnb, ada, sol, xrp, dot, doge, avax, matic, shib, ltc, etc
+
+# Stablecoins:
+# usdc, usdt, dai, busd, frax, tusd, etc
+
+# DeFi Tokens:
+# uni, aave, comp, mkr, crv, snx, yfi, 1inch, sushi, bal, etc
+
+# Layer 1 & Layer 2:
+# eth, matic, avax, ftm, one, near, atom, algo, etc
+
+##########################
+### Special Cases ###
+##########################
+
+### Price check for stablecoins (should be close to $1)
+GET {{baseUrl}}/tokens/prices?tokens=usdc,usdt,dai,busd&useCache=false
+Content-Type: application/json
+
+###
+
+### Volatile tokens during market events
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,doge,shib&useCache=false&timeout=8000
+Content-Type: application/json
+
+###
+
+### Enterprise/institutional favorites
+GET {{baseUrl}}/tokens/prices?tokens=btc,eth,usdc,usdt&useCache=true
+Content-Type: application/json
+
+###

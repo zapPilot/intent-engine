@@ -11,7 +11,7 @@ module.exports = {
     'plugin:security/recommended',
     'prettier', // This disables ESLint rules that conflict with Prettier
   ],
-  plugins: ['node', 'security'],
+  plugins: ['node', 'security', 'unused-imports'],
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
@@ -20,7 +20,20 @@ module.exports = {
     // Error prevention
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-debugger': 'error',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    // Unused imports and variables detection (enhanced)
+    'no-unused-vars': 'off', // Replaced by unused-imports/no-unused-vars for better functionality
+    'unused-imports/no-unused-imports': 'error',
+    'unused-imports/no-unused-vars': [
+      'error',
+      {
+        vars: 'all',
+        varsIgnorePattern: '^_',
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
     'no-undef': 'error',
     'no-unreachable': 'error',
     'no-duplicate-imports': 'error',

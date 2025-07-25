@@ -1,8 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const swaggerUi = require('swagger-ui-express');
+const { swaggerSpec } = require('./config/swaggerConfig');
 const corsMiddleware = require('./middleware/cors');
 const errorHandler = require('./middleware/errorHandler');
 const swapRoutes = require('./routes/swap');
+const intentRoutes = require('./routes/intents');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -12,8 +15,28 @@ app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Swagger documentation middleware
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Intent Engine API Documentation',
+  })
+);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Routes
 app.use('/', swapRoutes);
+app.use('/', intentRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -21,9 +44,14 @@ app.use(errorHandler);
 // Only start server if this file is run directly, not when imported
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`🚀 Swap API Server running on port ${PORT}`);
+    console.log(`🚀 Intent Engine Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Supported providers: 1inch, paraswap, 0x`);
+    console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+    console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
+    console.log(`Supported DEX providers: 1inch, paraswap, 0x`);
+    console.log(
+      `Supported intents: dustZap (zapIn, zapOut, rebalance coming soon)`
+    );
   });
 }
 

@@ -74,8 +74,7 @@ class ParaswapService {
       custom_slippage: customSlippage,
       toUsd:
         (parseInt(data.priceRoute.destAmount) * toTokenPrice) /
-          Math.pow(10, toTokenDecimals) -
-        gasCostUSD,
+        Math.pow(10, toTokenDecimals),
     };
   }
 

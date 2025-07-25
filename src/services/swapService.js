@@ -1,7 +1,7 @@
 const OneInchService = require('./dexAggregators/oneinch');
 const ParaswapService = require('./dexAggregators/paraswap');
 const ZeroXService = require('./dexAggregators/zerox');
-const { retryWithBackoff } = require('../utils/retry');
+const { retryWithBackoff, RetryStrategies } = require('../utils/retry');
 
 /**
  * Main Swap Service that orchestrates all DEX aggregators
@@ -20,25 +20,33 @@ class SwapService {
    * @param {Object} params - Swap parameters
    * @returns {Promise<Object>} - Best swap quote with provider info
    */
-  async getBestSwapQuote(params) {
+  async getSecondBestSwapQuote(params) {
     const enhancedParams = {
       ...params,
       ethPrice:
         params.eth_price && params.eth_price !== 'null'
           ? parseFloat(params.eth_price)
-          : 1000,
+          : 3000,
     };
 
     const quotes = await Promise.allSettled(
       Object.entries(this.providers).map(async ([providerName, service]) => {
         try {
+          // Get provider-specific retry strategy
+          const retryStrategy = this.getRetryStrategy(providerName);
+
           const quote = await retryWithBackoff(
             () => service.getSwapData(enhancedParams),
             {
               retries: 2,
               minTimeout: 1000,
               maxTimeout: 5000,
-            }
+              context: {
+                providerName,
+                enhancedParams,
+              },
+            },
+            retryStrategy
           );
           return {
             provider: providerName,
@@ -59,66 +67,117 @@ class SwapService {
       })
     );
 
-    // Filter successful quotes
+    // Filter successful quotes and analyze failures
     const successfulQuotes = quotes
       .filter(result => result.status === 'fulfilled' && result.value.success)
       .map(result => result.value);
+
     if (successfulQuotes.length === 0) {
-      throw new Error('No providers returned successful quotes');
+      // Analyze failed quotes to provide better error categorization
+      const failedQuotes = quotes
+        .filter(
+          result => result.status === 'fulfilled' && !result.value.success
+        )
+        .map(result => result.value);
+
+      const rejectedQuotes = quotes
+        .filter(result => result.status === 'rejected')
+        .map(result => result.reason);
+
+      // Categorize the error based on failure patterns
+      const allErrors = [
+        ...failedQuotes.map(q => q.error),
+        ...rejectedQuotes.map(r => r.message),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      let enhancedErrorMessage = 'No providers returned successful quotes';
+
+      if (
+        allErrors.includes('liquidity') ||
+        allErrors.includes('insufficient')
+      ) {
+        enhancedErrorMessage =
+          'NO_LIQUIDITY: Insufficient liquidity available for this token pair';
+      } else if (
+        allErrors.includes('unsupported') ||
+        allErrors.includes('not found') ||
+        allErrors.includes('invalid token')
+      ) {
+        enhancedErrorMessage =
+          'UNSUPPORTED_TOKEN: Token not supported by available DEX aggregators';
+      } else if (
+        allErrors.includes('rate limit') ||
+        allErrors.includes('api') ||
+        allErrors.includes('quota')
+      ) {
+        enhancedErrorMessage =
+          'API_ERROR: DEX aggregator API rate limit or service issue';
+      } else if (
+        allErrors.includes('network') ||
+        allErrors.includes('timeout') ||
+        allErrors.includes('connection')
+      ) {
+        enhancedErrorMessage =
+          'NETWORK_ERROR: Network connection issue with DEX aggregators';
+      } else if (
+        allErrors.includes('amount') ||
+        allErrors.includes('balance') ||
+        allErrors.includes('insufficient funds')
+      ) {
+        enhancedErrorMessage =
+          'INVALID_AMOUNT: Invalid token amount or insufficient balance';
+      } else if (
+        allErrors.includes('slippage') ||
+        allErrors.includes('price impact')
+      ) {
+        enhancedErrorMessage =
+          'HIGH_SLIPPAGE: Price impact too high for this swap';
+      }
+
+      const error = new Error(enhancedErrorMessage);
+      error.details = {
+        failedProviders: failedQuotes.length,
+        rejectedProviders: rejectedQuotes.length,
+        allProviderErrors: failedQuotes.map(q => ({
+          provider: q.provider,
+          error: q.error,
+        })),
+        tokenPair: `${enhancedParams.fromTokenAddress} -> ${enhancedParams.toTokenAddress}`,
+        amount: enhancedParams.amount,
+        chainId: enhancedParams.chainId,
+      };
+
+      throw error;
     }
 
-    // Find the best quote based on toUsd (highest net value after gas costs)
-    const bestQuote = successfulQuotes.reduce((best, current) => {
-      return current.quote.toUsd > best.quote.toUsd ? current : best;
-    });
+    // Calculate net value (toUsd - gasCostUSD) and sort quotes by net value descending
+    const quotesWithNetValue = successfulQuotes.map(quote => ({
+      ...quote,
+      netValue: quote.quote.toUsd - (quote.quote.gasCostUSD || 0),
+    }));
+
+    // Sort by net value descending (best first)
+    quotesWithNetValue.sort((a, b) => b.netValue - a.netValue);
+
+    // Select second-best quote if available, otherwise use the best (only) quote
+    const selectedQuote =
+      quotesWithNetValue.length > 1
+        ? quotesWithNetValue[1]
+        : quotesWithNetValue[0];
 
     return {
-      ...bestQuote.quote,
-      provider: bestQuote.provider,
-      allQuotes: successfulQuotes.map(q => ({
+      ...selectedQuote.quote,
+      provider: selectedQuote.provider,
+      allQuotes: quotesWithNetValue.map(q => ({
         provider: q.provider,
         toUsd: q.quote.toUsd,
         gasCostUSD: q.quote.gasCostUSD,
         toAmount: q.quote.toAmount,
+        netValue: q.netValue,
       })),
     };
-  }
-
-  /**
-   * Get swap data from a specific provider (for backward compatibility)
-   * @param {string} provider - DEX aggregator provider
-   * @param {Object} params - Swap parameters
-   * @returns {Promise<Object>} - Swap data response
-   */
-  async getSwapDataFromProvider(provider, params) {
-    try {
-      const service = this.providers[provider];
-      if (!service) {
-        throw new Error(`Provider ${provider} is not supported`);
-      }
-
-      const enhancedParams = {
-        ...params,
-        ethPrice:
-          params.eth_price && params.eth_price !== 'null'
-            ? parseFloat(params.eth_price)
-            : 1000,
-      };
-
-      const swapData = await retryWithBackoff(
-        () => service.getSwapData(enhancedParams),
-        {
-          retries: 3,
-          minTimeout: 3000,
-          maxTimeout: 10000,
-        }
-      );
-
-      return swapData;
-    } catch (error) {
-      console.error(`Error getting swap data from ${provider}:`, error.message);
-      throw error;
-    }
   }
 
   /**
@@ -136,6 +195,21 @@ class SwapService {
    */
   isProviderSupported(provider) {
     return Object.prototype.hasOwnProperty.call(this.providers, provider);
+  }
+
+  /**
+   * Get provider-specific retry strategy
+   * @param {string} providerName - Name of the provider
+   * @returns {Function|null} - Retry strategy function or null for default behavior
+   */
+  getRetryStrategy(providerName) {
+    const strategyMap = {
+      '1inch': RetryStrategies.oneInch,
+      paraswap: RetryStrategies.paraswap,
+      '0x': RetryStrategies.zeroX,
+    };
+
+    return strategyMap[providerName] || null;
   }
 }
 

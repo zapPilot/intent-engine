@@ -46,6 +46,11 @@ class ZeroXService {
     };
 
     const response = await axios.get(this.baseURL, requestConfig);
+    if (response.data.liquidityAvailable === false) {
+      const err = new Error('liquidityAvailable: false');
+      err.liquidityAvailable = false; // Custom property for retry strategy
+      throw err;
+    }
     const data = response.data;
 
     const gasCostUSD =
@@ -64,8 +69,7 @@ class ZeroXService {
       custom_slippage: customSlippage,
       toUsd:
         (parseInt(data.buyAmount) * toTokenPrice) /
-          Math.pow(10, toTokenDecimals) -
-        gasCostUSD,
+        Math.pow(10, toTokenDecimals),
     };
   }
 

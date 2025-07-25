@@ -263,6 +263,41 @@ GET /health
 }
 ```
 
+## Interactive API Documentation
+
+### Swagger UI
+
+Access the interactive API documentation at:
+
+```
+http://localhost:3002/api-docs
+```
+
+The Swagger UI provides:
+
+- **Complete API Reference**: All endpoints with detailed parameters and response schemas
+- **Interactive Testing**: Test endpoints directly in your browser
+- **Request/Response Examples**: Real examples for all endpoints
+- **Schema Documentation**: Detailed data models and validation rules
+- **Authentication Info**: API key requirements and usage
+
+### Development Testing
+
+For development and testing, use the comprehensive HTTP request collections in `docs/http-examples/`:
+
+- **`intents.http`** - Intent-based operations (DustZap, ZapIn, ZapOut, Optimize)
+- **`swaps.http`** - DEX aggregator swap operations and quotes
+- **`prices.http`** - Token price data with fallback providers
+- **`health.http`** - Health checks, monitoring, and utility endpoints
+
+These files work with:
+
+- [VS Code REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension
+- IntelliJ HTTP Client
+- Any tool that supports `.http` files
+
+See `docs/http-examples/README.md` for detailed usage instructions.
+
 ## Architecture
 
 ### Project Structure
@@ -284,7 +319,8 @@ intent-engine/
 │   │   ├── swapService.js      # Main swap orchestration service
 │   │   └── priceService.js     # Main price orchestration service
 │   ├── config/
-│   │   └── priceConfig.js      # Price provider configuration
+│   │   ├── priceConfig.js      # Price provider configuration
+│   │   └── swaggerConfig.js    # Swagger/OpenAPI configuration
 │   ├── utils/
 │   │   ├── retry.js            # Retry logic utilities
 │   │   └── validation.js       # Input validation middleware
@@ -292,8 +328,16 @@ intent-engine/
 │   │   ├── cors.js             # CORS configuration
 │   │   └── errorHandler.js     # Global error handling
 │   ├── routes/
-│   │   └── swap.js             # API route definitions
+│   │   ├── swap.js             # Swap API route definitions
+│   │   └── intents.js          # Intent API route definitions
 │   └── app.js                  # Main application setup
+├── docs/
+│   └── http-examples/          # HTTP request examples for testing
+│       ├── intents.http        # Intent endpoint examples
+│       ├── swaps.http          # Swap endpoint examples
+│       ├── prices.http         # Price endpoint examples
+│       ├── health.http         # Health check examples
+│       └── README.md           # HTTP examples documentation
 ├── test/
 │   ├── swap.test.js            # Swap functionality tests
 │   └── price.test.js           # Price functionality tests
@@ -396,6 +440,110 @@ npm run test:watch
 # Run tests with coverage
 npm run test:coverage
 ```
+
+## Docker Deployment
+
+### Building the Docker Image
+
+The Intent Engine includes a production-ready Dockerfile with integrated Swagger documentation:
+
+```bash
+# Build the Docker image
+docker build -t intent-engine .
+
+# Run the container
+docker run -d \
+  --name intent-engine \
+  -p 3002:3002 \
+  --env-file .env \
+  intent-engine
+
+# View logs
+docker logs intent-engine
+
+# Stop the container
+docker stop intent-engine
+```
+
+### Environment Variables for Docker
+
+Create a `.env` file with your API keys:
+
+```env
+# DEX Aggregator API Keys
+ONE_INCH_API_KEY=your_1inch_api_key_here
+ZEROX_API_KEY=your_0x_api_key_here
+
+# Price API Keys
+COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here
+
+# Server Configuration
+PORT=3002
+NODE_ENV=production
+
+# Intent Engine Configuration
+REBALANCE_BACKEND_URL=http://host.docker.internal:5000
+REBALANCE_BACKEND_TIMEOUT=10000
+```
+
+### Docker Features
+
+- **Multi-stage build** for optimized production image
+- **Non-root user** for enhanced security
+- **Health checks** for container monitoring
+- **Integrated Swagger UI** available at `/api-docs`
+- **Alpine Linux** base for minimal attack surface
+
+### Accessing the API
+
+Once the container is running:
+
+- **API Base URL**: `http://localhost:3002`
+- **Swagger Documentation**: `http://localhost:3002/api-docs`
+- **Health Check**: `http://localhost:3002/health`
+
+### Production Deployment
+
+For production deployment, consider:
+
+```bash
+# Build with specific tag
+docker build -t intent-engine:v1.0.0 .
+
+# Run with restart policy and resource limits
+docker run -d \
+  --name intent-engine-prod \
+  --restart unless-stopped \
+  --memory="512m" \
+  --cpus="1.0" \
+  -p 3002:3002 \
+  --env-file .env.production \
+  intent-engine:v1.0.0
+```
+
+## Static Documentation
+
+The API documentation is automatically deployed to GitHub Pages whenever code is pushed to the main branch.
+
+### Accessing Documentation
+
+- **Live Documentation**: Available at your GitHub Pages URL (e.g., `https://your-username.github.io/intent-engine/`)
+- **Interactive Testing**: Full Swagger UI with live API examples
+- **Downloadable Spec**: OpenAPI 3.0 specification in JSON format
+
+### GitHub Pages Setup
+
+1. Enable GitHub Pages in your repository settings
+2. Set source to "GitHub Actions"
+3. Push changes to main branch
+4. Documentation will be automatically built and deployed
+
+The static documentation includes:
+
+- Complete API reference with examples
+- Interactive endpoint testing (try-it-out disabled for static deployment)
+- Downloadable OpenAPI specification
+- Responsive design for mobile/desktop
 
 ## Supported Networks
 

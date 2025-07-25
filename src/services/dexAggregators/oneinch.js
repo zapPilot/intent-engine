@@ -57,7 +57,6 @@ class OneInchService {
         'liquidity-sources': excludedProtocols.join(','),
       },
     };
-
     const response = await axios.get(apiUrl, requestConfig);
     const data = response.data;
 
@@ -77,8 +76,7 @@ class OneInchService {
       custom_slippage: slippage,
       toUsd:
         (parseInt(data.toAmount) * toTokenPrice) /
-          Math.pow(10, toTokenDecimals) -
-        gasCostUSD,
+        Math.pow(10, toTokenDecimals),
     };
   }
 
