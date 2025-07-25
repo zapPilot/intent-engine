@@ -5,6 +5,7 @@
 
 const feeConfig = require('../config/feeConfig');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
+const TransactionBuilder = require('../transactions/TransactionBuilder');
 
 /**
  * Service responsible for all fee-related calculations and transaction generation
@@ -74,48 +75,53 @@ class FeeCalculationService {
   }
 
   /**
-   * Create fee transaction data for random insertion
+   * Create fee transactions using TransactionBuilder
    * @param {number} totalValueUSD - Total swap value in USD
    * @param {number} ethPrice - ETH price in USD
    * @param {string} referralAddress - Optional referral address
-   * @returns {Array} - Array of fee transaction data objects
+   * @param {TransactionBuilder} txBuilder - Transaction builder instance
+   * @returns {Object} - Fee amounts and transaction builder with fee transactions
    */
-  createFeeTransactionData(totalValueUSD, ethPrice, referralAddress = null) {
+  createFeeTransactions(
+    totalValueUSD,
+    ethPrice,
+    referralAddress = null,
+    txBuilder = null
+  ) {
     const feeAmounts = this.calculateFeeAmounts(
       totalValueUSD,
       ethPrice,
       referralAddress
     );
-    const feeTransactions = [];
+
+    // Use provided txBuilder or create new one
+    const builder = txBuilder || new TransactionBuilder();
 
     if (referralAddress) {
       // Split fee: referrer share first, then treasury
-      feeTransactions.push({
-        recipient: referralAddress,
-        amount: feeAmounts.referrerFeeWei,
-        description: `Referrer fee (${feeAmounts.referrerFeePercentage}%)`,
-        type: 'referrer_fee',
-      });
+      builder.addETHTransfer(
+        referralAddress,
+        feeAmounts.referrerFeeWei,
+        `Referrer fee (${feeAmounts.referrerFeePercentage}%)`
+      );
 
-      feeTransactions.push({
-        recipient: feeConfig.treasuryAddress,
-        amount: feeAmounts.treasuryFeeWei,
-        description: `Treasury fee (${feeAmounts.treasuryFeePercentage}%)`,
-        type: 'treasury_fee',
-      });
+      builder.addETHTransfer(
+        feeConfig.treasuryAddress,
+        feeAmounts.treasuryFeeWei,
+        `Treasury fee (${feeAmounts.treasuryFeePercentage}%)`
+      );
     } else {
       // All fee to treasury
-      feeTransactions.push({
-        recipient: feeConfig.treasuryAddress,
-        amount: feeAmounts.totalFeeWei,
-        description: 'Platform fee (100%)',
-        type: 'platform_fee',
-      });
+      builder.addETHTransfer(
+        feeConfig.treasuryAddress,
+        feeAmounts.totalFeeWei,
+        'Platform fee (100%)'
+      );
     }
 
     return {
-      feeTransactions,
       feeAmounts,
+      txBuilder: builder,
     };
   }
 

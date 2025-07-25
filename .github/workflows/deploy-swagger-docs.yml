@@ -1,0 +1,342 @@
+name: Deploy Swagger Documentation
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'docs/**'
+      - 'package*.json'
+      - '.github/workflows/deploy-swagger-docs.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Swagger JSON
+        run: |
+          # Create a script to extract swagger spec
+          cat > extract-swagger.js << 'EOF'
+          const { swaggerSpec } = require('./src/config/swaggerConfig');
+          const fs = require('fs');
+          
+          // Ensure output directory exists
+          if (!fs.existsSync('dist')) {
+            fs.mkdirSync('dist', { recursive: true });
+          }
+          
+          // Write swagger spec to JSON file
+          fs.writeFileSync('dist/swagger.json', JSON.stringify(swaggerSpec, null, 2));
+          console.log('Swagger JSON generated successfully');
+          EOF
+          
+          node extract-swagger.js
+
+      - name: Create static Swagger UI
+        run: |
+          # Install swagger-ui-dist
+          npm install swagger-ui-dist
+          
+          # Create the static site
+          mkdir -p dist/docs
+          
+          # Copy swagger-ui-dist files
+          cp -r node_modules/swagger-ui-dist/* dist/docs/
+          
+          # Create custom index.html with our swagger.json
+          cat > dist/docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Intent Engine API Documentation</title>
+            <link rel="stylesheet" type="text/css" href="./swagger-ui-bundle.css" />
+            <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+            <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+            <style>
+              html {
+                box-sizing: border-box;
+                overflow: -moz-scrollbars-vertical;
+                overflow-y: scroll;
+              }
+              *, *:before, *:after {
+                box-sizing: inherit;
+              }
+              body {
+                margin:0;
+                background: #fafafa;
+              }
+              .swagger-ui .topbar { display: none; }
+              .swagger-ui .info .title { color: #3b4151; }
+            </style>
+          </head>
+          <body>
+            <div id="swagger-ui"></div>
+            <script src="./swagger-ui-bundle.js" charset="UTF-8"></script>
+            <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+            <script>
+            window.onload = function() {
+              const ui = SwaggerUIBundle({
+                url: '../swagger.json',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                  SwaggerUIBundle.presets.apis,
+                  SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                  SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                docExpansion: "list",
+                tryItOutEnabled: false,
+                displayRequestDuration: true,
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true
+              });
+            }
+            </script>
+          </body>
+          </html>
+          EOF
+          
+          # Create a simple landing page
+          cat > dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Intent Engine API Documentation</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.6;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 2rem;
+                color: #333;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 2rem;
+                padding: 2rem;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-radius: 10px;
+              }
+              .nav-card {
+                background: white;
+                border: 1px solid #e1e5e9;
+                border-radius: 8px;
+                padding: 1.5rem;
+                margin: 1rem 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: transform 0.2s;
+              }
+              .nav-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+              }
+              .nav-card h3 {
+                margin: 0 0 0.5rem 0;
+                color: #2c3e50;
+              }
+              .nav-card p {
+                margin: 0;
+                color: #7f8c8d;
+              }
+              .nav-card a {
+                text-decoration: none;
+                color: inherit;
+              }
+              .badges {
+                text-align: center;
+                margin: 2rem 0;
+              }
+              .badge {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                margin: 0.25rem;
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                font-size: 0.875rem;
+                color: #495057;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Intent Engine API</h1>
+              <p>Intent-based DeFi operations with optimal swap execution and bulk token pricing</p>
+            </div>
+            
+            <div class="badges">
+              <span class="badge">OpenAPI 3.0</span>
+              <span class="badge">Express.js</span>
+              <span class="badge">DeFi</span>
+              <span class="badge">Swagger UI</span>
+            </div>
+            
+            <a href="./docs/" class="nav-card">
+              <h3>📚 Interactive API Documentation</h3>
+              <p>Explore all endpoints with interactive examples and try out the API directly in your browser</p>
+            </a>
+            
+            <a href="./swagger.json" class="nav-card">
+              <h3>📄 OpenAPI Specification</h3>
+              <p>Download the raw OpenAPI 3.0 specification in JSON format for integration with other tools</p>
+            </a>
+            
+            <div class="nav-card">
+              <h3>🚀 Quick Start</h3>
+              <p><strong>Base URL:</strong> Configure your API base URL<br>
+              <strong>Supported Chains:</strong> Ethereum, Arbitrum, Base, Optimism, Polygon<br>
+              <strong>Key Features:</strong> DustZap intents, DEX aggregation, Real-time pricing</p>
+            </div>
+            
+            <div class="nav-card">
+              <h3>🔗 Resources</h3>
+              <p>
+                <a href="https://github.com/all-weather-protocol/intent-engine" target="_blank">GitHub Repository</a> •
+                <a href="https://github.com/all-weather-protocol/intent-engine/issues" target="_blank">Report Issues</a> •
+                <a href="https://github.com/all-weather-protocol/intent-engine/blob/main/README.md" target="_blank">Documentation</a>
+              </p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+  deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Job to generate swagger.json for other uses (runs on PRs too)
+  generate-spec:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Swagger Configuration
+        run: |
+          node -e "
+            try {
+              const { swaggerSpec } = require('./src/config/swaggerConfig');
+              console.log('✅ Swagger configuration is valid');
+              console.log('📊 Found', Object.keys(swaggerSpec.paths || {}).length, 'endpoints');
+              console.log('🏷️  API Version:', swaggerSpec.info.version);
+            } catch (error) {
+              console.error('❌ Swagger configuration error:', error.message);
+              process.exit(1);
+            }
+          "
+
+      - name: Generate OpenAPI spec for review
+        run: |
+          node -e "
+            const { swaggerSpec } = require('./src/config/swaggerConfig');
+            const fs = require('fs');
+            fs.writeFileSync('swagger-preview.json', JSON.stringify(swaggerSpec, null, 2));
+            console.log('Generated swagger-preview.json for PR review');
+          "
+
+      - name: Comment PR with documentation preview
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const spec = JSON.parse(fs.readFileSync('swagger-preview.json', 'utf8'));
+            const endpoints = Object.keys(spec.paths || {}).length;
+            const version = spec.info.version;
+            
+            const comment = `## 📚 API Documentation Preview
+            
+            This PR will update the API documentation:
+            - **API Version**: ${version}
+            - **Endpoints**: ${endpoints} total
+            - **OpenAPI Version**: ${spec.openapi}
+            
+            ### 🔍 Preview Changes
+            The documentation will be automatically deployed to GitHub Pages when this PR is merged to main.
+            
+            ### 📋 Endpoints Summary:
+            ${Object.entries(spec.paths || {}).map(([path, methods]) => 
+              `- \`${path}\` (${Object.keys(methods).join(', ').toUpperCase()})`
+            ).slice(0, 10).join('\n')}
+            ${endpoints > 10 ? `\n... and ${endpoints - 10} more endpoints` : ''}
+            
+            <details>
+            <summary>View OpenAPI Specification</summary>
+            
+            \`\`\`json
+            ${JSON.stringify(spec.info, null, 2)}
+            \`\`\`
+            </details>`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

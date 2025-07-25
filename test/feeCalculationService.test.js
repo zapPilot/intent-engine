@@ -95,6 +95,82 @@ describe('FeeCalculationService', () => {
     });
   });
 
+  describe('createFeeTransactions', () => {
+    it('should create fee transactions using TransactionBuilder without referral', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+
+      const result = feeService.createFeeTransactions(totalValueUSD, ethPrice);
+
+      expect(result.feeAmounts).toBeDefined();
+      expect(result.txBuilder).toBeDefined();
+      expect(result.feeAmounts.totalFeeUSD).toBeCloseTo(0.1, 10);
+      expect(result.feeAmounts.hasReferral).toBe(false);
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(1);
+      expect(transactions[0].description).toBe('Platform fee (100%)');
+      expect(transactions[0].gasLimit).toBe('21000');
+    });
+
+    it('should create fee transactions using TransactionBuilder with referral', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const referralAddress = '0x1234567890123456789012345678901234567890';
+
+      const result = feeService.createFeeTransactions(
+        totalValueUSD,
+        ethPrice,
+        referralAddress
+      );
+
+      expect(result.feeAmounts).toBeDefined();
+      expect(result.txBuilder).toBeDefined();
+      expect(result.feeAmounts.hasReferral).toBe(true);
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(2);
+
+      // First transaction should be referrer fee
+      expect(transactions[0].description).toContain('Referrer fee');
+      expect(transactions[0].description).toContain('70');
+
+      // Second transaction should be treasury fee
+      expect(transactions[1].description).toContain('Treasury fee');
+      expect(transactions[1].description).toContain('30');
+
+      // Both should have proper gas limits
+      expect(transactions[0].gasLimit).toBe('21000');
+      expect(transactions[1].gasLimit).toBe('21000');
+    });
+
+    it('should use provided TransactionBuilder instance', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const TransactionBuilder = require('../src/transactions/TransactionBuilder');
+      const existingBuilder = new TransactionBuilder();
+
+      // Add a dummy transaction first
+      existingBuilder.addTransaction({
+        to: '0x1111111111111111111111111111111111111111',
+        value: '0',
+        description: 'Dummy transaction',
+      });
+
+      const result = feeService.createFeeTransactions(
+        totalValueUSD,
+        ethPrice,
+        null,
+        existingBuilder
+      );
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(2); // 1 dummy + 1 fee
+      expect(transactions[0].description).toBe('Dummy transaction');
+      expect(transactions[1].description).toBe('Platform fee (100%)');
+    });
+  });
+
   describe('static utility methods', () => {
     describe('splitFeeAmount', () => {
       it('should split fee amount precisely', () => {

@@ -18,6 +18,8 @@
     "format:check": "prettier --check src/ test/ *.js *.json *.md",
     "quality": "npm run lint && npm run format:check && npm run test",
     "quality:fix": "npm run lint:fix && npm run format && npm run test",
+    "docs:generate": "node -e \"const { swaggerSpec } = require('./src/config/swaggerConfig'); const fs = require('fs'); if (!fs.existsSync('docs')) fs.mkdirSync('docs', { recursive: true }); fs.writeFileSync('docs/swagger.json', JSON.stringify(swaggerSpec, null, 2)); console.log('✅ Generated docs/swagger.json');\"",
+    "docs:serve": "npm run docs:generate && npx swagger-ui-serve docs/swagger.json",
     "prepare": "husky"
   },
   "dependencies": {

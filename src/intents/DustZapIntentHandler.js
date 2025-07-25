@@ -538,24 +538,17 @@ class DustZapIntentHandler extends BaseIntentHandler {
         }
       }
 
-      // Add fee transactions using smart insertion
-      const { feeTransactions } =
-        this.feeCalculationService.createFeeTransactionData(
+      // Add fee transactions using TransactionBuilder for consistency
+      const { txBuilder: feeTxBuilder } =
+        this.feeCalculationService.createFeeTransactions(
           totalValueUSD,
           executionContext.ethPrice,
           referralAddress
         );
 
-      // For SSE streaming, append fees at the end for simplicity
-      // (Could be enhanced with smart insertion in the future)
-      const feeTransactionObjects = feeTransactions.map(fee => ({
-        to: fee.recipient,
-        value: fee.amount.toString(),
-        description: fee.description,
-        gasLimit: '21000',
-      }));
-
-      allTransactions.push(...feeTransactionObjects);
+      // Get fee transactions from builder
+      const feeTransactions = feeTxBuilder.getTransactions();
+      allTransactions.push(...feeTransactions);
 
       // Stream completion with all transactions
       const finalResult = {
