@@ -263,55 +263,6 @@ describe('DustZapIntentHandler Validation', () => {
     });
   });
 
-  describe('buildBatchInfo', () => {
-    it('should build correct batch info for single batch', () => {
-      const batches = [[{ symbol: 'TOKEN1' }, { symbol: 'TOKEN2' }]];
-
-      const batchInfo = handler.buildBatchInfo(batches);
-
-      expect(batchInfo).toEqual([
-        {
-          startIndex: 0,
-          endIndex: 3, // 2 tokens * 2 transactions each - 1
-          tokenCount: 2,
-        },
-      ]);
-    });
-
-    it('should build correct batch info for multiple batches', () => {
-      const batches = [
-        [{ symbol: 'TOKEN1' }, { symbol: 'TOKEN2' }], // 2 tokens = 4 transactions
-        [{ symbol: 'TOKEN3' }], // 1 token = 2 transactions
-        [{ symbol: 'TOKEN4' }, { symbol: 'TOKEN5' }, { symbol: 'TOKEN6' }], // 3 tokens = 6 transactions
-      ];
-
-      const batchInfo = handler.buildBatchInfo(batches);
-
-      expect(batchInfo).toEqual([
-        {
-          startIndex: 0,
-          endIndex: 3,
-          tokenCount: 2,
-        },
-        {
-          startIndex: 4,
-          endIndex: 5,
-          tokenCount: 1,
-        },
-        {
-          startIndex: 6,
-          endIndex: 11,
-          tokenCount: 3,
-        },
-      ]);
-    });
-
-    it('should handle empty batches', () => {
-      const batchInfo = handler.buildBatchInfo([]);
-      expect(batchInfo).toEqual([]);
-    });
-  });
-
   describe('buildFeeInfo (via service)', () => {
     it('should build fee info without referral address', () => {
       const totalValueUSD = 1000;

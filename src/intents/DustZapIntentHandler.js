@@ -88,34 +88,19 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Execute dustZap intent
+   * Execute dustZap intent using SSE streaming
    * @param {Object} request - Intent request
-   * @param {Object} options - Execution options
-   * @param {boolean} options.useSSE - Whether to use SSE streaming (default: check config)
-   * @returns {Promise<Object>} - Intent response with transactions or stream info
+   * @returns {Promise<Object>} - SSE streaming response
    */
-  async execute(request, options = {}) {
+  async execute(request) {
     this.validate(request);
-
-    const useSSE =
-      options.useSSE !== undefined
-        ? options.useSSE
-        : DUST_ZAP_CONFIG.SSE_STREAMING.ENABLED;
 
     try {
       // 1. Prepare execution context with all required data
       const executionContext = await this.prepareExecutionContext(request);
 
-      if (useSSE) {
-        // 2. Return SSE streaming response immediately
-        return this.buildSSEResponse(executionContext);
-      } else {
-        // 2. Process all batches and generate transactions (legacy mode)
-        const processedData = await this.processAllBatches(executionContext);
-
-        // 3. Build and return response with metadata
-        return this.buildResponse(executionContext, processedData);
-      }
+      // 2. Return SSE streaming response immediately
+      return this.buildSSEResponse(executionContext);
     } catch (error) {
       console.error('DustZap execution error:', error);
       throw error;
@@ -175,79 +160,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Process all batches and generate transactions with smart fee insertion
-   * @param {Object} executionContext - Execution context
-   * @returns {Promise<Object>} - Processed data with transactions and totals
-   */
-  async processAllBatches(executionContext) {
-    const { batches, ethPrice, params } = executionContext;
-    const { referralAddress } = params;
-
-    const txBuilder = new TransactionBuilder();
-    let totalValueUSD = 0;
-
-    // PHASE 1: Process all swap transactions first (without fees)
-    for (const batch of batches) {
-      const batchContext = this.createBatchProcessingContext(
-        batch,
-        txBuilder,
-        executionContext
-      );
-
-      await this.processBatch(batchContext);
-      totalValueUSD += calculateTotalValue(batch);
-    }
-
-    // PHASE 2: Calculate smart fee insertion strategy
-    const { feeTransactions, feeAmounts } =
-      this.feeCalculationService.createFeeTransactionData(
-        totalValueUSD,
-        ethPrice,
-        referralAddress
-      );
-
-    // Calculate insertion strategy using smart service
-    const insertionStrategy =
-      this.smartFeeInsertionService.calculateInsertionStrategy(
-        batches,
-        feeAmounts.totalFeeETH,
-        txBuilder.getTransactionCount(),
-        feeTransactions.length
-      );
-
-    // Validate the insertion strategy for safety
-    if (
-      !this.smartFeeInsertionService.validateInsertionStrategy(
-        insertionStrategy,
-        txBuilder.getTransactionCount()
-      )
-    ) {
-      console.warn(
-        'Fee insertion strategy validation failed, falling back to end insertion'
-      );
-      // Fallback: insert fees at the end (legacy behavior)
-      this.feeCalculationService.addFeeTransactions(
-        txBuilder,
-        totalValueUSD,
-        ethPrice,
-        referralAddress
-      );
-    } else {
-      // PHASE 3: Insert fee transactions at calculated random points
-      txBuilder.insertFeeTransactionsRandomly(
-        feeTransactions,
-        insertionStrategy.insertionPoints
-      );
-    }
-
-    return {
-      txBuilder,
-      totalValueUSD,
-      insertionStrategy, // Include strategy metadata for debugging/monitoring
-    };
-  }
-
-  /**
    * Build SSE streaming response (immediate return)
    * @param {Object} executionContext - Execution context
    * @returns {Object} - SSE streaming response
@@ -269,38 +181,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
         totalTokens: dustTokens.length,
         estimatedDuration: this.estimateProcessingDuration(dustTokens.length),
         streamingEnabled: true,
-      },
-    };
-  }
-
-  /**
-   * Build traditional response with metadata (legacy mode)
-   * @param {Object} executionContext - Execution context
-   * @param {Object} processedData - Processed transaction data
-   * @returns {Object} - Complete intent response
-   */
-  buildResponse(executionContext, processedData) {
-    const { dustTokens, batches, params } = executionContext;
-    const { txBuilder, totalValueUSD } = processedData;
-    const { dustThreshold, referralAddress } = params;
-
-    const transactions = txBuilder.getTransactions();
-    const batchInfo = this.buildBatchInfo(batches);
-
-    return {
-      success: true,
-      intentType: 'dustZap',
-      mode: 'immediate',
-      transactions,
-      metadata: {
-        totalTokens: dustTokens.length,
-        batchInfo,
-        feeInfo: this.feeCalculationService.buildFeeInfo(
-          totalValueUSD,
-          referralAddress
-        ),
-        estimatedTotalGas: txBuilder.getTotalGas(),
-        dustThreshold,
       },
     };
   }
@@ -413,29 +293,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
   async getETHPrice() {
     const priceObj = await this.priceService.getPrice('eth');
     return priceObj.price;
-  }
-
-  /**
-   * Build batch info metadata
-   * @param {Array} batches - Array of token batches
-   * @returns {Array} - Batch info array
-   */
-  buildBatchInfo(batches) {
-    let currentIndex = 0;
-    const batchInfo = [];
-
-    for (const batch of batches) {
-      const transactionCount =
-        batch.length * DUST_ZAP_CONFIG.TRANSACTIONS_PER_TOKEN; // approve + swap per token
-      batchInfo.push({
-        startIndex: currentIndex,
-        endIndex: currentIndex + transactionCount - 1,
-        tokenCount: batch.length,
-      });
-      currentIndex += transactionCount;
-    }
-
-    return batchInfo;
   }
 
   /**

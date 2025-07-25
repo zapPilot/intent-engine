@@ -114,7 +114,7 @@ describe('SSE Streaming Functionality', () => {
         },
       };
 
-      const result = await handler.execute(request, { useSSE: true });
+      const result = await handler.execute(request);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe('streaming');
@@ -122,45 +122,6 @@ describe('SSE Streaming Functionality', () => {
       expect(result.streamUrl).toContain(result.intentId);
       expect(result.metadata.totalTokens).toBe(1);
       expect(result.metadata.streamingEnabled).toBe(true);
-    });
-
-    it('should return immediate response when streaming is disabled', async () => {
-      // Mock successful calls
-      mockPriceService.getPrice.mockResolvedValue({ price: 3000 });
-      mockRebalanceClient.getUserTokenBalances.mockResolvedValue([
-        {
-          id: '0x1234567890123456789012345678901234567890',
-          symbol: 'TEST',
-          decimals: 18,
-          amount: 1.0, // 1 token
-          price: 10.0, // $10 per token
-          raw_amount: '1000000000000000000',
-        },
-      ]);
-      mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
-        to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-        approve_to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-        value: '0',
-        data: '0x',
-        gas: '150000',
-      });
-
-      const request = {
-        userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
-        chainId: 1,
-        params: {
-          dustThreshold: 5,
-          toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-          toTokenDecimals: 18,
-        },
-      };
-
-      const result = await handler.execute(request, { useSSE: false });
-
-      expect(result.success).toBe(true);
-      expect(result.mode).toBe('immediate');
-      expect(result.transactions).toBeDefined();
-      expect(Array.isArray(result.transactions)).toBe(true);
     });
   });
 

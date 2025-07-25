@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DustZap intent allows users to convert small token balances (dust) into ETH with a single API call that returns a batch of transactions. The intent-engine handles token filtering, optimal swap routing, and fee calculations.
+The DustZap intent allows users to convert small token balances (dust) into ETH using **Server-Sent Events (SSE) streaming** for real-time progress updates. The intent-engine handles token filtering, optimal swap routing, and fee calculations, providing live feedback as each token is processed.
 
 ## API Endpoint
 
@@ -19,7 +19,10 @@ POST /api/v1/intents/dustZap
   "params": {
     "dustThreshold": 0.005,
     "targetToken": "ETH",
-    "referralAddress": "0x1234567890123456789012345678901234567890"
+    "referralAddress": "0x1234567890123456789012345678901234567890",
+    "toTokenAddress": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "toTokenDecimals": 18,
+    "slippage": 1
   }
 }
 ```
@@ -31,64 +34,111 @@ POST /api/v1/intents/dustZap
 - **params.dustThreshold** (optional): Minimum USD value to consider dust (default: 0.005)
 - **params.targetToken** (optional): Target token for conversion (only "ETH" supported currently)
 - **params.referralAddress** (optional): Referral address for fee sharing
+- **params.toTokenAddress** (required): Target token address (e.g., ETH = 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
+- **params.toTokenDecimals** (required): Target token decimals (e.g., ETH = 18)
+- **params.slippage** (optional): Slippage tolerance percentage (default: 1)
 
 ## Response Format
 
-### Success Response (200)
+### Success Response (200) - SSE Streaming Mode
+
+The API returns an immediate response with streaming information:
 
 ```json
 {
   "success": true,
   "intentType": "dustZap",
+  "mode": "streaming",
+  "intentId": "dustZap_1699123456789_abcdef_0123456789abcdef",
+  "streamUrl": "/api/dustzap/dustZap_1699123456789_abcdef_0123456789abcdef/stream",
+  "metadata": {
+    "totalTokens": 5,
+    "estimatedDuration": "10-20 seconds",
+    "streamingEnabled": true
+  }
+}
+```
+
+### SSE Stream Events
+
+Connect to the `streamUrl` to receive real-time events as tokens are processed:
+
+#### Token Ready Event
+
+```json
+{
+  "type": "token_ready",
+  "tokenIndex": 0,
+  "tokenSymbol": "TOKEN1",
+  "tokenAddress": "0x1234567890123456789012345678901234567890",
   "transactions": [
     {
       "to": "0xA0b86a33E6417FFB4B8e2f28f4ce82b0D18e3f8a",
       "value": "0",
-      "data": "0x095ea7b3000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff0000000000000000000000000000000000000000000000000de0b6b3a7640000",
-      "description": "Approve TOKEN1 for 0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+      "data": "0x095ea7b3...",
+      "description": "Approve TOKEN1",
       "gasLimit": "50000"
     },
     {
       "to": "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
       "value": "0",
-      "data": "0x415565b0000000000000000000000000a0b86a33e6417ffb4b8e2f28f4ce82b0d18e3f8a000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0000000000000000000000000000000000000000000000000de0b6b3a7640000",
+      "data": "0x415565b0...",
       "description": "Swap TOKEN1 to ETH",
       "gasLimit": "200000"
-    },
-    {
-      "to": "0x1234567890123456789012345678901234567890",
-      "value": "1000000000000000",
-      "data": "0x",
-      "description": "Referrer fee (70%)",
-      "gasLimit": "21000"
-    },
-    {
-      "to": "0x2eCBC6f229feD06044CDb0dD772437a30190CD50",
-      "value": "430000000000000",
-      "data": "0x",
-      "description": "Treasury fee (30%)",
-      "gasLimit": "21000"
     }
+  ],
+  "provider": "1inch",
+  "expectedTokenAmount": "1000000000000000000",
+  "toUsd": 95.5,
+  "gasCostUSD": 4.5,
+  "tradingLoss": {
+    "inputValueUSD": 100.0,
+    "outputValueUSD": 95.5,
+    "netLossUSD": 4.5,
+    "lossPercentage": 4.5
+  },
+  "progress": 0.2,
+  "processedTokens": 1,
+  "totalTokens": 5,
+  "timestamp": "2024-01-01T10:00:00.000Z"
+}
+```
+
+#### Completion Event
+
+```json
+{
+  "type": "complete",
+  "transactions": [
+    // All approve + swap transactions for all tokens
+    // Plus fee transactions at the end
   ],
   "metadata": {
     "totalTokens": 5,
-    "batchInfo": [
-      {
-        "startIndex": 0,
-        "endIndex": 9,
-        "tokenCount": 5
-      }
-    ],
+    "processedTokens": 5,
+    "totalValueUSD": 500.0,
     "feeInfo": {
-      "startIndex": 10,
-      "endIndex": 11,
-      "totalFeeUsd": 0.143,
-      "referrerFeeEth": "1000000000000000",
-      "treasuryFeeEth": "430000000000000"
+      "totalFeeUsd": 0.5,
+      "referrerFeeUSD": 0.35,
+      "treasuryFee": 0.15,
+      "feeTransactionCount": 2
     },
-    "estimatedTotalGas": "1521000",
-    "dustThreshold": 0.005
-  }
+    "estimatedTotalGas": "1521000"
+  },
+  "timestamp": "2024-01-01T10:00:20.000Z"
+}
+```
+
+#### Error Event
+
+```json
+{
+  "type": "token_failed",
+  "tokenIndex": 2,
+  "tokenSymbol": "TOKEN3",
+  "error": "Insufficient liquidity",
+  "progress": 0.6,
+  "timestamp": "2024-01-01T10:00:15.000Z"
 }
 ```
 
@@ -109,45 +159,98 @@ POST /api/v1/intents/dustZap
 }
 ```
 
-## Transaction Execution
+## SSE Streaming Implementation
 
-The response contains an array of transactions that should be executed sequentially:
-
-1. **Approve transactions**: Grant permission for tokens to be spent
-2. **Swap transactions**: Execute token-to-ETH swaps via DEX aggregators
-3. **Fee transactions**: Transfer platform fees to referrer and treasury
+The DustZap intent uses Server-Sent Events (SSE) to provide real-time progress updates as tokens are processed. The API returns streaming information immediately, then processes tokens individually.
 
 ### Frontend Implementation Example
 
 ```javascript
-// Get dustZap intent
+// Get dustZap intent (returns streaming info immediately)
 const response = await fetch('/api/v1/intents/dustZap', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     userAddress: '0x...',
     chainId: 1,
-    params: { dustThreshold: 0.005 }
-  })
+    params: {
+      dustThreshold: 0.005,
+      toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      toTokenDecimals: 18,
+      slippage: 1,
+    },
+  }),
 });
 
-const { transactions, metadata } = await response.json();
+const { streamUrl, intentId, metadata } = await response.json();
 
-// Execute transactions sequentially
-for (const batch of metadata.batchInfo) {
-  const batchTxns = transactions.slice(batch.startIndex, batch.endIndex + 1);
+// Connect to SSE stream for real-time updates
+const eventSource = new EventSource(streamUrl);
+const allTransactions = [];
 
-  // Add gas parameters dynamically
-  const txnsWithGas = batchTxns.map(tx => ({
-    ...tx,
-    maxFeePerGas: await getMaxFeePerGas(),
-    maxPriorityFeePerGas: await getMaxPriorityFeePerGas()
-  }));
+eventSource.onmessage = async event => {
+  const data = JSON.parse(event.data);
 
-  // Execute batch (approve + swap pairs)
-  await wallet.sendTransaction(txnsWithGas);
-}
+  switch (data.type) {
+    case 'token_ready':
+      console.log(`Token ${data.tokenSymbol} ready for execution`);
+      console.log(`Progress: ${Math.round(data.progress * 100)}%`);
+
+      // Execute this token's transactions immediately
+      for (const tx of data.transactions) {
+        const txWithGas = {
+          ...tx,
+          maxFeePerGas: await getMaxFeePerGas(),
+          maxPriorityFeePerGas: await getMaxPriorityFeePerGas(),
+        };
+        await wallet.sendTransaction(txWithGas);
+      }
+      break;
+
+    case 'token_failed':
+      console.warn(`Token ${data.tokenSymbol} failed: ${data.error}`);
+      break;
+
+    case 'complete':
+      console.log('All tokens processed!');
+      allTransactions.push(...data.transactions);
+
+      // Execute final fee transactions
+      const feeTransactions = data.transactions.slice(
+        -data.metadata.feeInfo.feeTransactionCount
+      );
+      for (const tx of feeTransactions) {
+        const txWithGas = {
+          ...tx,
+          maxFeePerGas: await getMaxFeePerGas(),
+          maxPriorityFeePerGas: await getMaxPriorityFeePerGas(),
+        };
+        await wallet.sendTransaction(txWithGas);
+      }
+
+      eventSource.close();
+      break;
+
+    case 'error':
+      console.error('Stream error:', data.error);
+      eventSource.close();
+      break;
+  }
+};
+
+eventSource.onerror = error => {
+  console.error('SSE connection error:', error);
+  eventSource.close();
+};
 ```
+
+### Stream Processing Benefits
+
+- **Real-time feedback**: Users see progress as tokens are processed
+- **Token-level granularity**: Each token completion is reported individually
+- **Error resilience**: Failed tokens don't block successful ones
+- **Trading analytics**: Each token includes loss calculations and DEX provider used
+- **Progressive execution**: Execute transactions as they become available instead of waiting for all
 
 ## Supported Chains
 
