@@ -281,7 +281,7 @@ describe('DustZapIntentHandler Validation', () => {
       expect(feeInfo.totalFeeUsd).toBeCloseTo(0.1, 10);
       expect(feeInfo.referrerFeeUSD).toBeCloseTo(0.07, 10);
       expect(feeInfo.treasuryFee).toBeCloseTo(0.03, 10);
-      expect(feeInfo.feeTransactionCount).toBe(1);
+      expect(feeInfo.feeTransactionCount).toBe(2); // WETH pattern: deposit + transfer
     });
 
     it('should build fee info with referral address', () => {
@@ -305,7 +305,7 @@ describe('DustZapIntentHandler Validation', () => {
       expect(feeInfo.totalFeeUsd).toBeCloseTo(totalFeeUSD, 10);
       expect(feeInfo.referrerFeeUSD).toBeCloseTo(referrerFeeUSD, 10);
       expect(feeInfo.treasuryFee).toBeCloseTo(treasuryFeeUSD, 10);
-      expect(feeInfo.feeTransactionCount).toBe(2);
+      expect(feeInfo.feeTransactionCount).toBe(3); // WETH pattern: deposit + 2 transfers
     });
   });
 });

@@ -538,11 +538,12 @@ class DustZapIntentHandler extends BaseIntentHandler {
         }
       }
 
-      // Add fee transactions using TransactionBuilder for consistency
+      // Add fee transactions using TransactionBuilder with WETH wrapping pattern
       const { txBuilder: feeTxBuilder } =
         this.feeCalculationService.createFeeTransactions(
           totalValueUSD,
           executionContext.ethPrice,
+          executionContext.chainId,
           referralAddress
         );
 
@@ -560,7 +561,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
           totalValueUSD,
           feeInfo: this.feeCalculationService.buildFeeInfo(
             totalValueUSD,
-            referralAddress
+            referralAddress,
+            true // useWETHPattern
           ),
           estimatedTotalGas: allTransactions
             .reduce(

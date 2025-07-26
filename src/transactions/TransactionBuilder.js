@@ -2,6 +2,7 @@
  * Transaction Builder - Composes batch transactions for intent execution
  */
 const { isAddress } = require('ethers');
+const { TokenConfigService } = require('../config/tokenConfig');
 class TransactionBuilder {
   constructor() {
     this.transactions = [];
@@ -80,6 +81,53 @@ class TransactionBuilder {
       value: amount.toString(),
       description: description || 'ETH transfer',
       gasLimit: '21000',
+    });
+  }
+
+  /**
+   * Add WETH deposit transaction (ETH -> WETH)
+   * @param {number} chainId - Chain ID to get correct WETH address
+   * @param {string} amount - Amount in wei to deposit
+   * @param {string} description - Transaction description
+   */
+  addWETHDeposit(chainId, amount, description) {
+    const wethAddress = TokenConfigService.getWETHAddress(chainId);
+    if (!wethAddress) {
+      throw new Error(`WETH not supported on chain ${chainId}`);
+    }
+
+    // WETH deposit function signature: deposit()
+    const depositMethodId = '0xd0e30db0'; // Keccak256 hash of "deposit()" truncated to 4 bytes
+
+    return this.addTransaction({
+      to: wethAddress,
+      value: amount.toString(),
+      data: depositMethodId,
+      description: description || 'WETH deposit (ETH -> WETH)',
+      gasLimit: '50000',
+    });
+  }
+
+  /**
+   * Add ERC20 transfer transaction
+   * @param {string} tokenAddress - ERC20 token contract address
+   * @param {string} recipient - Recipient address
+   * @param {string} amount - Amount in token's smallest unit (wei for WETH)
+   * @param {string} description - Transaction description
+   */
+  addERC20Transfer(tokenAddress, recipient, amount, description) {
+    // ERC20 transfer function signature: transfer(address,uint256)
+    const transferMethodId = '0xa9059cbb';
+    const paddedRecipient = recipient.slice(2).padStart(64, '0');
+    const paddedAmount = BigInt(amount).toString(16).padStart(64, '0');
+    const data = `${transferMethodId}${paddedRecipient}${paddedAmount}`;
+
+    return this.addTransaction({
+      to: tokenAddress,
+      value: '0',
+      data,
+      description: description || `ERC20 transfer to ${recipient}`,
+      gasLimit: '65000',
     });
   }
 

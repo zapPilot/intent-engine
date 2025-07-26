@@ -74,7 +74,7 @@ describe('FeeCalculationService', () => {
       expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
       expect(result.referrerFeeUSD).toBeCloseTo(0.07, 10);
       expect(result.treasuryFee).toBeCloseTo(0.03, 10);
-      expect(result.feeTransactionCount).toBe(1);
+      expect(result.feeTransactionCount).toBe(2); // WETH pattern: deposit + transfer
     });
 
     it('should build fee info metadata with referral', () => {
@@ -91,16 +91,130 @@ describe('FeeCalculationService', () => {
       expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
       expect(result.referrerFeeUSD).toBeCloseTo(0.07, 10);
       expect(result.treasuryFee).toBeCloseTo(0.03, 10);
-      expect(result.feeTransactionCount).toBe(2);
+      expect(result.feeTransactionCount).toBe(3); // WETH pattern: deposit + 2 transfers
     });
   });
 
   describe('createFeeTransactions', () => {
-    it('should create fee transactions using TransactionBuilder without referral', () => {
+    it('should create WETH fee transactions without referral', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const chainId = 1; // Ethereum
+
+      const result = feeService.createFeeTransactions(
+        totalValueUSD,
+        ethPrice,
+        chainId
+      );
+
+      expect(result.feeAmounts).toBeDefined();
+      expect(result.txBuilder).toBeDefined();
+      expect(result.feeAmounts.totalFeeUSD).toBeCloseTo(0.1, 10);
+      expect(result.feeAmounts.hasReferral).toBe(false);
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(2); // deposit + transfer
+
+      // First transaction should be WETH deposit
+      expect(transactions[0].description).toBe(
+        'Wrap ETH to WETH for platform fees'
+      );
+      expect(transactions[0].gasLimit).toBe('50000');
+      expect(transactions[0].data).toBe('0xd0e30db0'); // deposit() method ID
+
+      // Second transaction should be treasury fee
+      expect(transactions[1].description).toBe('Platform fee (100%)');
+      expect(transactions[1].gasLimit).toBe('65000');
+    });
+
+    it('should create WETH fee transactions with referral', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const chainId = 1; // Ethereum
+      const referralAddress = '0x1234567890123456789012345678901234567890';
+
+      const result = feeService.createFeeTransactions(
+        totalValueUSD,
+        ethPrice,
+        chainId,
+        referralAddress
+      );
+
+      expect(result.feeAmounts).toBeDefined();
+      expect(result.txBuilder).toBeDefined();
+      expect(result.feeAmounts.hasReferral).toBe(true);
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(3); // deposit + referrer transfer + treasury transfer
+
+      // First transaction should be WETH deposit
+      expect(transactions[0].description).toBe(
+        'Wrap ETH to WETH for platform fees'
+      );
+      expect(transactions[0].gasLimit).toBe('50000');
+
+      // Second transaction should be referrer fee
+      expect(transactions[1].description).toContain('Referrer fee');
+      expect(transactions[1].description).toContain('70');
+      expect(transactions[1].gasLimit).toBe('65000');
+
+      // Third transaction should be treasury fee
+      expect(transactions[2].description).toContain('Treasury fee');
+      expect(transactions[2].description).toContain('30');
+      expect(transactions[2].gasLimit).toBe('65000');
+    });
+
+    it('should throw error for unsupported chain', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const chainId = 99999; // Unsupported chain
+
+      expect(() => {
+        feeService.createFeeTransactions(totalValueUSD, ethPrice, chainId);
+      }).toThrow('WETH not supported on chain 99999');
+    });
+
+    it('should use provided TransactionBuilder instance', () => {
+      const totalValueUSD = 1000;
+      const ethPrice = 3000;
+      const chainId = 1;
+      const TransactionBuilder = require('../src/transactions/TransactionBuilder');
+      const existingBuilder = new TransactionBuilder();
+
+      // Add a dummy transaction first
+      existingBuilder.addTransaction({
+        to: '0x1111111111111111111111111111111111111111',
+        value: '0',
+        description: 'Dummy transaction',
+      });
+
+      const result = feeService.createFeeTransactions(
+        totalValueUSD,
+        ethPrice,
+        chainId,
+        null,
+        existingBuilder
+      );
+
+      const transactions = result.txBuilder.getTransactions();
+      expect(transactions).toHaveLength(3); // 1 dummy + 2 fee (deposit + transfer)
+      expect(transactions[0].description).toBe('Dummy transaction');
+      expect(transactions[1].description).toBe(
+        'Wrap ETH to WETH for platform fees'
+      );
+      expect(transactions[2].description).toBe('Platform fee (100%)');
+    });
+  });
+
+  describe('createETHFeeTransactions (legacy)', () => {
+    it('should create legacy ETH fee transactions without referral', () => {
       const totalValueUSD = 1000;
       const ethPrice = 3000;
 
-      const result = feeService.createFeeTransactions(totalValueUSD, ethPrice);
+      const result = feeService.createETHFeeTransactions(
+        totalValueUSD,
+        ethPrice
+      );
 
       expect(result.feeAmounts).toBeDefined();
       expect(result.txBuilder).toBeDefined();
@@ -113,12 +227,12 @@ describe('FeeCalculationService', () => {
       expect(transactions[0].gasLimit).toBe('21000');
     });
 
-    it('should create fee transactions using TransactionBuilder with referral', () => {
+    it('should create legacy ETH fee transactions with referral', () => {
       const totalValueUSD = 1000;
       const ethPrice = 3000;
       const referralAddress = '0x1234567890123456789012345678901234567890';
 
-      const result = feeService.createFeeTransactions(
+      const result = feeService.createETHFeeTransactions(
         totalValueUSD,
         ethPrice,
         referralAddress
@@ -133,41 +247,57 @@ describe('FeeCalculationService', () => {
 
       // First transaction should be referrer fee
       expect(transactions[0].description).toContain('Referrer fee');
-      expect(transactions[0].description).toContain('70');
+      expect(transactions[0].gasLimit).toBe('21000');
 
       // Second transaction should be treasury fee
       expect(transactions[1].description).toContain('Treasury fee');
-      expect(transactions[1].description).toContain('30');
-
-      // Both should have proper gas limits
-      expect(transactions[0].gasLimit).toBe('21000');
       expect(transactions[1].gasLimit).toBe('21000');
     });
+  });
 
-    it('should use provided TransactionBuilder instance', () => {
+  describe('buildFeeInfo', () => {
+    it('should build fee info with WETH pattern (default)', () => {
       const totalValueUSD = 1000;
-      const ethPrice = 3000;
-      const TransactionBuilder = require('../src/transactions/TransactionBuilder');
-      const existingBuilder = new TransactionBuilder();
+      const referralAddress = '0x1234567890123456789012345678901234567890';
 
-      // Add a dummy transaction first
-      existingBuilder.addTransaction({
-        to: '0x1111111111111111111111111111111111111111',
-        value: '0',
-        description: 'Dummy transaction',
-      });
+      const result = feeService.buildFeeInfo(totalValueUSD, referralAddress);
 
-      const result = feeService.createFeeTransactions(
+      expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
+      expect(result.referrerFeeUSD).toBeCloseTo(0.07, 10);
+      expect(result.treasuryFee).toBeCloseTo(0.03, 10);
+      expect(result.feeTransactionCount).toBe(3); // deposit + 2 transfers
+    });
+
+    it('should build fee info with WETH pattern without referral', () => {
+      const totalValueUSD = 1000;
+
+      const result = feeService.buildFeeInfo(totalValueUSD, null, true);
+
+      expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
+      expect(result.feeTransactionCount).toBe(2); // deposit + 1 transfer
+    });
+
+    it('should build fee info with legacy ETH pattern', () => {
+      const totalValueUSD = 1000;
+      const referralAddress = '0x1234567890123456789012345678901234567890';
+
+      const result = feeService.buildFeeInfo(
         totalValueUSD,
-        ethPrice,
-        null,
-        existingBuilder
+        referralAddress,
+        false
       );
 
-      const transactions = result.txBuilder.getTransactions();
-      expect(transactions).toHaveLength(2); // 1 dummy + 1 fee
-      expect(transactions[0].description).toBe('Dummy transaction');
-      expect(transactions[1].description).toBe('Platform fee (100%)');
+      expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
+      expect(result.feeTransactionCount).toBe(2); // 2 direct transfers
+    });
+
+    it('should build fee info with legacy ETH pattern without referral', () => {
+      const totalValueUSD = 1000;
+
+      const result = feeService.buildFeeInfo(totalValueUSD, null, false);
+
+      expect(result.totalFeeUsd).toBeCloseTo(0.1, 10);
+      expect(result.feeTransactionCount).toBe(1); // 1 direct transfer
     });
   });
 
