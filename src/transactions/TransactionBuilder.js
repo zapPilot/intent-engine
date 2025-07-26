@@ -116,14 +116,14 @@ class TransactionBuilder {
 
     // Encode the function call
     const data = wethInterface.encodeFunctionData('deposit');
-
-    return this.addTransaction({
+    const wethDepositTxn = {
       to: wethAddress,
       value: amount.toString(),
       data,
       description: description || 'WETH deposit (ETH -> WETH)',
       gasLimit: '50000',
-    });
+    };
+    return this.addTransaction(wethDepositTxn);
   }
 
   /**

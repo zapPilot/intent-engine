@@ -380,7 +380,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
           const tokenResults = await this.processBatch(batchContext);
           const tokenTransactions = txBuilder.getTransactions();
           const tokenResult = tokenResults[0]; // Single token result
-
           // Add to running totals
           allTransactions.push(...tokenTransactions);
           totalValueUSD += calculateTotalValue(tokenBatch);
@@ -540,6 +539,24 @@ class DustZapIntentHandler extends BaseIntentHandler {
             timestamp: new Date().toISOString(),
           });
         }
+      }
+
+      // Validate totalValueUSD before proceeding with fee calculations
+      if (totalValueUSD <= 0) {
+        const errorMessage = `Invalid totalValueUSD: ${totalValueUSD}. This indicates either no tokens were processed successfully or all tokens have zero value.`;
+        console.error(errorMessage, {
+          dustTokensLength: dustTokens.length,
+          processedTokens,
+          totalValueUSD,
+          tokenDetails: dustTokens.map(t => ({
+            symbol: t.symbol,
+            amount: t.amount,
+            price: t.price,
+            value: t.amount * t.price,
+          })),
+        });
+
+        throw new Error(errorMessage);
       }
 
       // Add fee transactions using TransactionBuilder with WETH wrapping pattern
