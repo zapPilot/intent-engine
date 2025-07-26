@@ -1,3 +1,4 @@
+const { ethers } = require('ethers');
 const BaseIntentHandler = require('./BaseIntentHandler');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
@@ -241,10 +242,9 @@ class DustZapIntentHandler extends BaseIntentHandler {
     for (const token of batch) {
       try {
         // Calculate input value in USD for diagnostics
-        const inputValueUSD =
-          (parseFloat(token.raw_amount) * token.price) /
-          Math.pow(10, token.decimals);
-
+        const inputValueUSD = token.amount * token.price;
+        // Ensure raw_amount is handled as a string to avoid overflow
+        token.raw_amount = ethers.getBigInt(token.raw_amount.toString());
         // Get best swap quote
         const requestParam = {
           chainId: chainId,
@@ -258,7 +258,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
           eth_price: ethPrice,
           toTokenPrice: toTokenPrice,
         };
-
         const swapQuote =
           await this.swapService.getSecondBestSwapQuote(requestParam);
         // Add approve transaction
@@ -267,10 +266,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
           swapQuote.approve_to, // Router address
           token.raw_amount
         );
-
         // Add swap transaction
         txBuilder.addSwap(swapQuote, `Swap ${token.symbol} to ETH`);
-
         // Store token processing result with quote data
         tokenResults.push({
           token,

@@ -1,8 +1,9 @@
 /**
  * Transaction Builder - Composes batch transactions for intent execution
  */
-const { isAddress } = require('ethers');
+const { isAddress, Interface } = require('ethers');
 const { TokenConfigService } = require('../config/tokenConfig');
+
 class TransactionBuilder {
   constructor() {
     this.transactions = [];
@@ -39,11 +40,25 @@ class TransactionBuilder {
    * @param {string} amount - Amount to approve (in wei)
    */
   addApprove(tokenAddress, spenderAddress, amount) {
-    // ERC-20 approve function signature: approve(address,uint256)
-    const approveMethodId = '0x095ea7b3';
-    const paddedSpender = spenderAddress.slice(2).padStart(64, '0');
-    const paddedAmount = BigInt(amount).toString(16).padStart(64, '0');
-    const data = `${approveMethodId}${paddedSpender}${paddedAmount}`;
+    // Create interface for ERC20
+    const erc20Interface = new Interface([
+      'function approve(address spender, uint256 amount) returns (bool)',
+    ]);
+
+    // Encode the function call
+    console.log(
+      'tokenAddress',
+      tokenAddress,
+      'spenderAddress',
+      spenderAddress,
+      'amount',
+      amount
+    );
+    const data = erc20Interface.encodeFunctionData('approve', [
+      spenderAddress,
+      amount,
+    ]);
+    console.log('after encodeFunctionData');
 
     return this.addTransaction({
       to: tokenAddress,
@@ -96,13 +111,16 @@ class TransactionBuilder {
       throw new Error(`WETH not supported on chain ${chainId}`);
     }
 
-    // WETH deposit function signature: deposit()
-    const depositMethodId = '0xd0e30db0'; // Keccak256 hash of "deposit()" truncated to 4 bytes
+    // Create interface for WETH
+    const wethInterface = new Interface(['function deposit() payable']);
+
+    // Encode the function call
+    const data = wethInterface.encodeFunctionData('deposit');
 
     return this.addTransaction({
       to: wethAddress,
       value: amount.toString(),
-      data: depositMethodId,
+      data,
       description: description || 'WETH deposit (ETH -> WETH)',
       gasLimit: '50000',
     });
@@ -116,11 +134,16 @@ class TransactionBuilder {
    * @param {string} description - Transaction description
    */
   addERC20Transfer(tokenAddress, recipient, amount, description) {
-    // ERC20 transfer function signature: transfer(address,uint256)
-    const transferMethodId = '0xa9059cbb';
-    const paddedRecipient = recipient.slice(2).padStart(64, '0');
-    const paddedAmount = BigInt(amount).toString(16).padStart(64, '0');
-    const data = `${transferMethodId}${paddedRecipient}${paddedAmount}`;
+    // Create interface for ERC20
+    const erc20Interface = new Interface([
+      'function transfer(address to, uint256 amount) returns (bool)',
+    ]);
+
+    // Encode the function call
+    const data = erc20Interface.encodeFunctionData('transfer', [
+      recipient,
+      amount,
+    ]);
 
     return this.addTransaction({
       to: tokenAddress,

@@ -107,6 +107,7 @@ class FeeCalculationService {
     }
 
     // Step 1: Wrap ETH to WETH (deposit total fee amount)
+    console.log('feeAmounts.totalFeeWei at deposit', feeAmounts.totalFeeWei);
     builder.addWETHDeposit(
       chainId,
       feeAmounts.totalFeeWei,
@@ -131,6 +132,7 @@ class FeeCalculationService {
       );
     } else {
       // Step 2: Transfer all WETH to treasury
+      console.log('feeAmounts.totalFeeWei at transfer', feeAmounts.totalFeeWei);
       builder.addERC20Transfer(
         wethAddress,
         feeConfig.treasuryAddress,
