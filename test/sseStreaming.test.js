@@ -95,7 +95,7 @@ describe('SSE Streaming Functionality', () => {
       mockPriceService.getPrice.mockResolvedValue({ price: 3000 });
       mockRebalanceClient.getUserTokenBalances.mockResolvedValue([
         {
-          id: '0x1234567890123456789012345678901234567890',
+          address: '0x1234567890123456789012345678901234567890',
           symbol: 'TEST',
           decimals: 18,
           amount: 1.0, // 1 token
@@ -111,6 +111,16 @@ describe('SSE Streaming Functionality', () => {
           dustThreshold: 5, // Token has $10 value, so it qualifies as dust with $5 threshold
           toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           toTokenDecimals: 18,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -182,7 +192,7 @@ describe('SSE Streaming Functionality', () => {
       const executionContext = {
         dustTokens: [
           {
-            id: '0x1111111111111111111111111111111111111111',
+            address: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             symbol: 'TOKEN1',
             decimals: 18,
             amount: 1.0,
@@ -191,7 +201,7 @@ describe('SSE Streaming Functionality', () => {
             value: 10.0,
           },
           {
-            id: '0x2222222222222222222222222222222222222222',
+            address: '0x2222222222222222222222222222222222222222',
             symbol: 'TOKEN2',
             decimals: 18,
             amount: 2.0,
@@ -229,7 +239,6 @@ describe('SSE Streaming Functionality', () => {
         executionContext,
         mockStreamWriter
       );
-
       // Should have processed both tokens
       expect(result.processedTokens).toBe(2);
       expect(result.allTransactions.length).toBeGreaterThan(0);
@@ -256,7 +265,7 @@ describe('SSE Streaming Functionality', () => {
       const executionContext = {
         dustTokens: [
           {
-            id: '0x1111111111111111111111111111111111111111',
+            address: '0x1111111111111111111111111111111111111111',
             symbol: 'GOOD_TOKEN',
             decimals: 18,
             amount: 1.0,
@@ -265,7 +274,7 @@ describe('SSE Streaming Functionality', () => {
             value: 10.0,
           },
           {
-            id: '0x2222222222222222222222222222222222222222',
+            address: '0x2222222222222222222222222222222222222222',
             symbol: 'BAD_TOKEN',
             decimals: 18,
             amount: 2.0,

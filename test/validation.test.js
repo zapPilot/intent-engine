@@ -31,6 +31,16 @@ describe('DustZapIntentHandler Validation', () => {
         params: {
           toTokenDecimals: 18,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -47,6 +57,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: null,
           toTokenDecimals: 18,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -63,6 +83,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: 'invalid-address',
           toTokenDecimals: 18,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -79,6 +109,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           toTokenDecimals: 18,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -94,6 +134,16 @@ describe('DustZapIntentHandler Validation', () => {
         params: {
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -110,6 +160,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           toTokenDecimals: null,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -123,6 +183,16 @@ describe('DustZapIntentHandler Validation', () => {
         userAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
         chainId: 1,
         params: {
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           toTokenDecimals: 18.5,
           slippage: 0.5,
@@ -142,6 +212,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           toTokenDecimals: 0,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -158,6 +238,16 @@ describe('DustZapIntentHandler Validation', () => {
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
           toTokenDecimals: 18,
           slippage: 0.5,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount: 19143487945265960,
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 

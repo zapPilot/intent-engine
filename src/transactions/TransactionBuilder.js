@@ -65,7 +65,7 @@ class TransactionBuilder {
       value: '0',
       data,
       description: `Approve ${tokenAddress} for ${spenderAddress}`,
-      gasLimit: '50000',
+      gasLimit: '25000',
     });
   }
 
@@ -80,7 +80,7 @@ class TransactionBuilder {
       value: swapData.value || '0',
       data: swapData.data,
       description: description || 'Token swap',
-      gasLimit: swapData.gas || swapData.gasLimit || '200000',
+      gasLimit: swapData.gas * 2 || swapData.gasLimit * 2 || '500000',
     });
   }
 

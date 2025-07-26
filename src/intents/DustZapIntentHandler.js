@@ -6,7 +6,6 @@ const FeeCalculationService = require('../services/FeeCalculationService');
 const SmartFeeInsertionService = require('../services/SmartFeeInsertionService');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
 const {
-  filterDustTokens,
   groupIntoBatches,
   calculateTotalValue,
 } = require('../utils/dustFilters');
@@ -42,16 +41,33 @@ class DustZapIntentHandler extends BaseIntentHandler {
     }
 
     const {
-      dustThreshold,
+      dustTokens: filteredDustTokens,
       targetToken,
       referralAddress,
       toTokenAddress,
       toTokenDecimals,
     } = params;
+    // Validate filteredDustTokens
+    if (!filteredDustTokens || !Array.isArray(filteredDustTokens)) {
+      throw new Error('filteredDustTokens must be provided as an array');
+    }
 
-    if (dustThreshold !== undefined) {
-      if (typeof dustThreshold !== 'number' || dustThreshold < 0) {
-        throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_DUST_THRESHOLD);
+    if (filteredDustTokens.length === 0) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
+    }
+
+    // Validate each token structure
+    for (const token of filteredDustTokens) {
+      if (
+        !token.address ||
+        !token.symbol ||
+        !token.decimals ||
+        !token.raw_amount ||
+        !token.price
+      ) {
+        throw new Error(
+          'Each token must have address, symbol, decimals, raw_amount, and price'
+        );
       }
     }
 
@@ -116,29 +132,20 @@ class DustZapIntentHandler extends BaseIntentHandler {
   async prepareExecutionContext(request) {
     const { userAddress, chainId, params } = request;
     const {
-      dustThreshold = DUST_ZAP_CONFIG.DEFAULT_DUST_THRESHOLD,
+      dustTokens: filteredDustTokens,
       referralAddress,
       toTokenAddress,
       toTokenDecimals,
       slippage,
     } = params;
 
-    // 1. Get user token balances
-    const userTokens = await this.rebalanceClient.getUserTokenBalances(
-      userAddress,
-      chainId
-    );
+    // 1. Use frontend-filtered tokens directly
+    const dustTokens = filteredDustTokens;
 
-    // 2. Filter dust tokens
-    const dustTokens = filterDustTokens(userTokens, dustThreshold);
-    if (dustTokens.length === 0) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
-    }
-
-    // 3. Get ETH price for fee calculations
+    // 2. Get ETH price for fee calculations
     const ethPrice = await this.getETHPrice();
 
-    // 4. Group tokens into batches
+    // 3. Group tokens into batches
     const batches = groupIntoBatches(
       dustTokens,
       DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
@@ -148,7 +155,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
       userAddress,
       chainId,
       params: {
-        dustThreshold,
         referralAddress,
         toTokenAddress,
         toTokenDecimals,
@@ -248,7 +254,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
         // Get best swap quote
         const requestParam = {
           chainId: chainId,
-          fromTokenAddress: token.id,
+          fromTokenAddress: token.address,
           fromTokenDecimals: token.decimals,
           toTokenAddress: toTokenAddress,
           toTokenDecimals: toTokenDecimals,
@@ -262,7 +268,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
           await this.swapService.getSecondBestSwapQuote(requestParam);
         // Add approve transaction
         txBuilder.addApprove(
-          token.id,
+          token.address,
           swapQuote.approve_to, // Router address
           token.raw_amount
         );
@@ -371,7 +377,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
             txBuilder,
             executionContext
           );
-
           const tokenResults = await this.processBatch(batchContext);
           const tokenTransactions = txBuilder.getTransactions();
           const tokenResult = tokenResults[0]; // Single token result
@@ -388,8 +393,11 @@ class DustZapIntentHandler extends BaseIntentHandler {
           let toUsd = null;
           let gasCostUSD = null;
           let tradingLoss = null;
-
-          if (tokenResult.success && tokenResult.swapQuote) {
+          if (
+            tokenResults.length > 0 &&
+            tokenResult.success &&
+            tokenResult.swapQuote
+          ) {
             try {
               const { swapQuote } = tokenResult;
 
@@ -477,7 +485,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
             minToAmount = '0';
             toUsd = 0;
             gasCostUSD = 0;
-
             // Create comprehensive error information
             const inputValue = tokenResult.inputValueUSD || 0;
             tradingLoss = {
@@ -497,7 +504,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
             type: 'token_ready',
             tokenIndex: i,
             tokenSymbol: token.symbol,
-            tokenAddress: token.id,
+            tokenAddress: token.address,
             transactions: tokenTransactions,
 
             // Core DEX data (now never null!)
