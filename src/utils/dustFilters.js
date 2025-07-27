@@ -128,7 +128,7 @@ function groupIntoBatches(dustTokens, batchSize = 10) {
  */
 function calculateTotalValue(dustTokens) {
   return dustTokens.reduce((total, token) => {
-    return total + (token.value || 0);
+    return total + (token.price * token.amount || 0);
   }, 0);
 }
 

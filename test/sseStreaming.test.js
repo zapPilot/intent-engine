@@ -95,12 +95,12 @@ describe('SSE Streaming Functionality', () => {
       mockPriceService.getPrice.mockResolvedValue({ price: 3000 });
       mockRebalanceClient.getUserTokenBalances.mockResolvedValue([
         {
-          id: '0x1234567890123456789012345678901234567890',
+          address: '0x1234567890123456789012345678901234567890',
           symbol: 'TEST',
           decimals: 18,
           amount: 1.0, // 1 token
           price: 10.0, // $10 per token
-          raw_amount: '1000000000000000000',
+          raw_amount_hex_str: '0xDE0B6B3A7640000',
         },
       ]);
 
@@ -111,6 +111,16 @@ describe('SSE Streaming Functionality', () => {
           dustThreshold: 5, // Token has $10 value, so it qualifies as dust with $5 threshold
           toTokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           toTokenDecimals: 18,
+          dustTokens: [
+            {
+              address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+              amount: 0.01914348794526596,
+              decimals: 18,
+              price: 0.9990673603016684,
+              raw_amount_hex_str: '440D7E8E3A658',
+              symbol: 'msUSD',
+            },
+          ],
         },
       };
 
@@ -182,21 +192,21 @@ describe('SSE Streaming Functionality', () => {
       const executionContext = {
         dustTokens: [
           {
-            id: '0x1111111111111111111111111111111111111111',
+            address: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
             symbol: 'TOKEN1',
             decimals: 18,
             amount: 1.0,
             price: 10.0,
-            raw_amount: '1000000000000000000',
+            raw_amount_hex_str: '0xDE0B6B3A7640000',
             value: 10.0,
           },
           {
-            id: '0x2222222222222222222222222222222222222222',
+            address: '0x2222222222222222222222222222222222222222',
             symbol: 'TOKEN2',
             decimals: 18,
             amount: 2.0,
             price: 10.0,
-            raw_amount: '2000000000000000000',
+            raw_amount_hex_str: '0x1BC16D674EC80000',
             value: 20.0,
           },
         ],
@@ -211,13 +221,18 @@ describe('SSE Streaming Functionality', () => {
         },
       };
 
-      // Mock swap service to return valid quotes
+      // Mock swap service to return valid quotes with all required fields
       mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
         to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         approve_to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
         value: '0',
         data: '0x',
         gas: '150000',
+        toAmount: '9950000000000000000', // ~9.95 ETH output
+        minToAmount: '9900000000000000000', // ~9.9 ETH minimum
+        toUsd: 29850, // $29,850 USD output (9.95 ETH * $3000)
+        gasCostUSD: 15, // $15 gas cost
+        provider: 'uniswap_v3',
       });
 
       const streamEvents = [];
@@ -229,7 +244,6 @@ describe('SSE Streaming Functionality', () => {
         executionContext,
         mockStreamWriter
       );
-
       // Should have processed both tokens
       expect(result.processedTokens).toBe(2);
       expect(result.allTransactions.length).toBeGreaterThan(0);
@@ -256,21 +270,21 @@ describe('SSE Streaming Functionality', () => {
       const executionContext = {
         dustTokens: [
           {
-            id: '0x1111111111111111111111111111111111111111',
+            address: '0x1111111111111111111111111111111111111111',
             symbol: 'GOOD_TOKEN',
             decimals: 18,
             amount: 1.0,
             price: 10.0,
-            raw_amount: '1000000000000000000',
+            raw_amount_hex_str: '0xDE0B6B3A7640000',
             value: 10.0,
           },
           {
-            id: '0x2222222222222222222222222222222222222222',
+            address: '0x2222222222222222222222222222222222222222',
             symbol: 'BAD_TOKEN',
             decimals: 18,
             amount: 2.0,
             price: 10.0,
-            raw_amount: '2000000000000000000',
+            raw_amount_hex_str: '0x1BC16D674EC80000',
             value: 20.0,
           },
         ],
@@ -292,6 +306,11 @@ describe('SSE Streaming Functionality', () => {
           value: '0',
           data: '0x',
           gas: '150000',
+          toAmount: '2990000000000000000', // ~2.99 ETH output
+          minToAmount: '2980000000000000000', // ~2.98 ETH minimum
+          toUsd: 8970, // $8,970 USD output (2.99 ETH * $3000)
+          gasCostUSD: 12, // $12 gas cost
+          provider: 'uniswap_v3',
         })
         .mockRejectedValue(new Error('Swap failed')); // All subsequent calls fail
 
@@ -299,20 +318,19 @@ describe('SSE Streaming Functionality', () => {
       const mockStreamWriter = data => {
         streamEvents.push(data);
       };
-
       const result = await handler.processTokensWithSSEStreaming(
         executionContext,
         mockStreamWriter
       );
-      // Should have processed both tokens (success + failure)
-      //3 stands for approve, swap and platform fee
-      expect(result.processedTokens).toBe(3);
+      // Should have processed both tokens (one success, one failure handled gracefully)
+      // processedTokens counts the number of tokens processed, not transactions
+      expect(result.processedTokens).toBe(2);
 
-      // Should have token ready events for both tokens
+      // Should have token ready events for both tokens (success and failure)
       const tokenReadyEvents = streamEvents.filter(
         e => e.type === 'token_ready'
       );
-      expect(tokenReadyEvents).toHaveLength(1);
+      expect(tokenReadyEvents).toHaveLength(2);
 
       // First token should have transactions, second should have empty array due to swap failure
       const firstTokenEvent = tokenReadyEvents.find(
@@ -323,7 +341,8 @@ describe('SSE Streaming Functionality', () => {
       );
 
       expect(firstTokenEvent.transactions.length).toBeGreaterThan(0);
-      expect(secondTokenEvent).toBeUndefined();
+      expect(secondTokenEvent.transactions.length).toBe(0);
+      expect(secondTokenEvent.provider).toBe('failed');
     });
   });
 

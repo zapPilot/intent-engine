@@ -297,7 +297,6 @@ router.get(
       };
 
       const result = await priceService.getBulkPrices(tokenSymbols, options);
-      console.log('bulk result', result, '=+++++++++++++++++++');
       res.json(result);
     } catch (error) {
       next(error);

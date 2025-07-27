@@ -5,6 +5,7 @@
 
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 const {
   TEST_ADDRESSES,
   buildOptimizeRequest,
@@ -12,6 +13,13 @@ const {
 } = require('./utils/testHelpers');
 
 describe('Integration Tests', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
   describe('Complete Vault Workflow', () => {
     test('should discover vaults and get strategy', async () => {
       // Step 1: Discover available vaults

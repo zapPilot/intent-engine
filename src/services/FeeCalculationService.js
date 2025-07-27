@@ -6,6 +6,7 @@
 const feeConfig = require('../config/feeConfig');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
+const { TokenConfigService } = require('../config/tokenConfig');
 
 /**
  * Service responsible for all fee-related calculations and transaction generation
@@ -75,14 +76,84 @@ class FeeCalculationService {
   }
 
   /**
-   * Create fee transactions using TransactionBuilder
+   * Create fee transactions using TransactionBuilder with WETH wrapping pattern
+   * @param {number} totalValueUSD - Total swap value in USD
+   * @param {number} ethPrice - ETH price in USD
+   * @param {number} chainId - Chain ID to determine WETH address
+   * @param {string} referralAddress - Optional referral address
+   * @param {TransactionBuilder} txBuilder - Transaction builder instance
+   * @returns {Object} - Fee amounts and transaction builder with fee transactions
+   */
+  createFeeTransactions(
+    totalValueUSD,
+    ethPrice,
+    chainId,
+    referralAddress = null,
+    txBuilder = null
+  ) {
+    const feeAmounts = this.calculateFeeAmounts(
+      totalValueUSD,
+      ethPrice,
+      referralAddress
+    );
+
+    // Use provided txBuilder or create new one
+    const builder = txBuilder || new TransactionBuilder();
+
+    // Get WETH address for the chain
+    const wethAddress = TokenConfigService.getWETHAddress(chainId);
+    if (!wethAddress) {
+      throw new Error(`WETH not supported on chain ${chainId}`);
+    }
+
+    // Step 1: Wrap ETH to WETH (deposit total fee amount)
+    builder.addWETHDeposit(
+      chainId,
+      feeAmounts.totalFeeWei,
+      'Wrap ETH to WETH for platform fees'
+    );
+
+    if (referralAddress) {
+      // Step 2: Transfer WETH to referrer
+      builder.addERC20Transfer(
+        wethAddress,
+        referralAddress,
+        feeAmounts.referrerFeeWei,
+        `Referrer fee (${feeAmounts.referrerFeePercentage}%)`
+      );
+
+      // Step 3: Transfer remaining WETH to treasury
+      builder.addERC20Transfer(
+        wethAddress,
+        feeConfig.treasuryAddress,
+        feeAmounts.treasuryFeeWei,
+        `Treasury fee (${feeAmounts.treasuryFeePercentage}%)`
+      );
+    } else {
+      // Step 2: Transfer all WETH to treasury
+      builder.addERC20Transfer(
+        wethAddress,
+        feeConfig.treasuryAddress,
+        feeAmounts.totalFeeWei,
+        'Platform fee (100%)'
+      );
+    }
+
+    return {
+      feeAmounts,
+      txBuilder: builder,
+    };
+  }
+
+  /**
+   * Create fee transactions using legacy ETH transfer pattern (for backward compatibility)
    * @param {number} totalValueUSD - Total swap value in USD
    * @param {number} ethPrice - ETH price in USD
    * @param {string} referralAddress - Optional referral address
    * @param {TransactionBuilder} txBuilder - Transaction builder instance
    * @returns {Object} - Fee amounts and transaction builder with fee transactions
    */
-  createFeeTransactions(
+  createETHFeeTransactions(
     totalValueUSD,
     ethPrice,
     referralAddress = null,
@@ -129,11 +200,21 @@ class FeeCalculationService {
    * Build fee info metadata for intent response
    * @param {number} totalValueUSD - Total value in USD
    * @param {string} referralAddress - Optional referral address
+   * @param {boolean} useWETHPattern - Whether to use WETH wrapping pattern (default: true)
    * @returns {Object} - Fee info metadata object
    */
-  buildFeeInfo(totalValueUSD, referralAddress = null) {
+  buildFeeInfo(totalValueUSD, referralAddress = null, useWETHPattern = true) {
     const baseFeeInfo = feeConfig.calculateFees(totalValueUSD);
-    const feeTransactionCount = referralAddress ? 2 : 1;
+
+    // Calculate transaction count based on pattern used
+    let feeTransactionCount;
+    if (useWETHPattern) {
+      // WETH pattern: 1 deposit + transfers (1 for treasury only, 2 for referral + treasury)
+      feeTransactionCount = referralAddress ? 3 : 2; // deposit + transfer(s)
+    } else {
+      // Legacy ETH pattern: direct transfers
+      feeTransactionCount = referralAddress ? 2 : 1;
+    }
 
     return {
       // SECURITY: Removed startIndex/endIndex to prevent fee transaction filtering

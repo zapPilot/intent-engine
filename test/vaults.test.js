@@ -5,6 +5,7 @@
 
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 const {
   TEST_DATA,
   expectValidResponse,
@@ -12,6 +13,13 @@ const {
 } = require('./utils/testHelpers');
 
 describe('Vault Metadata API', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
   describe('GET /api/v1/vaults', () => {
     test('should return list of available vaults', async () => {
       const response = await request(app).get('/api/v1/vaults').expect(200);

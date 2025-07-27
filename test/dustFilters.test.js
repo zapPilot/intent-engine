@@ -209,7 +209,11 @@ describe('Dust Filters', () => {
 
   describe('calculateTotalValue', () => {
     it('should calculate total value correctly', () => {
-      const tokens = [{ value: 10.5 }, { value: 20.25 }, { value: 15.75 }];
+      const tokens = [
+        { amount: 10.5, price: 1 },
+        { amount: 20.25, price: 1 },
+        { amount: 15.75, price: 1 },
+      ];
 
       const total = calculateTotalValue(tokens);
       expect(total).toBeCloseTo(46.5, 2);
@@ -217,9 +221,9 @@ describe('Dust Filters', () => {
 
     it('should handle tokens without value property', () => {
       const tokens = [
-        { value: 10 },
+        { amount: 10, price: 1 },
         { symbol: 'TOKEN' }, // No value property
-        { value: 20 },
+        { amount: 20, price: 1 },
       ];
 
       const total = calculateTotalValue(tokens);
@@ -232,7 +236,11 @@ describe('Dust Filters', () => {
     });
 
     it('should handle tokens with zero values', () => {
-      const tokens = [{ value: 0 }, { value: 10 }, { value: 0 }];
+      const tokens = [
+        { amount: 0, price: 1 },
+        { amount: 10, price: 1 },
+        { amount: 0, price: 1 },
+      ];
 
       const total = calculateTotalValue(tokens);
       expect(total).toBe(10);

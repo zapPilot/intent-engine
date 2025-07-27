@@ -1,8 +1,16 @@
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 const SwapService = require('../src/services/swapService');
 
 describe('Swap API Endpoints', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
   describe('GET /health', () => {
     it('should return healthy status', async () => {
       const response = await request(app).get('/health').expect(200);

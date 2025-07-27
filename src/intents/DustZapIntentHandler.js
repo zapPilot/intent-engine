@@ -1,3 +1,4 @@
+const { ethers } = require('ethers');
 const BaseIntentHandler = require('./BaseIntentHandler');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
@@ -5,7 +6,6 @@ const FeeCalculationService = require('../services/FeeCalculationService');
 const SmartFeeInsertionService = require('../services/SmartFeeInsertionService');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
 const {
-  filterDustTokens,
   groupIntoBatches,
   calculateTotalValue,
 } = require('../utils/dustFilters');
@@ -41,16 +41,33 @@ class DustZapIntentHandler extends BaseIntentHandler {
     }
 
     const {
-      dustThreshold,
+      dustTokens: filteredDustTokens,
       targetToken,
       referralAddress,
       toTokenAddress,
       toTokenDecimals,
     } = params;
+    // Validate filteredDustTokens
+    if (!filteredDustTokens || !Array.isArray(filteredDustTokens)) {
+      throw new Error('filteredDustTokens must be provided as an array');
+    }
 
-    if (dustThreshold !== undefined) {
-      if (typeof dustThreshold !== 'number' || dustThreshold < 0) {
-        throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_DUST_THRESHOLD);
+    if (filteredDustTokens.length === 0) {
+      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
+    }
+
+    // Validate each token structure
+    for (const token of filteredDustTokens) {
+      if (
+        !token.address ||
+        !token.symbol ||
+        !token.decimals ||
+        !token.raw_amount_hex_str ||
+        !token.price
+      ) {
+        throw new Error(
+          'Each token must have address, symbol, decimals, raw_amount_hex_str, and price'
+        );
       }
     }
 
@@ -115,29 +132,20 @@ class DustZapIntentHandler extends BaseIntentHandler {
   async prepareExecutionContext(request) {
     const { userAddress, chainId, params } = request;
     const {
-      dustThreshold = DUST_ZAP_CONFIG.DEFAULT_DUST_THRESHOLD,
+      dustTokens: filteredDustTokens,
       referralAddress,
       toTokenAddress,
       toTokenDecimals,
       slippage,
     } = params;
 
-    // 1. Get user token balances
-    const userTokens = await this.rebalanceClient.getUserTokenBalances(
-      userAddress,
-      chainId
-    );
+    // 1. Use frontend-filtered tokens directly
+    const dustTokens = filteredDustTokens;
 
-    // 2. Filter dust tokens
-    const dustTokens = filterDustTokens(userTokens, dustThreshold);
-    if (dustTokens.length === 0) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
-    }
-
-    // 3. Get ETH price for fee calculations
+    // 2. Get ETH price for fee calculations
     const ethPrice = await this.getETHPrice();
 
-    // 4. Group tokens into batches
+    // 3. Group tokens into batches
     const batches = groupIntoBatches(
       dustTokens,
       DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
@@ -147,7 +155,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
       userAddress,
       chainId,
       params: {
-        dustThreshold,
         referralAddress,
         toTokenAddress,
         toTokenDecimals,
@@ -241,14 +248,13 @@ class DustZapIntentHandler extends BaseIntentHandler {
     for (const token of batch) {
       try {
         // Calculate input value in USD for diagnostics
-        const inputValueUSD =
-          (parseFloat(token.raw_amount) * token.price) /
-          Math.pow(10, token.decimals);
-
+        const inputValueUSD = token.amount * token.price;
+        // Ensure raw_amount_hex_str is handled as a string to avoid overflow
+        token.raw_amount = ethers.getBigInt(token.raw_amount_hex_str);
         // Get best swap quote
         const requestParam = {
           chainId: chainId,
-          fromTokenAddress: token.id,
+          fromTokenAddress: token.address,
           fromTokenDecimals: token.decimals,
           toTokenAddress: toTokenAddress,
           toTokenDecimals: toTokenDecimals,
@@ -258,19 +264,16 @@ class DustZapIntentHandler extends BaseIntentHandler {
           eth_price: ethPrice,
           toTokenPrice: toTokenPrice,
         };
-
         const swapQuote =
           await this.swapService.getSecondBestSwapQuote(requestParam);
         // Add approve transaction
         txBuilder.addApprove(
-          token.id,
+          token.address,
           swapQuote.approve_to, // Router address
           token.raw_amount
         );
-
         // Add swap transaction
         txBuilder.addSwap(swapQuote, `Swap ${token.symbol} to ETH`);
-
         // Store token processing result with quote data
         tokenResults.push({
           token,
@@ -280,6 +283,16 @@ class DustZapIntentHandler extends BaseIntentHandler {
         });
       } catch (error) {
         console.warn(`Failed to process token ${token.symbol}:`, error.message);
+        // Store token processing result with error
+        tokenResults.push({
+          token,
+          swapQuote: null,
+          inputValueUSD: token.amount * token.price,
+          success: false,
+          error: error.message,
+          errorCategory: 'SWAP_FAILED',
+          userFriendlyMessage: `Unable to swap ${token.symbol}`,
+        });
       }
     }
 
@@ -374,15 +387,12 @@ class DustZapIntentHandler extends BaseIntentHandler {
             txBuilder,
             executionContext
           );
-
           const tokenResults = await this.processBatch(batchContext);
           const tokenTransactions = txBuilder.getTransactions();
           const tokenResult = tokenResults[0]; // Single token result
-
           // Add to running totals
           allTransactions.push(...tokenTransactions);
           totalValueUSD += calculateTotalValue(tokenBatch);
-          processedTokens++;
 
           // Extract DEX data and prepare enhanced response with comprehensive error handling
           let provider = null;
@@ -391,8 +401,11 @@ class DustZapIntentHandler extends BaseIntentHandler {
           let toUsd = null;
           let gasCostUSD = null;
           let tradingLoss = null;
-
-          if (tokenResult.success && tokenResult.swapQuote) {
+          if (
+            tokenResults.length > 0 &&
+            tokenResult.success &&
+            tokenResult.swapQuote
+          ) {
             try {
               const { swapQuote } = tokenResult;
 
@@ -480,7 +493,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
             minToAmount = '0';
             toUsd = 0;
             gasCostUSD = 0;
-
             // Create comprehensive error information
             const inputValue = tokenResult.inputValueUSD || 0;
             tradingLoss = {
@@ -500,7 +512,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
             type: 'token_ready',
             tokenIndex: i,
             tokenSymbol: token.symbol,
-            tokenAddress: token.id,
+            tokenAddress: token.address,
             transactions: tokenTransactions,
 
             // Core DEX data (now never null!)
@@ -512,8 +524,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
             tradingLoss,
 
             // Progress tracking
-            progress: processedTokens / dustTokens.length,
-            processedTokens,
+            progress: (processedTokens + 1) / dustTokens.length,
+            processedTokens: processedTokens + 1,
             totalTokens: dustTokens.length,
             timestamp: new Date().toISOString(),
           });
@@ -523,26 +535,47 @@ class DustZapIntentHandler extends BaseIntentHandler {
             tokenError.message
           );
 
-          // Increment processed count even for failures
-          processedTokens++;
-
           // Stream token failure but continue
           streamWriter({
             type: 'token_failed',
             tokenIndex: i,
             tokenSymbol: token.symbol,
             error: tokenError.message,
-            progress: processedTokens / dustTokens.length,
+            progress: (processedTokens + 1) / dustTokens.length,
+            processedTokens: processedTokens + 1,
+            totalTokens: dustTokens.length,
             timestamp: new Date().toISOString(),
           });
         }
+
+        // Increment processed count once per token (success or failure)
+        processedTokens++;
       }
 
-      // Add fee transactions using TransactionBuilder for consistency
+      // Validate totalValueUSD before proceeding with fee calculations
+      if (totalValueUSD <= 0) {
+        const errorMessage = `Invalid totalValueUSD: ${totalValueUSD}. This indicates either no tokens were processed successfully or all tokens have zero value.`;
+        console.error(errorMessage, {
+          dustTokensLength: dustTokens.length,
+          processedTokens,
+          totalValueUSD,
+          tokenDetails: dustTokens.map(t => ({
+            symbol: t.symbol,
+            amount: t.amount,
+            price: t.price,
+            value: t.amount * t.price,
+          })),
+        });
+
+        throw new Error(errorMessage);
+      }
+
+      // Add fee transactions using TransactionBuilder with WETH wrapping pattern
       const { txBuilder: feeTxBuilder } =
         this.feeCalculationService.createFeeTransactions(
           totalValueUSD,
           executionContext.ethPrice,
+          executionContext.chainId,
           referralAddress
         );
 
@@ -560,7 +593,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
           totalValueUSD,
           feeInfo: this.feeCalculationService.buildFeeInfo(
             totalValueUSD,
-            referralAddress
+            referralAddress,
+            true // useWETHPattern
           ),
           estimatedTotalGas: allTransactions
             .reduce(

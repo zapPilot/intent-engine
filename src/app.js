@@ -15,14 +15,18 @@ app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Swagger documentation middleware
+// Swagger documentation middleware - separate serve and setup for proper static asset handling
+app.use('/api-docs', swaggerUi.serve);
 app.use(
   '/api-docs',
-  swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     explorer: true,
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Intent Engine API Documentation',
+    swaggerOptions: {
+      // Ensure we use the inline spec, not external URL
+      url: undefined,
+    },
   })
 );
 
