@@ -317,7 +317,7 @@ describe('DustZap Intent System', () => {
       );
 
       const totalGas = builder.getTotalGas();
-      expect(totalGas).toBe('46000'); // 50000 + 21000
+      expect(totalGas).toBe('51000'); // 30000 + 21000
     });
   });
 });

@@ -62,11 +62,11 @@ class DustZapIntentHandler extends BaseIntentHandler {
         !token.address ||
         !token.symbol ||
         !token.decimals ||
-        !token.raw_amount ||
+        !token.raw_amount_hex_str ||
         !token.price
       ) {
         throw new Error(
-          'Each token must have address, symbol, decimals, raw_amount, and price'
+          'Each token must have address, symbol, decimals, raw_amount_hex_str, and price'
         );
       }
     }
@@ -249,8 +249,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
       try {
         // Calculate input value in USD for diagnostics
         const inputValueUSD = token.amount * token.price;
-        // Ensure raw_amount is handled as a string to avoid overflow
-        token.raw_amount = ethers.getBigInt(token.raw_amount.toString());
+        // Ensure raw_amount_hex_str is handled as a string to avoid overflow
+        token.raw_amount = ethers.getBigInt(token.raw_amount_hex_str);
         // Get best swap quote
         const requestParam = {
           chainId: chainId,
@@ -283,6 +283,16 @@ class DustZapIntentHandler extends BaseIntentHandler {
         });
       } catch (error) {
         console.warn(`Failed to process token ${token.symbol}:`, error.message);
+        // Store token processing result with error
+        tokenResults.push({
+          token,
+          swapQuote: null,
+          inputValueUSD: token.amount * token.price,
+          success: false,
+          error: error.message,
+          errorCategory: 'SWAP_FAILED',
+          userFriendlyMessage: `Unable to swap ${token.symbol}`,
+        });
       }
     }
 
@@ -383,7 +393,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
           // Add to running totals
           allTransactions.push(...tokenTransactions);
           totalValueUSD += calculateTotalValue(tokenBatch);
-          processedTokens++;
 
           // Extract DEX data and prepare enhanced response with comprehensive error handling
           let provider = null;
@@ -515,8 +524,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
             tradingLoss,
 
             // Progress tracking
-            progress: processedTokens / dustTokens.length,
-            processedTokens,
+            progress: (processedTokens + 1) / dustTokens.length,
+            processedTokens: processedTokens + 1,
             totalTokens: dustTokens.length,
             timestamp: new Date().toISOString(),
           });
@@ -526,19 +535,21 @@ class DustZapIntentHandler extends BaseIntentHandler {
             tokenError.message
           );
 
-          // Increment processed count even for failures
-          processedTokens++;
-
           // Stream token failure but continue
           streamWriter({
             type: 'token_failed',
             tokenIndex: i,
             tokenSymbol: token.symbol,
             error: tokenError.message,
-            progress: processedTokens / dustTokens.length,
+            progress: (processedTokens + 1) / dustTokens.length,
+            processedTokens: processedTokens + 1,
+            totalTokens: dustTokens.length,
             timestamp: new Date().toISOString(),
           });
         }
+
+        // Increment processed count once per token (success or failure)
+        processedTokens++;
       }
 
       // Validate totalValueUSD before proceeding with fee calculations

@@ -44,28 +44,17 @@ class TransactionBuilder {
     const erc20Interface = new Interface([
       'function approve(address spender, uint256 amount) returns (bool)',
     ]);
-
-    // Encode the function call
-    console.log(
-      'tokenAddress',
-      tokenAddress,
-      'spenderAddress',
-      spenderAddress,
-      'amount',
-      amount
-    );
     const data = erc20Interface.encodeFunctionData('approve', [
       spenderAddress,
       amount,
     ]);
-    console.log('after encodeFunctionData');
 
     return this.addTransaction({
       to: tokenAddress,
       value: '0',
       data,
       description: `Approve ${tokenAddress} for ${spenderAddress}`,
-      gasLimit: '25000',
+      gasLimit: '30000',
     });
   }
 
@@ -80,7 +69,7 @@ class TransactionBuilder {
       value: swapData.value || '0',
       data: swapData.data,
       description: description || 'Token swap',
-      gasLimit: swapData.gas * 2 || swapData.gasLimit * 2 || '500000',
+      gasLimit: String(swapData.gas * 2 || swapData.gasLimit * 2 || 500000),
     });
   }
 

@@ -38,7 +38,7 @@ describe('DustZapIntentHandler Validation', () => {
         address: '0xa0b86a33e6441a8c8c5d56aa14e4e66e8e6b9e2',
         symbol: 'USDC',
         decimals: 6,
-        raw_amount: '1000000',
+        raw_amount_hex_str: 'F4240',
         price: 1.0,
         amount: 1.0,
       },
@@ -46,7 +46,7 @@ describe('DustZapIntentHandler Validation', () => {
         address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
         symbol: 'USDT',
         decimals: 6,
-        raw_amount: '2000000',
+        raw_amount_hex_str: '1E8480',
         price: 1.0,
         amount: 2.0,
       },
@@ -286,7 +286,7 @@ describe('DustZapIntentHandler Validation', () => {
       };
 
       expect(() => handler.validate(invalidRequest)).toThrow(
-        'Each token must have address, symbol, decimals, raw_amount, and price'
+        'Each token must have address, symbol, decimals, raw_amount_hex_str, and price'
       );
     });
 
