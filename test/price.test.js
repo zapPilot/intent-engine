@@ -1,7 +1,20 @@
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 
 describe('Price API Endpoints', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
+
+  // Global cleanup for any remaining handlers
+  afterAll(() => {
+    jest.clearAllTimers();
+  });
   describe('GET /tokens/prices', () => {
     it('should return bulk token prices', async () => {
       const tokens = 'btc,eth';

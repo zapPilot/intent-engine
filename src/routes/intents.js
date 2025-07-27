@@ -1052,4 +1052,6 @@ router.get('/api/v1/vaults/:vaultId/strategy', (req, res) => {
   }
 });
 
+// Export both router and intentService for cleanup in tests
 module.exports = router;
+module.exports.intentService = intentService;

@@ -5,6 +5,7 @@
 
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 const {
   TEST_ADDRESSES,
   buildZapInRequest,
@@ -14,6 +15,14 @@ const {
 } = require('./utils/testHelpers');
 
 describe('Intent API Endpoints', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
+
   describe('POST /api/v1/intents/zapIn', () => {
     describe('Input Validation', () => {
       test('should validate required parameters', async () => {

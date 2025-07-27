@@ -115,3 +115,18 @@ global.setTimeout = (fn, delay) => {
   }
   return originalTimeout(fn, delay);
 };
+
+// Global cleanup to prevent hanging tests
+afterAll(() => {
+  // Clear all timers and intervals to prevent Jest from hanging
+  jest.clearAllTimers();
+
+  // Force garbage collection if available (Node.js specific)
+  if (global.gc) {
+    global.gc();
+  }
+
+  if (isDebugMode) {
+    originalConsole.info('🧹 Global cleanup: All timers cleared');
+  }
+});

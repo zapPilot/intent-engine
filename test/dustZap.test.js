@@ -1,8 +1,16 @@
 const request = require('supertest');
 const app = require('../src/app');
+const intentRoutes = require('../src/routes/intents');
 const { filterDustTokens } = require('../src/utils/dustFilters');
 
 describe('DustZap Intent System', () => {
+  // Clean up timers to prevent Jest hanging
+  afterAll(() => {
+    if (intentRoutes.intentService) {
+      intentRoutes.intentService.cleanup();
+    }
+    jest.clearAllTimers();
+  });
   describe('Dust Filters', () => {
     test('should filter dust tokens correctly', () => {
       const mockTokens = [

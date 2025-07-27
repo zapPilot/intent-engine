@@ -24,6 +24,13 @@ describe('DustZapIntentHandler Validation', () => {
     );
   });
 
+  afterEach(() => {
+    // Clean up handler to prevent timer leaks
+    if (handler) {
+      handler.cleanup();
+    }
+  });
+
   describe('Constructor', () => {
     it('should initialize with correct services', () => {
       expect(handler.swapService).toBe(mockSwapService);

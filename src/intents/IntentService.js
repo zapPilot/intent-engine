@@ -113,6 +113,25 @@ class IntentService {
   getHandler(intentType) {
     return this.handlers.get(intentType) || null;
   }
+
+  /**
+   * Clean up all handlers (cleanup timers, intervals, etc.)
+   * Essential for preventing Jest test hanging
+   */
+  cleanup() {
+    for (const [intentType, handler] of this.handlers) {
+      if (handler && typeof handler.cleanup === 'function') {
+        try {
+          handler.cleanup();
+        } catch (error) {
+          console.warn(
+            `Error cleaning up ${intentType} handler:`,
+            error.message
+          );
+        }
+      }
+    }
+  }
 }
 
 module.exports = IntentService;
