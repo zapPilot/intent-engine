@@ -61,25 +61,17 @@ jobs:
 
       - name: Create static Swagger UI
         run: |
-          # Install swagger-ui-dist
-          npm install swagger-ui-dist
-
           # Create the static site
           mkdir -p dist/docs
 
-          # Copy swagger-ui-dist files
-          cp -r node_modules/swagger-ui-dist/* dist/docs/
-
-          # Create custom index.html with our swagger.json
+          # Create custom index.html with CDN resources
           cat > dist/docs/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
             <meta charset="UTF-8">
             <title>Intent Engine API Documentation</title>
-            <link rel="stylesheet" type="text/css" href="./swagger-ui-bundle.css" />
-            <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
-            <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+            <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
             <style>
               html {
                 box-sizing: border-box;
@@ -99,8 +91,8 @@ jobs:
           </head>
           <body>
             <div id="swagger-ui"></div>
-            <script src="./swagger-ui-bundle.js" charset="UTF-8"></script>
-            <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+            <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+            <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
             <script>
             window.onload = function() {
               const ui = SwaggerUIBundle({
