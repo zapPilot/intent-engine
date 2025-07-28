@@ -40,7 +40,7 @@ function retryWithBackoff(fn, options = {}, shouldRetryFn = null) {
         // Otherwise use standard retry logic
         if (operation.retry(error)) {
           console.warn(
-            `Retry attempt ${currentAttempt} failed. ${JSON.stringify(retryOptions.context, null, 2)}:`,
+            `Retry attempt ${currentAttempt} failed. ${retryOptions.context}:`,
             error.message
           );
           return;

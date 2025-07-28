@@ -326,23 +326,31 @@ describe('SSE Streaming Functionality', () => {
       // processedTokens counts the number of tokens processed, not transactions
       expect(result.processedTokens).toBe(2);
 
-      // Should have token ready events for both tokens (success and failure)
+      // Should have one token_ready event for successful token and one token_failed for failed token
       const tokenReadyEvents = streamEvents.filter(
         e => e.type === 'token_ready'
       );
-      expect(tokenReadyEvents).toHaveLength(2);
+      const tokenFailedEvents = streamEvents.filter(
+        e => e.type === 'token_failed'
+      );
 
-      // First token should have transactions, second should have empty array due to swap failure
-      const firstTokenEvent = tokenReadyEvents.find(
+      expect(tokenReadyEvents).toHaveLength(1);
+      expect(tokenFailedEvents).toHaveLength(1);
+
+      // Successful token should have transactions
+      const successfulTokenEvent = tokenReadyEvents.find(
         e => e.tokenSymbol === 'GOOD_TOKEN'
       );
-      const secondTokenEvent = tokenReadyEvents.find(
+      // Failed token should be in failed events
+      const failedTokenEvent = tokenFailedEvents.find(
         e => e.tokenSymbol === 'BAD_TOKEN'
       );
 
-      expect(firstTokenEvent.transactions.length).toBeGreaterThan(0);
-      expect(secondTokenEvent.transactions.length).toBe(0);
-      expect(secondTokenEvent.provider).toBe('failed');
+      expect(successfulTokenEvent).toBeDefined();
+      expect(failedTokenEvent).toBeDefined();
+      expect(successfulTokenEvent.transactions.length).toBeGreaterThan(0);
+      expect(failedTokenEvent.error).toMatch(/Swap failed/);
+      expect(failedTokenEvent.provider).toBe('failed');
     });
   });
 
