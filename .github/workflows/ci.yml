@@ -94,3 +94,63 @@ jobs:
             exit 1
           fi
           echo "Application started successfully"
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality, security]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t intent-engine:test .
+          echo "✅ Docker build successful"
+
+      - name: Test container startup
+        run: |
+          # Start container in background
+          docker run -d --name test-container -p 3002:3002 intent-engine:test
+          
+          # Wait for container to be ready (up to 30 seconds)
+          echo "Waiting for container to start..."
+          for i in {1..30}; do
+            if docker exec test-container curl -f http://localhost:3002/health >/dev/null 2>&1; then
+              echo "✅ Container is healthy"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Container failed to become healthy"
+              docker logs test-container
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test API endpoints
+        run: |
+          # Test health endpoint
+          docker exec test-container curl -f http://localhost:3002/health
+          
+          # Test Swagger docs endpoint
+          docker exec test-container curl -f http://localhost:3002/api-docs/ >/dev/null
+          
+          echo "✅ API endpoints responding correctly"
+
+      - name: Basic security scan
+        run: |
+          # Simple security check - scan for common vulnerabilities
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $(pwd):/tmp aquasec/trivy:latest image \
+            --exit-code 0 --severity HIGH,CRITICAL \
+            --format table intent-engine:test
+          echo "✅ Basic security scan completed"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop test-container || true
+          docker rm test-container || true
+          docker rmi intent-engine:test || true
