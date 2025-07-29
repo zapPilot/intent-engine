@@ -76,7 +76,7 @@ build
 tmp
 temp
 
-# Test files (we run tests in builder stage)
+# Test files (tests should be run in CI/CD, not Docker build)
 test
 *.test.js
 jest.config.js

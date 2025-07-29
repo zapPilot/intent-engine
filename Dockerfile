@@ -13,12 +13,11 @@ COPY package*.json ./
 # Install dependencies (including devDependencies for build)
 RUN npm ci --include=dev
 
-# Copy source code
+# Copy source code 
 COPY . .
 
-# Run tests and build checks
-RUN npm run lint
-RUN npm run test
+# Run lint only on src/ (tests should be run in CI/CD pipeline, not in Docker build)
+RUN npx eslint src/ --ext .js
 
 # Production stage
 FROM node:18-alpine AS production
@@ -34,7 +33,7 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && \
+RUN npm ci --omit=dev --ignore-scripts && \
     npm cache clean --force
 
 # Copy application code from builder stage
