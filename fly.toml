@@ -1,10 +1,10 @@
-# fly.toml app configuration file for intent-engine
+# fly.toml app configuration file generated for intent-engine on 2025-07-29T06:26:46Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = 'intent-engine'
-primary_region = 'nrt'
+primary_region = 'hkg'
 
 [build]
 
