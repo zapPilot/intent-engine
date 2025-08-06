@@ -31,7 +31,8 @@ const priceService = new PriceService();
  *         name: fromTokenAddress
  *         required: true
  *         schema:
- *           $ref: '#/components/schemas/EthereumAddress'
+ *           type: string
+ *           example: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
  *         description: Source token contract address
  *       - in: query
  *         name: fromTokenDecimals
@@ -46,7 +47,8 @@ const priceService = new PriceService();
  *         name: toTokenAddress
  *         required: true
  *         schema:
- *           $ref: '#/components/schemas/EthereumAddress'
+ *           type: string
+ *           example: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
  *         description: Destination token contract address
  *       - in: query
  *         name: toTokenDecimals
