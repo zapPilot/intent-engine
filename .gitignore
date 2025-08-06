@@ -122,3 +122,6 @@ usage_tracking2.json
 
 # dev files
 result.json
+
+# Generated documentation files
+docs/swagger.json
