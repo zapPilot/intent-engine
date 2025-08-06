@@ -22,7 +22,7 @@ using the `serena` toolkit and specialized sub-agents.
    Prioritize using existing components or patterns over introducing new ones.
 
 3. **Anti-Duplication Check (lightweight)**
-   Before implementation, **briefly check** `component_inventory` and project memory
+   Before implementation, **briefly check** `component_inventory` or `architecture_overview` and project memory
    for overlaps. Avoid generating detailed refactor analysis unless explicitly required.
 
 4. **Implementation Coordination**
@@ -31,7 +31,7 @@ using the `serena` toolkit and specialized sub-agents.
 
 5. **Selective Memory Update**
    After implementation:
-   - Update `component_inventory` if and only if a new component is introduced.
+   - Update `component_inventory` or `architecture_overview` if and only if a new component is introduced.
    - Avoid saving analysis files (e.g. refactor results) unless tagged as reusable knowledge.
 
 ## Output Format
