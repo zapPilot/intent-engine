@@ -284,6 +284,125 @@ class SwapProcessingService {
    * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
    * @returns {Promise<Object>} Batch processing results
    */
+  /**
+   * Process fee insertion before token processing
+   * @param {Object} params - Fee insertion parameters
+   * @returns {Object} Updated insertion state
+   */
+  _processFeeInsertion(params) {
+    const {
+      shouldInsertFees,
+      insertionPoints,
+      currentTransactionIndex,
+      feesInserted,
+      feeTransactions,
+      results,
+    } = params;
+
+    let updatedInsertionPoints = insertionPoints;
+    let updatedFeesInserted = feesInserted;
+    let updatedTransactionIndex = currentTransactionIndex;
+
+    // Check if we should insert fee transactions before processing this token
+    if (
+      shouldInsertFees &&
+      updatedInsertionPoints.length > 0 &&
+      updatedInsertionPoints[0] <= currentTransactionIndex
+    ) {
+      // Insert fee transactions at this point
+      const feesToInsert = Math.min(
+        feeTransactions.length - updatedFeesInserted,
+        updatedInsertionPoints.length
+      );
+
+      for (let j = 0; j < feesToInsert; j++) {
+        if (updatedFeesInserted < feeTransactions.length) {
+          results.transactions.push(feeTransactions[updatedFeesInserted]);
+          updatedFeesInserted++;
+          updatedTransactionIndex++;
+        }
+      }
+
+      // Remove used insertion points
+      updatedInsertionPoints = updatedInsertionPoints.slice(feesToInsert);
+    }
+
+    return {
+      insertionPoints: updatedInsertionPoints,
+      feesInserted: updatedFeesInserted,
+      currentTransactionIndex: updatedTransactionIndex,
+    };
+  }
+
+  /**
+   * Handle token processing result and update progress
+   * @param {Object} params - Result handling parameters
+   * @returns {number} Updated transaction index
+   */
+  _handleTokenProcessingResult(params) {
+    const {
+      tokenResult,
+      results,
+      tokenIndex,
+      token,
+      tokens,
+      onProgress,
+      currentTransactionIndex,
+    } = params;
+
+    let updatedTransactionIndex = currentTransactionIndex;
+
+    if (tokenResult.success) {
+      results.successful.push(tokenResult);
+      results.transactions.push(...tokenResult.transactions);
+      results.totalValueUSD += tokenResult.inputValueUSD || 0;
+      // Update transaction index count (typically 2 transactions per token: approve + swap)
+      updatedTransactionIndex += tokenResult.transactions.length;
+    } else {
+      results.failed.push(tokenResult);
+    }
+
+    // Call progress callback if provided
+    if (onProgress) {
+      onProgress({
+        tokenIndex,
+        token,
+        result: tokenResult,
+        processed: tokenIndex + 1,
+        total: tokens.length,
+      });
+    }
+
+    return updatedTransactionIndex;
+  }
+
+  /**
+   * Insert remaining fee transactions as fallback
+   * @param {Object} params - Remaining fee insertion parameters
+   */
+  _insertRemainingFees(params) {
+    const { shouldInsertFees, feesInserted, feeTransactions, results } = params;
+
+    if (shouldInsertFees && feesInserted < feeTransactions.length) {
+      const remainingFees = feeTransactions.slice(feesInserted);
+      results.transactions.push(...remainingFees);
+      console.log(
+        `Inserted ${remainingFees.length} remaining fee transactions at end as fallback`
+      );
+    }
+  }
+
+  /**
+   * Process multiple tokens with SSE streaming
+   * @param {Object} params - Batch processing parameters
+   * @param {Array} params.tokens - Tokens to process
+   * @param {Object} params.context - Processing context
+   * @param {Function} params.streamWriter - SSE stream writer function
+   * @param {Function} params.onProgress - Optional progress callback
+   * @param {Array} params.feeTransactions - Optional fee transactions to insert dynamically
+   * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
+   * @returns {Promise<Object>} Batch processing results
+   */
   async processTokenBatchWithSSE(params) {
     const {
       tokens,
@@ -314,30 +433,21 @@ class SwapProcessingService {
       const token = tokens[i];
 
       try {
-        // Check if we should insert fee transactions before processing this token
-        if (
-          shouldInsertFees &&
-          insertionPoints.length > 0 &&
-          insertionPoints[0] <= currentTransactionIndex
-        ) {
-          // Insert fee transactions at this point
-          const feesToInsert = Math.min(
-            feeTransactions.length - feesInserted,
-            insertionPoints.length
-          );
+        // Process fee insertion before token processing
+        const feeInsertionResult = this._processFeeInsertion({
+          shouldInsertFees,
+          insertionPoints,
+          currentTransactionIndex,
+          feesInserted,
+          feeTransactions,
+          results,
+        });
 
-          for (let j = 0; j < feesToInsert; j++) {
-            if (feesInserted < feeTransactions.length) {
-              results.transactions.push(feeTransactions[feesInserted]);
-              feesInserted++;
-              currentTransactionIndex++;
-            }
-          }
+        insertionPoints = feeInsertionResult.insertionPoints;
+        feesInserted = feeInsertionResult.feesInserted;
+        currentTransactionIndex = feeInsertionResult.currentTransactionIndex;
 
-          // Remove used insertion points
-          insertionPoints = insertionPoints.slice(feesToInsert);
-        }
-
+        // Process the token
         const tokenResult = await this.processTokenWithSSE({
           token,
           tokenIndex: i,
@@ -349,26 +459,16 @@ class SwapProcessingService {
           },
         });
 
-        if (tokenResult.success) {
-          results.successful.push(tokenResult);
-          results.transactions.push(...tokenResult.transactions);
-          results.totalValueUSD += tokenResult.inputValueUSD || 0;
-          // Update transaction index count (typically 2 transactions per token: approve + swap)
-          currentTransactionIndex += tokenResult.transactions.length;
-        } else {
-          results.failed.push(tokenResult);
-        }
-
-        // Call progress callback if provided
-        if (onProgress) {
-          onProgress({
-            tokenIndex: i,
-            token,
-            result: tokenResult,
-            processed: i + 1,
-            total: tokens.length,
-          });
-        }
+        // Handle token processing result and update progress
+        currentTransactionIndex = this._handleTokenProcessingResult({
+          tokenResult,
+          results,
+          tokenIndex: i,
+          token,
+          tokens,
+          onProgress,
+          currentTransactionIndex,
+        });
       } catch (error) {
         console.error(`Failed to process token ${token.symbol}:`, error);
 
@@ -383,14 +483,13 @@ class SwapProcessingService {
       }
     }
 
-    // Insert any remaining fee transactions at the end (fallback)
-    if (shouldInsertFees && feesInserted < feeTransactions.length) {
-      const remainingFees = feeTransactions.slice(feesInserted);
-      results.transactions.push(...remainingFees);
-      console.log(
-        `Inserted ${remainingFees.length} remaining fee transactions at end as fallback`
-      );
-    }
+    // Insert any remaining fee transactions as fallback
+    this._insertRemainingFees({
+      shouldInsertFees,
+      feesInserted,
+      feeTransactions,
+      results,
+    });
 
     return results;
   }
