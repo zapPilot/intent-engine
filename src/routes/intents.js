@@ -86,7 +86,7 @@ function validateIntentRequest(req, res, next) {
  *               summary: Basic DustZap request
  *               value:
  *                 userAddress: "0x2eCBC6f229feD06044CDb0dD772437a30190CD50"
- *                 chainId: 1
+ *                 chainId: 8453
  *                 params:
  *                   dustThreshold: 5
  *                   targetToken: "ETH"
@@ -180,7 +180,13 @@ router.post(
  *     tags:
  *       - Intents
  *     summary: Stream DustZap execution progress
- *     description: Server-Sent Events (SSE) endpoint that streams real-time progress updates for DustZap intent execution. Provides token-by-token processing updates, transaction data, and completion status.
+ *     description: |
+ *       A Server-Sent Events (SSE) endpoint that streams real-time progress updates during DustZap intent execution — including token-by-token processing, transaction data, and completion status.
+ *       To consume the stream:
+ *       <ul>
+ *         <li>In JavaScript, use EventSource with the onmessage handler.</li>
+ *         <li>In Flutter, use a package like eventsource or manually parse the HTTP stream.</li>
+ *       </ul>
  *     parameters:
  *       - in: path
  *         name: intentId
