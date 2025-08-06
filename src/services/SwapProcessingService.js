@@ -94,8 +94,28 @@ class SwapProcessingService {
       // Calculate input value in USD for diagnostics
       const inputValueUSD = token.amount * token.price;
 
-      // Ensure raw_amount_hex_str is handled as a string to avoid overflow
-      token.raw_amount = ethers.getBigInt(token.raw_amount_hex_str);
+      // Validate and parse raw_amount_hex_str to prevent DoS attacks
+      if (
+        !token.raw_amount_hex_str ||
+        typeof token.raw_amount_hex_str !== 'string'
+      ) {
+        throw new Error(`Invalid raw_amount_hex_str: must be a hex string`);
+      }
+
+      // Validate hex format to prevent parsing errors
+      if (!/^0x[0-9a-fA-F]+$/.test(token.raw_amount_hex_str)) {
+        throw new Error(
+          `Invalid hex format in raw_amount_hex_str: ${token.raw_amount_hex_str}`
+        );
+      }
+
+      try {
+        token.raw_amount = ethers.getBigInt(token.raw_amount_hex_str);
+      } catch (parseError) {
+        throw new Error(
+          `Failed to parse raw_amount_hex_str as BigInt: ${parseError.message}`
+        );
+      }
 
       // Get best swap quote
       const requestParam = {
