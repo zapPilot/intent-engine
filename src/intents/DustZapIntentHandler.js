@@ -280,7 +280,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
       }
 
       // Pre-calculate fee transactions using estimated value
-      const { txBuilder: feeTxBuilder } =
+      const { txBuilder: feeTxBuilder, feeAmounts } =
         this.feeCalculationService.createFeeTransactions(
           estimatedTotalValueUSD,
           executionContext.ethPrice,
@@ -298,17 +298,10 @@ class DustZapIntentHandler extends BaseIntentHandler {
       const insertionStrategy =
         this.smartFeeInsertionService.calculateInsertionStrategy(
           tokenBatches,
-          feeTransactions.length * 0.001, // Rough ETH estimate for fee insertion threshold
+          feeAmounts.totalFeeETH, // Actual calculated fee amount in ETH
           totalExpectedTransactions,
           feeTransactions.length
         );
-
-      console.log(`Fee insertion strategy:`, {
-        totalFeeTransactions: feeTransactions.length,
-        insertionPoints: insertionStrategy.insertionPoints,
-        strategy: insertionStrategy.strategy,
-        totalExpectedTransactions,
-      });
 
       // Create processing context for swap service
       const processingContext =

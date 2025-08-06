@@ -4,6 +4,7 @@ const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
 const RebalanceBackendClient = require('../services/RebalanceBackendClient');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
+const SSEStreamManager = require('../services/SSEStreamManager');
 
 const router = express.Router();
 
@@ -263,11 +264,13 @@ router.post(
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-router.get('/api/dustzap/:intentId/stream', async (req, res) => {
+
+// Refactored DustZap stream endpoint using SSEStreamManager utilities
+const dustZapStreamHandler = async (req, res) => {
   const { intentId } = req.params;
 
   try {
-    // Validate intent ID
+    // Basic validation first - validate intent ID format
     if (!IntentIdGenerator.validate(intentId)) {
       return res.status(400).json({
         success: false,
@@ -289,9 +292,9 @@ router.get('/api/dustzap/:intentId/stream', async (req, res) => {
       });
     }
 
-    // Get DustZapIntentHandler instance
+    // Get DustZapIntentHandler instance and execution context
     const dustZapHandler = intentService.getHandler('dustZap');
-    const executionContext = dustZapHandler.getExecutionContext(intentId);
+    const executionContext = dustZapHandler?.getExecutionContext(intentId);
 
     if (!executionContext) {
       return res.status(404).json({
@@ -303,95 +306,42 @@ router.get('/api/dustzap/:intentId/stream', async (req, res) => {
       });
     }
 
-    // Set up SSE headers
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control',
+    // Initialize SSE stream with standardized headers and connection event
+    const streamWriter = SSEStreamManager.initializeStream(res, intentId, {
+      intentType: 'dustZap',
+      totalTokens: executionContext.dustTokens.length,
     });
 
-    // Send initial connection event
-    res.write(
-      `data: ${JSON.stringify({
-        type: 'connected',
-        intentId,
-        totalTokens: executionContext.dustTokens.length,
-        timestamp: new Date().toISOString(),
-      })}\n\n`
+    // Process tokens with streaming
+    await dustZapHandler.processTokensWithSSEStreaming(
+      executionContext,
+      streamWriter
     );
 
-    // Process tokens and stream results
-    await processTokensWithStreaming(dustZapHandler, executionContext, res);
+    // Clean up execution context
+    dustZapHandler.removeExecutionContext(intentId);
 
-    // Add small delay to ensure complete event is processed before connection closes
+    // Close stream gracefully (similar to original pattern)
     await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Close the connection
     res.end();
   } catch (error) {
     console.error('SSE streaming error:', error);
 
-    // Send error event if connection is still open
-    if (!res.headersSent) {
-      res.writeHead(500, {
-        'Content-Type': 'application/json',
-      });
-      res.end(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'STREAMING_ERROR',
-            message: 'Failed to process streaming request',
-          },
-        })
-      );
-    } else {
-      // Send error through SSE if headers already sent
-      res.write(
-        `data: ${JSON.stringify({
-          type: 'error',
-          error: 'Processing failed',
-          timestamp: new Date().toISOString(),
-        })}\n\n`
-      );
-      res.end();
+    // Clean up on error
+    try {
+      const dustZapHandler = intentService.getHandler('dustZap');
+      dustZapHandler?.removeExecutionContext(intentId);
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError);
     }
+
+    // Handle error with standardized error handling
+    SSEStreamManager.handleStreamError(res, error, { intentId });
   }
-});
+};
 
-/**
- * Process tokens with SSE streaming using the handler's method
- * @param {DustZapIntentHandler} handler - DustZap handler instance
- * @param {Object} executionContext - Execution context
- * @param {Response} res - SSE response stream
- */
-async function processTokensWithStreaming(handler, executionContext, res) {
-  try {
-    // Create stream writer function that writes to SSE response
-    const streamWriter = data => {
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
-    // Use the handler's streaming method
-    await handler.processTokensWithSSEStreaming(executionContext, streamWriter);
-
-    // Clean up execution context
-    handler.removeExecutionContext(executionContext.intentId || 'unknown');
-  } catch (error) {
-    console.error('Token processing error:', error);
-
-    // Send final error event
-    res.write(
-      `data: ${JSON.stringify({
-        type: 'error',
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      })}\n\n`
-    );
-  }
-}
+// Replace the auto-generated endpoint with our custom one
+router.get('/api/dustzap/:intentId/stream', dustZapStreamHandler);
 
 /**
  * @swagger

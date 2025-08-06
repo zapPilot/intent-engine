@@ -243,6 +243,93 @@ class SSEEventFactory {
    * @param {Response} res - Express response object
    * @returns {Function} Stream writer function
    */
+
+  /**
+   * Create intent batch transaction event
+   * @param {Object} batchData - Batch transaction data
+   * @returns {Object} Intent batch event
+   */
+  static createIntentBatchEvent(batchData) {
+    const {
+      batchId,
+      intentType,
+      transactions = [],
+      batchIndex = 0,
+      totalBatches = 1,
+      status = 'completed',
+      metadata = {},
+      error = null,
+    } = batchData;
+
+    const baseEvent = {
+      type: SSE_EVENT_TYPES.INTENT_BATCH,
+      batchId,
+      intentType,
+      batchIndex,
+      totalBatches,
+      progress: (batchIndex + 1) / totalBatches,
+      status, // 'processing', 'completed', 'failed'
+      timestamp: new Date().toISOString(),
+      metadata: {
+        batchSize: transactions.length,
+        ...metadata,
+      },
+    };
+
+    // Add appropriate data based on status
+    if (status === 'failed' && error) {
+      return {
+        ...baseEvent,
+        error: typeof error === 'string' ? error : error.message,
+        transactions: [], // Don't include transactions on failure
+      };
+    }
+
+    return {
+      ...baseEvent,
+      transactions,
+    };
+  }
+
+  /**
+   * Create transaction update event for individual transactions
+   * @param {Object} txnData - Transaction data
+   * @returns {Object} Transaction update event
+   */
+  static createTransactionUpdateEvent(txnData) {
+    const {
+      transactionId,
+      txnIndex,
+      totalTxns,
+      status = 'pending',
+      transactionHash = null,
+      gasUsed = null,
+      blockNumber = null,
+      error = null,
+      metadata = {},
+    } = txnData;
+
+    return {
+      type: SSE_EVENT_TYPES.TRANSACTION_UPDATE,
+      transactionId,
+      txnIndex,
+      totalTxns,
+      progress: (txnIndex + 1) / totalTxns,
+      status, // 'pending', 'confirmed', 'failed'
+      transactionHash,
+      gasUsed,
+      blockNumber,
+      error: error ? (typeof error === 'string' ? error : error.message) : null,
+      timestamp: new Date().toISOString(),
+      metadata,
+    };
+  }
+
+  /**
+   * Create stream writer function for consistent SSE output
+   * @param {Response} res - Express response object
+   * @returns {Function} Stream writer function
+   */
   static createStreamWriter(res) {
     return eventData => {
       try {
