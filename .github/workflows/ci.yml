@@ -117,7 +117,7 @@ jobs:
           # Wait for container to be ready (up to 30 seconds)
           echo "Waiting for container to start..."
           for i in {1..30}; do
-            if docker exec test-container curl -f http://localhost:3002/health >/dev/null 2>&1; then
+            if curl -f http://localhost:3002/health >/dev/null 2>&1; then
               echo "✅ Container is healthy"
               break
             fi
@@ -132,10 +132,10 @@ jobs:
       - name: Test API endpoints
         run: |
           # Test health endpoint
-          docker exec test-container curl -f http://localhost:3002/health
+          curl -f http://localhost:3002/health
 
           # Test Swagger docs endpoint
-          docker exec test-container curl -f http://localhost:3002/api-docs/ >/dev/null
+          curl -f http://localhost:3002/api-docs/ >/dev/null
 
           echo "✅ API endpoints responding correctly"
 
