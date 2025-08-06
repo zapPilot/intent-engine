@@ -94,6 +94,7 @@ function validateIntentRequest(req, res, next) {
  *                   toTokenDecimals: 18
  *                   slippage: 1
  *                   referralAddress: "0x1234567890123456789012345678901234567890"
+ *                   dustTokens: [{"address":"0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189","symbol":"OpenUSDT","amount":0.943473,"price":0.99985,"decimals":6,"raw_amount_hex_str":"0xe6571"},{"address":"0x526728dbc96689597f85ae4cd716d4f7fccbae9d","symbol":"msUSD","amount":0.040852155251341185,"price":0.9962465895840099,"decimals":18,"raw_amount_hex_str":"0x9122d19a10b77f"}]
  *     responses:
  *       200:
  *         description: DustZap intent initiated successfully

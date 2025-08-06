@@ -22,11 +22,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:3002',
-        description: 'Development server',
-      },
-      {
-        url: 'https://api.all-weather.com',
+        url: 'https://intent-engine.fly.dev',
         description: 'Production server',
       },
     ],
@@ -130,6 +126,73 @@ const swaggerOptions = {
               maximum: 100,
               example: 1,
               description: 'Slippage tolerance percentage',
+            },
+            dustTokens: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: [
+                  'address',
+                  'symbol',
+                  'amount',
+                  'price',
+                  'decimals',
+                  'raw_amount_hex_str',
+                ],
+                properties: {
+                  address: {
+                    $ref: '#/components/schemas/EthereumAddress',
+                    description: 'Token contract address',
+                  },
+                  symbol: {
+                    type: 'string',
+                    example: 'OpenUSDT',
+                    description: 'Token symbol',
+                  },
+                  amount: {
+                    type: 'number',
+                    example: 0.943473,
+                    description: 'Token amount in human readable format',
+                  },
+                  price: {
+                    type: 'number',
+                    example: 0.99985,
+                    description: 'Token price in USD',
+                  },
+                  decimals: {
+                    type: 'integer',
+                    minimum: 0,
+                    maximum: 18,
+                    example: 6,
+                    description: 'Number of decimals for the token',
+                  },
+                  raw_amount_hex_str: {
+                    type: 'string',
+                    example: '0xe6571',
+                    description: 'Token amount in hex string format',
+                  },
+                },
+              },
+              example: [
+                {
+                  address: '0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189',
+                  symbol: 'OpenUSDT',
+                  amount: 0.943473,
+                  price: 0.99985,
+                  decimals: 6,
+                  raw_amount_hex_str: '0xe6571',
+                },
+                {
+                  address: '0x526728dbc96689597f85ae4cd716d4f7fccbae9d',
+                  symbol: 'msUSD',
+                  amount: 0.040852155251341185,
+                  price: 0.9962465895840099,
+                  decimals: 18,
+                  raw_amount_hex_str: '0x9122d19a10b77f',
+                },
+              ],
+              description:
+                'Array of dust tokens to be converted (dynamic length)',
             },
           },
         },

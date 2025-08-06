@@ -13,7 +13,7 @@ COPY package*.json ./
 # Install dependencies (including devDependencies for build)
 RUN npm ci --include=dev
 
-# Copy source code 
+# Copy source code
 COPY . .
 
 # Run lint only on src/ (tests should be run in CI/CD pipeline, not in Docker build)
@@ -61,7 +61,7 @@ ENV PORT=3002
 CMD ["npm", "start"]
 
 # Labels for better container management
-LABEL maintainer="All Weather Protocol"
+LABEL maintainer="Zap Pilot"
 LABEL description="Intent Engine API with integrated Swagger documentation"
 LABEL version="1.0.0"
 LABEL org.opencontainers.image.source="https://github.com/all-weather-protocol/intent-engine"
