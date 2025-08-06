@@ -252,57 +252,37 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Process tokens with SSE streaming (token-level granularity)
+   * Process tokens with SSE streaming (token-level granularity) with dynamic fee insertion
    * @param {Object} executionContext - Execution context
    * @param {Function} streamWriter - Function to write SSE events
    * @returns {Promise<Object>} - Final processing results
    */
   async processTokensWithSSEStreaming(executionContext, streamWriter) {
-    const { dustTokens, params } = executionContext;
+    const { dustTokens, params, batches } = executionContext;
     const { referralAddress } = params;
 
     try {
-      // Create processing context for swap service
-      const processingContext =
-        SwapProcessingService.createProcessingContext(executionContext);
-
-      // Use SwapProcessingService to process tokens with unified error handling
-      const batchResults =
-        await this.swapProcessingService.processTokenBatchWithSSE({
-          tokens: dustTokens,
-          context: processingContext,
-          streamWriter: streamWriter,
-          onProgress: _progressData => {
-            // Optional: Add any custom progress handling here
-          },
-        });
-
-      // Calculate total value from successful swaps
-      let totalValueUSD = 0;
-      const allTransactions = [...batchResults.transactions];
-
-      // Add successful token values to total
-      for (const result of batchResults.successful) {
-        totalValueUSD += result.inputValueUSD || 0;
+      // Calculate estimated total value for fee calculations (pre-processing estimation)
+      let estimatedTotalValueUSD = 0;
+      for (const token of dustTokens) {
+        estimatedTotalValueUSD += token.amount * token.price || 0;
       }
 
-      // Validate totalValueUSD before proceeding with fee calculations
-      if (totalValueUSD <= 0) {
-        const errorMessage = `Invalid totalValueUSD: ${totalValueUSD}. This indicates either no tokens were processed successfully or all tokens have zero value.`;
+      // Validate estimated total value
+      if (estimatedTotalValueUSD <= 0) {
+        const errorMessage = `Invalid estimated totalValueUSD: ${estimatedTotalValueUSD}. All tokens appear to have zero value.`;
         console.error(errorMessage, {
           dustTokensLength: dustTokens.length,
-          successfulTokens: batchResults.successful.length,
-          failedTokens: batchResults.failed.length,
-          totalValueUSD,
+          estimatedTotalValueUSD,
         });
 
         throw new Error(errorMessage);
       }
 
-      // Add fee transactions using TransactionBuilder with WETH wrapping pattern
+      // Pre-calculate fee transactions using estimated value
       const { txBuilder: feeTxBuilder } =
         this.feeCalculationService.createFeeTransactions(
-          totalValueUSD,
+          estimatedTotalValueUSD,
           executionContext.ethPrice,
           executionContext.chainId,
           referralAddress
@@ -310,9 +290,53 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
       // Get fee transactions from builder
       const feeTransactions = feeTxBuilder.getTransactions();
-      allTransactions.push(...feeTransactions);
 
-      // Stream completion with all transactions
+      // Calculate insertion strategy using SmartFeeInsertionService
+      // Create batches if not provided (for backward compatibility with tests)
+      const tokenBatches = batches || [dustTokens];
+      const totalExpectedTransactions = dustTokens.length * 2; // Approve + Swap per token
+      const insertionStrategy =
+        this.smartFeeInsertionService.calculateInsertionStrategy(
+          tokenBatches,
+          feeTransactions.length * 0.001, // Rough ETH estimate for fee insertion threshold
+          totalExpectedTransactions,
+          feeTransactions.length
+        );
+
+      console.log(`Fee insertion strategy:`, {
+        totalFeeTransactions: feeTransactions.length,
+        insertionPoints: insertionStrategy.insertionPoints,
+        strategy: insertionStrategy.strategy,
+        totalExpectedTransactions,
+      });
+
+      // Create processing context for swap service
+      const processingContext =
+        SwapProcessingService.createProcessingContext(executionContext);
+
+      // Use SwapProcessingService to process tokens with unified error handling and dynamic fee insertion
+      const batchResults =
+        await this.swapProcessingService.processTokenBatchWithSSE({
+          tokens: dustTokens,
+          context: processingContext,
+          streamWriter: streamWriter,
+          feeTransactions: feeTransactions,
+          insertionStrategy: insertionStrategy,
+          onProgress: _progressData => {
+            // Optional: Add any custom progress handling here
+          },
+        });
+
+      // Calculate actual total value from successful swaps
+      let actualTotalValueUSD = 0;
+      for (const result of batchResults.successful) {
+        actualTotalValueUSD += result.inputValueUSD || 0;
+      }
+
+      // All transactions are now returned from SwapProcessingService (including fees)
+      const allTransactions = [...batchResults.transactions];
+
+      // Stream completion with all transactions (now includes dynamically inserted fees)
       const finalResult = SSEEventFactory.createCompletionEvent({
         transactions: allTransactions,
         metadata: {
@@ -321,12 +345,17 @@ class DustZapIntentHandler extends BaseIntentHandler {
             batchResults.successful.length + batchResults.failed.length,
           successfulTokens: batchResults.successful.length,
           failedTokens: batchResults.failed.length,
-          totalValueUSD,
+          totalValueUSD: actualTotalValueUSD,
           feeInfo: this.feeCalculationService.buildFeeInfo(
-            totalValueUSD,
+            actualTotalValueUSD,
             referralAddress,
             true // useWETHPattern
           ),
+          feeInsertionStrategy: {
+            strategy: insertionStrategy.strategy,
+            insertionPoints: insertionStrategy.insertionPoints,
+            totalFeeTransactions: feeTransactions.length,
+          },
           estimatedTotalGas: allTransactions
             .reduce(
               (sum, tx) => sum + BigInt(tx.gasLimit || '21000'),
@@ -340,11 +369,12 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
       return {
         allTransactions,
-        totalValueUSD,
+        totalValueUSD: actualTotalValueUSD,
         processedTokens:
           batchResults.successful.length + batchResults.failed.length,
         successfulTokens: batchResults.successful.length,
         failedTokens: batchResults.failed.length,
+        feeInsertionStrategy: insertionStrategy,
       };
     } catch (error) {
       console.error('Token processing error:', error);

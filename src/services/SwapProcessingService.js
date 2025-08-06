@@ -256,10 +256,23 @@ class SwapProcessingService {
   /**
    * Process multiple tokens with SSE streaming
    * @param {Object} params - Batch processing parameters
+   * @param {Array} params.tokens - Tokens to process
+   * @param {Object} params.context - Processing context
+   * @param {Function} params.streamWriter - SSE stream writer function
+   * @param {Function} params.onProgress - Optional progress callback
+   * @param {Array} params.feeTransactions - Optional fee transactions to insert dynamically
+   * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
    * @returns {Promise<Object>} Batch processing results
    */
   async processTokenBatchWithSSE(params) {
-    const { tokens, context, streamWriter, onProgress = null } = params;
+    const {
+      tokens,
+      context,
+      streamWriter,
+      onProgress = null,
+      feeTransactions = null,
+      insertionStrategy = null,
+    } = params;
 
     const results = {
       successful: [],
@@ -268,10 +281,43 @@ class SwapProcessingService {
       totalValueUSD: 0,
     };
 
+    // Initialize fee insertion tracking
+    const shouldInsertFees =
+      feeTransactions && insertionStrategy && Array.isArray(feeTransactions);
+    let insertionPoints = shouldInsertFees
+      ? [...insertionStrategy.insertionPoints]
+      : [];
+    let currentTransactionIndex = 0;
+    let feesInserted = 0;
+
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
 
       try {
+        // Check if we should insert fee transactions before processing this token
+        if (
+          shouldInsertFees &&
+          insertionPoints.length > 0 &&
+          insertionPoints[0] <= currentTransactionIndex
+        ) {
+          // Insert fee transactions at this point
+          const feesToInsert = Math.min(
+            feeTransactions.length - feesInserted,
+            insertionPoints.length
+          );
+
+          for (let j = 0; j < feesToInsert; j++) {
+            if (feesInserted < feeTransactions.length) {
+              results.transactions.push(feeTransactions[feesInserted]);
+              feesInserted++;
+              currentTransactionIndex++;
+            }
+          }
+
+          // Remove used insertion points
+          insertionPoints = insertionPoints.slice(feesToInsert);
+        }
+
         const tokenResult = await this.processTokenWithSSE({
           token,
           tokenIndex: i,
@@ -287,6 +333,8 @@ class SwapProcessingService {
           results.successful.push(tokenResult);
           results.transactions.push(...tokenResult.transactions);
           results.totalValueUSD += tokenResult.inputValueUSD || 0;
+          // Update transaction index count (typically 2 transactions per token: approve + swap)
+          currentTransactionIndex += tokenResult.transactions.length;
         } else {
           results.failed.push(tokenResult);
         }
@@ -313,6 +361,15 @@ class SwapProcessingService {
 
         results.failed.push(failureResult);
       }
+    }
+
+    // Insert any remaining fee transactions at the end (fallback)
+    if (shouldInsertFees && feesInserted < feeTransactions.length) {
+      const remainingFees = feeTransactions.slice(feesInserted);
+      results.transactions.push(...remainingFees);
+      console.log(
+        `Inserted ${remainingFees.length} remaining fee transactions at end as fallback`
+      );
     }
 
     return results;
