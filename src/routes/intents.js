@@ -3,8 +3,7 @@ const IntentService = require('../intents/IntentService');
 const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
 const RebalanceBackendClient = require('../services/RebalanceBackendClient');
-const IntentIdGenerator = require('../utils/intentIdGenerator');
-const { SSEStreamManager } = require('../services/SSEStreamManager');
+const { DustZapStreamHandler } = require('../handlers');
 
 const router = express.Router();
 
@@ -17,6 +16,9 @@ const intentService = new IntentService(
   priceService,
   rebalanceClient
 );
+
+// Initialize stream handlers
+const dustZapStreamHandlerInstance = new DustZapStreamHandler(intentService);
 
 /**
  * Input validation middleware for intent requests
@@ -265,83 +267,12 @@ router.post(
  *         $ref: '#/components/responses/InternalServerError'
  */
 
-// Refactored DustZap stream endpoint using SSEStreamManager utilities
-const dustZapStreamHandler = async (req, res) => {
-  const { intentId } = req.params;
+// Clean DustZap stream endpoint using handler class
 
-  try {
-    // Basic validation first - validate intent ID format
-    if (!IntentIdGenerator.validate(intentId)) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INTENT_ID',
-          message: 'Invalid intent ID format',
-        },
-      });
-    }
-
-    // Check if intent ID is expired
-    if (IntentIdGenerator.isExpired(intentId)) {
-      return res.status(410).json({
-        success: false,
-        error: {
-          code: 'INTENT_EXPIRED',
-          message: 'Intent ID has expired',
-        },
-      });
-    }
-
-    // Get DustZapIntentHandler instance and execution context
-    const dustZapHandler = intentService.getHandler('dustZap');
-    const executionContext = dustZapHandler?.getExecutionContext(intentId);
-
-    if (!executionContext) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'INTENT_NOT_FOUND',
-          message: 'Intent execution context not found',
-        },
-      });
-    }
-
-    // Initialize SSE stream with standardized headers and connection event
-    const streamWriter = SSEStreamManager.initializeStream(res, intentId, {
-      intentType: 'dustZap',
-      totalTokens: executionContext.dustTokens.length,
-    });
-
-    // Process tokens with streaming
-    await dustZapHandler.processTokensWithSSEStreaming(
-      executionContext,
-      streamWriter
-    );
-
-    // Clean up execution context
-    dustZapHandler.removeExecutionContext(intentId);
-
-    // Close stream gracefully (similar to original pattern)
-    await new Promise(resolve => setTimeout(resolve, 100));
-    res.end();
-  } catch (error) {
-    console.error('SSE streaming error:', error);
-
-    // Clean up on error
-    try {
-      const dustZapHandler = intentService.getHandler('dustZap');
-      dustZapHandler?.removeExecutionContext(intentId);
-    } catch (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
-    }
-
-    // Handle error with standardized error handling
-    SSEStreamManager.handleStreamError(res, error, { intentId });
-  }
-};
-
-// Replace the auto-generated endpoint with our custom one
-router.get('/api/dustzap/:intentId/stream', dustZapStreamHandler);
+// Replace the auto-generated endpoint with our custom handler class
+router.get('/api/dustzap/:intentId/stream', (req, res) =>
+  dustZapStreamHandlerInstance.handleStream(req, res)
+);
 
 /**
  * @swagger
