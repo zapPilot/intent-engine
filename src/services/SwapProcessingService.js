@@ -324,15 +324,6 @@ class SwapProcessingService {
    * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
    * @returns {Promise<Object>} Batch processing results
    */
-  /**
-   * Process multiple tokens with business logic only (no SSE streaming)
-   * @param {Object} params - Batch processing parameters
-   * @param {Array} params.tokens - Tokens to process
-   * @param {Object} params.context - Processing context
-   * @param {Array} params.feeTransactions - Optional fee transactions to insert dynamically
-   * @param {Object} params.insertionStrategy - Fee insertion strategy
-   * @returns {Promise<Object>} Batch processing results
-   */
   async processTokenBatch(params) {
     const {
       tokens,
@@ -348,97 +339,139 @@ class SwapProcessingService {
     };
 
     let processedCount = 0;
-    let feeBlockInserted = false; // Track whether the entire fee block has been inserted
+    let feeBlockInserted = false;
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
+      const progressInfo = {
+        tokenIndex: i,
+        processedTokens: i,
+        totalTokens: tokens.length,
+      };
 
-      try {
-        // Process the token (business logic only)
-        const tokenResult = await this.processTokenBusiness({
-          token,
-          tokenIndex: i,
-          context,
-          progressInfo: {
-            processedTokens: i,
-            totalTokens: tokens.length,
-          },
-        });
+      const tokenResult = await this.processTokenWithErrorHandling(
+        token,
+        context,
+        progressInfo
+      );
 
-        if (tokenResult.isSuccess()) {
-          results.successful.push({
-            ...tokenResult.toLegacyFormat(),
-            tokenIndex: i,
-            token,
-            transactions: tokenResult.transactions || [],
-          });
+      this.handleTokenResult(tokenResult, results, i, token);
 
-          // Add token's transactions to main collection
-          if (tokenResult.transactions) {
-            results.transactions.push(...tokenResult.transactions);
-          }
-        } else {
-          const failureResult = this.handleTokenFailureInternal(
-            token,
-            tokenResult.error || 'Swap failed',
-            {
-              tokenIndex: i,
-              processedTokens: i,
-              totalTokens: tokens.length,
-            }
-          );
-
-          results.failed.push(failureResult);
-        }
-
-        processedCount++;
-
-        // Insert entire fee block at once when we reach the optimal insertion point
-        if (feeTransactions && insertionStrategy && !feeBlockInserted) {
-          const currentTransactionCount = results.transactions.length;
-          const insertionResult =
-            this.smartFeeInsertionService.executeFeeBlockInsertion({
-              feeTransactions,
-              insertionStrategy,
-              transactions: results.transactions,
-              currentTransactionCount,
-              processedTokenCount: processedCount,
-              totalTokenCount: tokens.length,
-            });
-
-          if (insertionResult.inserted) {
-            feeBlockInserted = true;
-            console.log(`Fee insertion: ${insertionResult.reason}`);
-          }
-        }
-      } catch (error) {
-        console.error(`Token ${i} processing error:`, error);
-
-        const failureResult = this.handleTokenFailureInternal(token, error, {
-          tokenIndex: i,
-          processedTokens: i,
-          totalTokens: tokens.length,
-        });
-
-        results.failed.push(failureResult);
-        processedCount++;
+      if (tokenResult.transactions) {
+        results.transactions.push(...tokenResult.transactions);
       }
+
+      processedCount++;
+
+      feeBlockInserted = this.handleFeeInsertion({
+        feeTransactions,
+        insertionStrategy,
+        results,
+        processedCount,
+        totalTokenCount: tokens.length,
+        feeBlockInserted,
+      });
     }
 
-    // Fallback: Insert fee block at end if it wasn't inserted during processing
-    if (feeTransactions && !feeBlockInserted) {
-      const fallbackResult =
-        this.smartFeeInsertionService.executeFallbackFeeInsertion({
-          feeTransactions,
-          transactions: results.transactions,
-        });
-
-      if (fallbackResult.inserted) {
-        console.log(`Fee insertion: ${fallbackResult.reason}`);
-      }
-    }
+    this.handleFallbackFeeInsertion(feeTransactions, results, feeBlockInserted);
 
     return results;
+  }
+
+  async processTokenWithErrorHandling(token, context, progressInfo) {
+    try {
+      return await this.processTokenBusiness({
+        token,
+        tokenIndex: progressInfo.tokenIndex,
+        context,
+        progressInfo: {
+          processedTokens: progressInfo.processedTokens,
+          totalTokens: progressInfo.totalTokens,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `Token ${progressInfo.tokenIndex} processing error:`,
+        error
+      );
+      return {
+        isSuccess: () => false,
+        error: error,
+        toLegacyFormat: () => ({}),
+        transactions: [],
+      };
+    }
+  }
+
+  handleTokenResult(tokenResult, results, tokenIndex, token) {
+    if (tokenResult.isSuccess()) {
+      results.successful.push({
+        ...tokenResult.toLegacyFormat(),
+        tokenIndex,
+        token,
+        transactions: tokenResult.transactions || [],
+      });
+    } else {
+      const failureResult = this.handleTokenFailureInternal(
+        token,
+        tokenResult.error || 'Swap failed',
+        {
+          tokenIndex,
+          processedTokens: tokenIndex,
+          totalTokens: results.successful.length + results.failed.length + 1,
+        }
+      );
+      results.failed.push(failureResult);
+    }
+  }
+
+  handleFeeInsertion(params) {
+    const {
+      feeTransactions,
+      insertionStrategy,
+      results,
+      processedCount,
+      totalTokenCount,
+      feeBlockInserted,
+    } = params;
+
+    if (!feeTransactions || !insertionStrategy || feeBlockInserted) {
+      return feeBlockInserted;
+    }
+
+    const currentTransactionCount = results.transactions.length;
+    const insertionResult =
+      this.smartFeeInsertionService.executeFeeBlockInsertion({
+        feeTransactions,
+        insertionStrategy,
+        transactions: results.transactions,
+        currentTransactionCount,
+        processedTokenCount: processedCount,
+        totalTokenCount,
+      });
+
+    if (insertionResult.inserted) {
+      console.log(`Fee insertion: ${insertionResult.reason}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  handleFallbackFeeInsertion(feeTransactions, results, feeBlockInserted) {
+    if (!feeTransactions || feeBlockInserted) {
+      return;
+    }
+
+    const fallbackResult =
+      this.smartFeeInsertionService.executeFallbackFeeInsertion({
+        feeTransactions,
+        transactions: results.transactions,
+      });
+
+    if (fallbackResult.inserted) {
+      console.log(`Fee insertion: ${fallbackResult.reason}`);
+    }
   }
 
   /**
