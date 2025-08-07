@@ -380,16 +380,13 @@ class SwapProcessingService {
    * Insert remaining fee transactions as fallback
    * @param {Object} params - Remaining fee insertion parameters
    */
-  _insertRemainingFees(params) {
-    const { shouldInsertFees, feesInserted, feeTransactions, results } = params;
-
-    if (shouldInsertFees && feesInserted < feeTransactions.length) {
-      const remainingFees = feeTransactions.slice(feesInserted);
-      results.transactions.push(...remainingFees);
-      console.log(
-        `Inserted ${remainingFees.length} remaining fee transactions at end as fallback`
-      );
-    }
+  /**
+   * @deprecated - Fee insertion is now handled directly in processTokenBatch as cohesive blocks
+   */
+  _insertRemainingFees() {
+    console.warn(
+      '_insertRemainingFees is deprecated - fee blocks are now inserted together'
+    );
   }
 
   /**
@@ -403,6 +400,232 @@ class SwapProcessingService {
    * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
    * @returns {Promise<Object>} Batch processing results
    */
+  /**
+   * Process multiple tokens with business logic only (no SSE streaming)
+   * @param {Object} params - Batch processing parameters
+   * @param {Array} params.tokens - Tokens to process
+   * @param {Object} params.context - Processing context
+   * @param {Array} params.feeTransactions - Optional fee transactions to insert dynamically
+   * @param {Object} params.insertionStrategy - Fee insertion strategy
+   * @returns {Promise<Object>} Batch processing results
+   */
+  async processTokenBatch(params) {
+    const {
+      tokens,
+      context,
+      feeTransactions = null,
+      insertionStrategy = null,
+    } = params;
+
+    const results = {
+      successful: [],
+      failed: [],
+      transactions: [],
+    };
+
+    let processedCount = 0;
+    let feeBlockInserted = false; // Track whether the entire fee block has been inserted
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+
+      try {
+        // Process the token (business logic only)
+        const tokenResult = await this.processTokenBusiness({
+          token,
+          tokenIndex: i,
+          context,
+          progressInfo: {
+            processedTokens: i,
+            totalTokens: tokens.length,
+          },
+        });
+
+        if (SwapErrorClassifier.isSwapSuccessful(tokenResult)) {
+          results.successful.push({
+            ...tokenResult,
+            tokenIndex: i,
+            token,
+            transactions: tokenResult.transactions || [],
+          });
+
+          // Add token's transactions to main collection
+          if (tokenResult.transactions) {
+            results.transactions.push(...tokenResult.transactions);
+          }
+        } else {
+          const failureResult = this.handleTokenFailureInternal(
+            token,
+            tokenResult.error || 'Swap failed',
+            {
+              tokenIndex: i,
+              processedTokens: i,
+              totalTokens: tokens.length,
+            }
+          );
+
+          results.failed.push(failureResult);
+        }
+
+        processedCount++;
+
+        // Insert entire fee block at once when we reach the optimal insertion point
+        if (feeTransactions && insertionStrategy && !feeBlockInserted) {
+          const currentTransactionCount = results.transactions.length;
+          const shouldInsertFeesNow = this._shouldInsertFeeBlock(
+            currentTransactionCount,
+            insertionStrategy,
+            processedCount,
+            tokens.length
+          );
+
+          if (shouldInsertFeesNow) {
+            // Insert all fee transactions as a cohesive block (deposit + transfer(s))
+            results.transactions.push(...feeTransactions);
+            feeBlockInserted = true;
+            console.log(
+              `Inserted fee block of ${feeTransactions.length} transactions at position ${currentTransactionCount}`
+            );
+          }
+        }
+      } catch (error) {
+        console.error(`Token ${i} processing error:`, error);
+
+        const failureResult = this.handleTokenFailureInternal(token, error, {
+          tokenIndex: i,
+          processedTokens: i,
+          totalTokens: tokens.length,
+        });
+
+        results.failed.push(failureResult);
+        processedCount++;
+      }
+    }
+
+    // Fallback: Insert fee block at end if it wasn't inserted during processing
+    if (feeTransactions && !feeBlockInserted) {
+      results.transactions.push(...feeTransactions);
+      console.log(
+        `Inserted fee block of ${feeTransactions.length} transactions at end as fallback`
+      );
+    }
+
+    return results;
+  }
+
+  /**
+   * Determine if the fee block should be inserted at the current position
+   * @param {number} currentTransactionCount - Current number of transactions
+   * @param {Object} insertionStrategy - Fee insertion strategy
+   * @param {number} processedTokenCount - Number of tokens processed so far
+   * @param {number} totalTokenCount - Total number of tokens to process
+   * @returns {boolean} - Whether to insert the fee block now
+   */
+  _shouldInsertFeeBlock(
+    currentTransactionCount,
+    insertionStrategy,
+    processedTokenCount,
+    totalTokenCount
+  ) {
+    // Extract insertion strategy details
+    const {
+      minimumThreshold,
+      insertionPoints = [],
+      strategy,
+    } = insertionStrategy;
+
+    // For fallback strategy, wait until near the end
+    if (strategy === 'fallback') {
+      const progressPercentage = processedTokenCount / totalTokenCount;
+      return progressPercentage >= 0.8; // Insert when 80% of tokens are processed
+    }
+
+    // For random strategy, use the first insertion point as the target
+    // (since we're inserting the entire fee block at once)
+    if (insertionPoints.length > 0) {
+      const targetInsertionPoint = insertionPoints[0];
+
+      // Insert when we've reached or passed the target insertion point
+      return currentTransactionCount >= targetInsertionPoint;
+    }
+
+    // Fallback: use minimum threshold
+    return currentTransactionCount >= minimumThreshold;
+  }
+
+  /**
+   * Process a single token with business logic only (no SSE streaming)
+   * @param {Object} params - Processing parameters
+   * @returns {Promise<Object>} Processing result with transaction data
+   */
+  async processTokenBusiness(params) {
+    const { token, tokenIndex, context, progressInfo = {} } = params;
+
+    const { processedTokens = 0, totalTokens = 1 } = progressInfo;
+
+    try {
+      const result = await this.processTokenSwap(token, context);
+
+      if (SwapErrorClassifier.isSwapSuccessful(result)) {
+        return result;
+      } else {
+        return this.handleTokenFailureInternal(
+          token,
+          result.error || 'Swap failed',
+          {
+            tokenIndex,
+            processedTokens,
+            totalTokens,
+          }
+        );
+      }
+    } catch (error) {
+      console.error(`Token ${tokenIndex} processing error:`, error);
+      return this.handleTokenFailureInternal(token, error, {
+        tokenIndex,
+        processedTokens,
+        totalTokens,
+      });
+    }
+  }
+
+  /**
+   * Handle token failure without SSE emission (internal version)
+   * @param {Object} token - Token that failed
+   * @param {Error|string} error - Error that occurred
+   * @param {Object} options - Failure handling options
+   * @returns {Object} Failure result object
+   */
+  handleTokenFailureInternal(token, error, options = {}) {
+    const { tokenIndex = 0, processedTokens = 0, totalTokens = 1 } = options;
+
+    console.error(
+      `Token processing failed: ${token?.symbol || 'Unknown'} (${token?.address || 'Unknown address'})`,
+      {
+        error: error?.message || error,
+        tokenIndex,
+        processedTokens,
+        totalTokens,
+      }
+    );
+
+    const errorClassification = SwapErrorClassifier.classifyError(
+      error,
+      token?.symbol || 'Unknown'
+    );
+
+    return {
+      token,
+      tokenIndex,
+      error: error?.message || error,
+      provider: errorClassification.provider,
+      errorType: errorClassification.errorType,
+      errorCategory: errorClassification.errorCategory,
+      shouldRetry: errorClassification.shouldRetry,
+      progress: processedTokens / totalTokens,
+    };
+  }
+
   async processTokenBatchWithSSE(params) {
     const {
       tokens,

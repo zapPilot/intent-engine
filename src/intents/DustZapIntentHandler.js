@@ -85,13 +85,17 @@ class DustZapIntentHandler extends BaseIntentHandler {
   }
 
   /**
-   * Process tokens with SSE streaming (delegated to executor)
+   * Process tokens with SSE streaming (delegated to SSE orchestrator)
    * @param {Object} executionContext - Execution context
    * @param {Function} streamWriter - Function to write SSE events
    * @returns {Promise<Object>} - Final processing results
    */
   processTokensWithSSEStreaming(executionContext, streamWriter) {
-    return this.executor.processTokensWithSSEStreaming(
+    // Import here to avoid circular dependencies
+    const { DustZapSSEOrchestrator } = require('../services/SSEStreamManager');
+
+    const sseOrchestrator = new DustZapSSEOrchestrator(this);
+    return sseOrchestrator.orchestrateSSEStreaming(
       executionContext,
       streamWriter
     );

@@ -80,8 +80,13 @@ class DustZapExecutor {
    * @param {Function} streamWriter - Function to write SSE events
    * @returns {Promise<Object>} - Final processing results
    */
-  async processTokensWithSSEStreaming(executionContext, streamWriter) {
-    const { dustTokens, params, batches } = executionContext;
+  /**
+   * Process tokens with pure business logic (SSE concerns separated)
+   * @param {Object} executionContext - Execution context
+   * @returns {Promise<Object>} - Processing results without SSE streaming
+   */
+  async processTokensBusiness(executionContext) {
+    const { dustTokens, params } = executionContext;
     const { referralAddress } = params;
 
     try {
@@ -115,13 +120,12 @@ class DustZapExecutor {
       const feeTransactions = feeTxBuilder.getTransactions();
 
       // Calculate insertion strategy using SmartFeeInsertionService
-      // Create batches if not provided (for backward compatibility with tests)
-      const tokenBatches = batches || [dustTokens];
+      const batches = executionContext.batches || [dustTokens];
       const totalExpectedTransactions = dustTokens.length * 2; // Approve + Swap per token
       const insertionStrategy =
         this.smartFeeInsertionService.calculateInsertionStrategy(
-          tokenBatches,
-          feeAmounts.totalFeeETH, // Actual calculated fee amount in ETH
+          batches,
+          feeAmounts.totalFeeETH,
           totalExpectedTransactions,
           feeTransactions.length
         );
@@ -130,18 +134,13 @@ class DustZapExecutor {
       const processingContext =
         SwapProcessingService.createProcessingContext(executionContext);
 
-      // Use SwapProcessingService to process tokens with unified error handling and dynamic fee insertion
-      const batchResults =
-        await this.swapProcessingService.processTokenBatchWithSSE({
-          tokens: dustTokens,
-          context: processingContext,
-          streamWriter: streamWriter,
-          feeTransactions: feeTransactions,
-          insertionStrategy: insertionStrategy,
-          onProgress: _progressData => {
-            // Optional: Add any custom progress handling here
-          },
-        });
+      // Use SwapProcessingService to process tokens (pure business logic)
+      const batchResults = await this.swapProcessingService.processTokenBatch({
+        tokens: dustTokens,
+        context: processingContext,
+        feeTransactions: feeTransactions,
+        insertionStrategy: insertionStrategy,
+      });
 
       // Calculate actual total value from successful swaps
       let actualTotalValueUSD = 0;
@@ -149,39 +148,14 @@ class DustZapExecutor {
         actualTotalValueUSD += result.inputValueUSD || 0;
       }
 
-      // All transactions are now returned from SwapProcessingService (including fees)
+      // All transactions are returned from SwapProcessingService (including fees)
       const allTransactions = [...batchResults.transactions];
 
-      // Stream completion with all transactions (now includes dynamically inserted fees)
-      const finalResult = SSEEventFactory.createCompletionEvent({
-        transactions: allTransactions,
-        metadata: {
-          totalTokens: dustTokens.length,
-          processedTokens:
-            batchResults.successful.length + batchResults.failed.length,
-          successfulTokens: batchResults.successful.length,
-          failedTokens: batchResults.failed.length,
-          totalValueUSD: actualTotalValueUSD,
-          feeInfo: this.feeCalculationService.buildFeeInfo(
-            actualTotalValueUSD,
-            referralAddress,
-            true // useWETHPattern
-          ),
-          feeInsertionStrategy: {
-            strategy: insertionStrategy.strategy,
-            insertionPoints: insertionStrategy.insertionPoints,
-            totalFeeTransactions: feeTransactions.length,
-          },
-          estimatedTotalGas: allTransactions
-            .reduce(
-              (sum, tx) => sum + BigInt(tx.gasLimit || '21000'),
-              BigInt(0)
-            )
-            .toString(),
-        },
-      });
-
-      streamWriter(finalResult);
+      const feeInfo = this.feeCalculationService.buildFeeInfo(
+        actualTotalValueUSD,
+        referralAddress,
+        true // useWETHPattern
+      );
 
       return {
         allTransactions,
@@ -190,19 +164,48 @@ class DustZapExecutor {
           batchResults.successful.length + batchResults.failed.length,
         successfulTokens: batchResults.successful.length,
         failedTokens: batchResults.failed.length,
+        successful: batchResults.successful,
+        failed: batchResults.failed,
         feeInsertionStrategy: insertionStrategy,
+        feeInfo,
       };
     } catch (error) {
       console.error('Token processing error:', error);
-
-      const errorEvent = SSEEventFactory.createErrorEvent(error, {
-        processedTokens: 0,
-        totalTokens: dustTokens.length,
-      });
-
-      streamWriter(errorEvent);
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Use processTokensBusiness instead. SSE streaming now handled by DustZapSSEOrchestrator
+   * Process tokens with SSE streaming (token-level granularity) with dynamic fee insertion
+   * @param {Object} executionContext - Execution context
+   * @param {Function} streamWriter - Function to write SSE events
+   * @returns {Promise<Object>} - Final processing results
+   */
+  async processTokensWithSSEStreaming(executionContext, streamWriter) {
+    console.warn(
+      'processTokensWithSSEStreaming is deprecated. Use processTokensBusiness with DustZapSSEOrchestrator instead.'
+    );
+
+    // For backward compatibility, delegate to business logic and emit basic events
+    const businessResults = await this.processTokensBusiness(executionContext);
+
+    // Emit completion event
+    const finalResult = SSEEventFactory.createCompletionEvent({
+      transactions: businessResults.allTransactions,
+      metadata: {
+        totalTokens: executionContext.dustTokens?.length || 0,
+        processedTokens: businessResults.processedTokens,
+        successfulTokens: businessResults.successfulTokens,
+        failedTokens: businessResults.failedTokens,
+        totalValueUSD: businessResults.totalValueUSD,
+        feeInfo: businessResults.feeInfo,
+        feeInsertionStrategy: businessResults.feeInsertionStrategy,
+      },
+    });
+
+    streamWriter(finalResult);
+    return businessResults;
   }
 
   /**

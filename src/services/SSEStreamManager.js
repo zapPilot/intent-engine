@@ -293,4 +293,150 @@ class SSEStreamManager {
   }
 }
 
-module.exports = SSEStreamManager;
+/**
+ * DustZapSSEOrchestrator - Orchestrates SSE streaming for DustZap intents
+ * Separates infrastructure concerns from business logic
+ */
+class DustZapSSEOrchestrator {
+  constructor(dustZapHandler) {
+    this.dustZapHandler = dustZapHandler;
+  }
+
+  /**
+   * Handle complete DustZap SSE streaming workflow
+   * @param {Object} executionContext - Execution context
+   * @param {Function} streamWriter - SSE stream writer
+   * @returns {Promise<Object>} - Final processing results
+   */
+  async orchestrateSSEStreaming(executionContext, streamWriter) {
+    try {
+      // 1. Send initial connection confirmation (already handled by SSEStreamManager)
+
+      // 2. Process tokens through business logic with SSE events
+      const processingResults = await this.processTokensWithStreaming(
+        executionContext,
+        streamWriter
+      );
+
+      // 3. Send completion event
+      const completionEvent = this.createCompletionEvent(
+        processingResults,
+        executionContext
+      );
+      streamWriter(completionEvent);
+
+      return processingResults;
+    } catch (error) {
+      console.error('SSE orchestration error:', error);
+
+      const errorEvent = this.createErrorEvent(error, {
+        processedTokens: 0,
+        totalTokens: executionContext.dustTokens?.length || 0,
+      });
+      streamWriter(errorEvent);
+      throw error;
+    }
+  }
+
+  /**
+   * Process tokens with streaming events (pure orchestration)
+   * @param {Object} executionContext - Execution context
+   * @param {Function} streamWriter - SSE stream writer
+   * @returns {Promise<Object>} - Processing results
+   */
+  async processTokensWithStreaming(executionContext, streamWriter) {
+    // Delegate to executor's pure business method, then emit SSE events
+    const businessResults =
+      await this.dustZapHandler.executor.processTokensBusiness(
+        executionContext
+      );
+
+    // Transform business results into SSE events
+    this.emitTokenProcessingEvents(businessResults, streamWriter);
+
+    return businessResults;
+  }
+
+  /**
+   * Emit SSE events based on business processing results
+   * @param {Object} businessResults - Results from pure business logic
+   * @param {Function} streamWriter - SSE stream writer
+   */
+  emitTokenProcessingEvents(businessResults, streamWriter) {
+    const { successful, failed } = businessResults;
+    const totalTokens = successful.length + failed.length;
+
+    // Emit events for successful tokens
+    successful.forEach((result, resultIndex) => {
+      // Use tokenIndex from result if available, otherwise use resultIndex
+      const tokenIndex =
+        typeof result.tokenIndex === 'number' ? result.tokenIndex : resultIndex;
+
+      const tokenReadyEvent = SSEEventFactory.createTokenReadyEvent({
+        tokenIndex: tokenIndex,
+        token: result.token,
+        transactions: result.transactions,
+        // Pass processedTokens and totalTokens for progress calculation
+        processedTokens: tokenIndex,
+        totalTokens: totalTokens,
+      });
+      streamWriter(tokenReadyEvent);
+    });
+
+    // Emit events for failed tokens
+    failed.forEach((result, resultIndex) => {
+      // Use tokenIndex from result if available, otherwise use resultIndex
+      const tokenIndex =
+        typeof result.tokenIndex === 'number' ? result.tokenIndex : resultIndex;
+
+      const tokenFailedEvent = SSEEventFactory.createTokenFailedEvent({
+        tokenIndex: tokenIndex,
+        token: result.token,
+        error: result.error,
+        provider: 'failed',
+        // Pass processedTokens and totalTokens for progress calculation
+        processedTokens: tokenIndex,
+        totalTokens: totalTokens,
+      });
+      streamWriter(tokenFailedEvent);
+    });
+  }
+
+  /**
+   * Create completion event for SSE stream
+   * @param {Object} processingResults - Processing results
+   * @param {Object} executionContext - Execution context
+   * @returns {Object} - SSE completion event
+   */
+  createCompletionEvent(processingResults, executionContext) {
+    return SSEEventFactory.createCompletionEvent({
+      transactions: processingResults.allTransactions || [],
+      metadata: {
+        totalTokens: executionContext.dustTokens?.length || 0,
+        processedTokens:
+          (processingResults.successful?.length || 0) +
+          (processingResults.failed?.length || 0),
+        successfulTokens: processingResults.successful?.length || 0,
+        failedTokens: processingResults.failed?.length || 0,
+        totalValueUSD: processingResults.totalValueUSD || 0,
+        feeInfo: processingResults.feeInfo || null,
+        feeInsertionStrategy: processingResults.feeInsertionStrategy || null,
+      },
+    });
+  }
+
+  /**
+   * Create error event for SSE stream
+   * @param {Error} error - Error that occurred
+   * @param {Object} context - Additional context
+   * @returns {Object} - SSE error event
+   */
+  createErrorEvent(error, context) {
+    return SSEEventFactory.createErrorEvent(error, context);
+  }
+}
+
+module.exports = {
+  SSEStreamManager,
+  DustZapSSEOrchestrator,
+};

@@ -4,7 +4,7 @@ const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
 const RebalanceBackendClient = require('../services/RebalanceBackendClient');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
-const SSEStreamManager = require('../services/SSEStreamManager');
+const { SSEStreamManager } = require('../services/SSEStreamManager');
 
 const router = express.Router();
 
