@@ -264,6 +264,13 @@ describe('SSE Streaming Functionality', () => {
       expect(firstTokenEvent.tokenSymbol).toBe('TOKEN1');
       expect(firstTokenEvent.transactions).toBeDefined();
       expect(firstTokenEvent.progress).toBe(0.5); // 1/2 tokens
+
+      // ✅ VERIFY: Trading loss and swap quote data is now included
+      expect(firstTokenEvent.provider).toBe('uniswap_v3');
+      expect(firstTokenEvent.toUsd).toBe(29850);
+      expect(firstTokenEvent.gasCostUSD).toBe(15);
+      expect(firstTokenEvent.tradingLoss).toBeDefined();
+      expect(firstTokenEvent.tradingLoss.lossPercentage).toBeDefined();
     });
 
     it('should handle token processing failures gracefully', async () => {

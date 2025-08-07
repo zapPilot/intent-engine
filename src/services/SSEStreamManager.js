@@ -376,6 +376,13 @@ class DustZapSSEOrchestrator {
         tokenIndex: tokenIndex,
         token: result.token,
         transactions: result.transactions,
+        // ✅ ADD: Missing swap quote data for progress bar
+        provider: result.swapQuote?.provider,
+        expectedTokenAmount: result.swapQuote?.toAmount || '0',
+        minToAmount: result.swapQuote?.minToAmount || '0',
+        toUsd: result.swapQuote?.toUsd || 0,
+        gasCostUSD: result.swapQuote?.gasCostUSD || 0,
+        tradingLoss: result.tradingLoss, // ✅ KEY FIX: Add trading loss for progress bar
         // Pass processedTokens and totalTokens for progress calculation
         processedTokens: tokenIndex,
         totalTokens: totalTokens,
@@ -394,6 +401,8 @@ class DustZapSSEOrchestrator {
         token: result.token,
         error: result.error,
         provider: 'failed',
+        // Add trading loss even for failed tokens if available
+        tradingLoss: result.tradingLoss || null,
         // Pass processedTokens and totalTokens for progress calculation
         processedTokens: tokenIndex,
         totalTokens: totalTokens,
