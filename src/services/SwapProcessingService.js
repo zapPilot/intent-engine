@@ -7,17 +7,22 @@ const { ethers } = require('ethers');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const SSEEventFactory = require('./SSEEventFactory');
 const { SwapErrorClassifier } = require('../utils/SwapErrorClassifier');
+const TokenProcessingResult = require('../valueObjects/TokenProcessingResult');
+const SwapExecutionContext = require('../valueObjects/SwapExecutionContext');
+const SSEEventParams = require('../valueObjects/SSEEventParams');
+const SmartFeeInsertionService = require('./SmartFeeInsertionService');
 
 class SwapProcessingService {
   constructor(swapService, priceService) {
     this.swapService = swapService;
     this.priceService = priceService;
+    this.smartFeeInsertionService = new SmartFeeInsertionService();
   }
 
   /**
    * Process a single token with comprehensive error handling and SSE streaming
    * @param {Object} params - Processing parameters
-   * @returns {Promise<Object>} Processing result with transaction data
+   * @returns {Promise<TokenProcessingResult>} Processing result with transaction data
    */
   async processTokenWithSSE(params) {
     const {
@@ -34,21 +39,17 @@ class SwapProcessingService {
       // Process the token swap
       const result = await this.processTokenSwap(token, context);
 
-      if (SwapErrorClassifier.isSwapSuccessful(result)) {
-        // Emit success event
-        const successEvent = SSEEventFactory.createTokenReadyEvent({
+      if (result.isSuccess()) {
+        // Create SSE event params using value object
+        const eventParams = SSEEventParams.forSuccess(
+          result,
           tokenIndex,
-          token,
-          transactions: result.transactions,
-          provider: result.swapQuote.provider,
-          expectedTokenAmount: result.swapQuote.toAmount || '0',
-          minToAmount: result.swapQuote.minToAmount || '0',
-          toUsd: result.swapQuote.toUsd || 0,
-          gasCostUSD: result.swapQuote.gasCostUSD || 0,
-          tradingLoss: result.tradingLoss,
           processedTokens,
-          totalTokens,
-        });
+          totalTokens
+        );
+        const successEvent = SSEEventFactory.createTokenReadyEvent(
+          eventParams.getTokenReadyParams()
+        );
 
         streamWriter(successEvent);
         return result;
@@ -76,19 +77,18 @@ class SwapProcessingService {
   /**
    * Process a single token swap with unified error handling
    * @param {Object} token - Token to process
-   * @param {Object} context - Processing context
-   * @returns {Promise<Object>} Swap processing result
+   * @param {SwapExecutionContext|Object} context - Processing context (value object or legacy format)
+   * @returns {Promise<TokenProcessingResult>} Swap processing result
    */
   async processTokenSwap(token, context) {
-    const {
-      chainId,
-      ethPrice,
-      toTokenPrice,
-      userAddress,
-      toTokenAddress,
-      toTokenDecimals,
-      slippage,
-    } = context;
+    // Convert to value object if needed (backward compatibility)
+    const swapContext =
+      context instanceof SwapExecutionContext
+        ? context
+        : SwapExecutionContext.fromExecutionContext({
+            ...context,
+            params: context,
+          });
 
     try {
       // Calculate input value in USD for diagnostics
@@ -117,19 +117,8 @@ class SwapProcessingService {
         );
       }
 
-      // Get best swap quote
-      const requestParam = {
-        chainId: chainId,
-        fromTokenAddress: token.address,
-        fromTokenDecimals: token.decimals,
-        toTokenAddress: toTokenAddress,
-        toTokenDecimals: toTokenDecimals,
-        amount: token.raw_amount,
-        fromAddress: userAddress,
-        slippage: slippage,
-        eth_price: ethPrice,
-        toTokenPrice: toTokenPrice,
-      };
+      // Get best swap quote using value object
+      const requestParam = swapContext.createSwapRequest(token);
 
       const swapQuote =
         await this.swapService.getSecondBestSwapQuote(requestParam);
@@ -150,24 +139,21 @@ class SwapProcessingService {
       // Calculate trading loss
       const tradingLoss = this.calculateTradingLoss(swapQuote, inputValueUSD);
 
-      return {
-        success: true,
+      return TokenProcessingResult.success({
         token,
         swapQuote,
         transactions: txBuilder.getTransactions(),
         inputValueUSD,
         tradingLoss,
-      };
+        provider: swapQuote.provider,
+      });
     } catch (error) {
-      // Return structured error result
-      return {
-        success: false,
+      // Return structured error result using value object
+      return TokenProcessingResult.failure({
         token,
         error: error.message || 'Unknown swap error',
         inputValueUSD: token.amount * token.price,
-        swapQuote: null,
-        transactions: [],
-      };
+      });
     }
   }
 
@@ -284,55 +270,6 @@ class SwapProcessingService {
    * @param {Object} params.insertionStrategy - Optional insertion strategy from SmartFeeInsertionService
    * @returns {Promise<Object>} Batch processing results
    */
-  /**
-   * Process fee insertion before token processing
-   * @param {Object} params - Fee insertion parameters
-   * @returns {Object} Updated insertion state
-   */
-  _processFeeInsertion(params) {
-    const {
-      shouldInsertFees,
-      insertionPoints,
-      currentTransactionIndex,
-      feesInserted,
-      feeTransactions,
-      results,
-    } = params;
-
-    let updatedInsertionPoints = insertionPoints;
-    let updatedFeesInserted = feesInserted;
-    let updatedTransactionIndex = currentTransactionIndex;
-
-    // Check if we should insert fee transactions before processing this token
-    if (
-      shouldInsertFees &&
-      updatedInsertionPoints.length > 0 &&
-      updatedInsertionPoints[0] <= currentTransactionIndex
-    ) {
-      // Insert fee transactions at this point
-      const feesToInsert = Math.min(
-        feeTransactions.length - updatedFeesInserted,
-        updatedInsertionPoints.length
-      );
-
-      for (let j = 0; j < feesToInsert; j++) {
-        if (updatedFeesInserted < feeTransactions.length) {
-          results.transactions.push(feeTransactions[updatedFeesInserted]);
-          updatedFeesInserted++;
-          updatedTransactionIndex++;
-        }
-      }
-
-      // Remove used insertion points
-      updatedInsertionPoints = updatedInsertionPoints.slice(feesToInsert);
-    }
-
-    return {
-      insertionPoints: updatedInsertionPoints,
-      feesInserted: updatedFeesInserted,
-      currentTransactionIndex: updatedTransactionIndex,
-    };
-  }
 
   /**
    * Handle token processing result and update progress
@@ -374,19 +311,6 @@ class SwapProcessingService {
     }
 
     return updatedTransactionIndex;
-  }
-
-  /**
-   * Insert remaining fee transactions as fallback
-   * @param {Object} params - Remaining fee insertion parameters
-   */
-  /**
-   * @deprecated - Fee insertion is now handled directly in processTokenBatch as cohesive blocks
-   */
-  _insertRemainingFees() {
-    console.warn(
-      '_insertRemainingFees is deprecated - fee blocks are now inserted together'
-    );
   }
 
   /**
@@ -441,9 +365,9 @@ class SwapProcessingService {
           },
         });
 
-        if (SwapErrorClassifier.isSwapSuccessful(tokenResult)) {
+        if (tokenResult.isSuccess()) {
           results.successful.push({
-            ...tokenResult,
+            ...tokenResult.toLegacyFormat(),
             tokenIndex: i,
             token,
             transactions: tokenResult.transactions || [],
@@ -472,20 +396,19 @@ class SwapProcessingService {
         // Insert entire fee block at once when we reach the optimal insertion point
         if (feeTransactions && insertionStrategy && !feeBlockInserted) {
           const currentTransactionCount = results.transactions.length;
-          const shouldInsertFeesNow = this._shouldInsertFeeBlock(
-            currentTransactionCount,
-            insertionStrategy,
-            processedCount,
-            tokens.length
-          );
+          const insertionResult =
+            this.smartFeeInsertionService.executeFeeBlockInsertion({
+              feeTransactions,
+              insertionStrategy,
+              transactions: results.transactions,
+              currentTransactionCount,
+              processedTokenCount: processedCount,
+              totalTokenCount: tokens.length,
+            });
 
-          if (shouldInsertFeesNow) {
-            // Insert all fee transactions as a cohesive block (deposit + transfer(s))
-            results.transactions.push(...feeTransactions);
+          if (insertionResult.inserted) {
             feeBlockInserted = true;
-            console.log(
-              `Inserted fee block of ${feeTransactions.length} transactions at position ${currentTransactionCount}`
-            );
+            console.log(`Fee insertion: ${insertionResult.reason}`);
           }
         }
       } catch (error) {
@@ -504,59 +427,24 @@ class SwapProcessingService {
 
     // Fallback: Insert fee block at end if it wasn't inserted during processing
     if (feeTransactions && !feeBlockInserted) {
-      results.transactions.push(...feeTransactions);
-      console.log(
-        `Inserted fee block of ${feeTransactions.length} transactions at end as fallback`
-      );
+      const fallbackResult =
+        this.smartFeeInsertionService.executeFallbackFeeInsertion({
+          feeTransactions,
+          transactions: results.transactions,
+        });
+
+      if (fallbackResult.inserted) {
+        console.log(`Fee insertion: ${fallbackResult.reason}`);
+      }
     }
 
     return results;
   }
 
   /**
-   * Determine if the fee block should be inserted at the current position
-   * @param {number} currentTransactionCount - Current number of transactions
-   * @param {Object} insertionStrategy - Fee insertion strategy
-   * @param {number} processedTokenCount - Number of tokens processed so far
-   * @param {number} totalTokenCount - Total number of tokens to process
-   * @returns {boolean} - Whether to insert the fee block now
-   */
-  _shouldInsertFeeBlock(
-    currentTransactionCount,
-    insertionStrategy,
-    processedTokenCount,
-    totalTokenCount
-  ) {
-    // Extract insertion strategy details
-    const {
-      minimumThreshold,
-      insertionPoints = [],
-      strategy,
-    } = insertionStrategy;
-
-    // For fallback strategy, wait until near the end
-    if (strategy === 'fallback') {
-      const progressPercentage = processedTokenCount / totalTokenCount;
-      return progressPercentage >= 0.8; // Insert when 80% of tokens are processed
-    }
-
-    // For random strategy, use the first insertion point as the target
-    // (since we're inserting the entire fee block at once)
-    if (insertionPoints.length > 0) {
-      const targetInsertionPoint = insertionPoints[0];
-
-      // Insert when we've reached or passed the target insertion point
-      return currentTransactionCount >= targetInsertionPoint;
-    }
-
-    // Fallback: use minimum threshold
-    return currentTransactionCount >= minimumThreshold;
-  }
-
-  /**
    * Process a single token with business logic only (no SSE streaming)
    * @param {Object} params - Processing parameters
-   * @returns {Promise<Object>} Processing result with transaction data
+   * @returns {Promise<TokenProcessingResult>} Processing result with transaction data
    */
   async processTokenBusiness(params) {
     const { token, tokenIndex, context, progressInfo = {} } = params;
@@ -566,7 +454,7 @@ class SwapProcessingService {
     try {
       const result = await this.processTokenSwap(token, context);
 
-      if (SwapErrorClassifier.isSwapSuccessful(result)) {
+      if (result.isSuccess()) {
         return result;
       } else {
         return this.handleTokenFailureInternal(
@@ -594,7 +482,7 @@ class SwapProcessingService {
    * @param {Object} token - Token that failed
    * @param {Error|string} error - Error that occurred
    * @param {Object} options - Failure handling options
-   * @returns {Object} Failure result object
+   * @returns {TokenProcessingResult} Failure result object
    */
   handleTokenFailureInternal(token, error, options = {}) {
     const { tokenIndex = 0, processedTokens = 0, totalTokens = 1 } = options;
@@ -614,16 +502,19 @@ class SwapProcessingService {
       token?.symbol || 'Unknown'
     );
 
-    return {
+    return TokenProcessingResult.failure({
       token,
       tokenIndex,
       error: error?.message || error,
       provider: errorClassification.provider,
-      errorType: errorClassification.errorType,
-      errorCategory: errorClassification.errorCategory,
-      shouldRetry: errorClassification.shouldRetry,
-      progress: processedTokens / totalTokens,
-    };
+      inputValueUSD: token?.amount * token?.price || 0,
+      metadata: {
+        errorType: errorClassification.errorType,
+        errorCategory: errorClassification.errorCategory,
+        shouldRetry: errorClassification.shouldRetry,
+        progress: processedTokens / totalTokens,
+      },
+    });
   }
 
   async processTokenBatchWithSSE(params) {
@@ -656,15 +547,16 @@ class SwapProcessingService {
       const token = tokens[i];
 
       try {
-        // Process fee insertion before token processing
-        const feeInsertionResult = this._processFeeInsertion({
-          shouldInsertFees,
-          insertionPoints,
-          currentTransactionIndex,
-          feesInserted,
-          feeTransactions,
-          results,
-        });
+        // Process fee insertion before token processing using SmartFeeInsertionService
+        const feeInsertionResult =
+          this.smartFeeInsertionService.processFeeInsertion({
+            shouldInsertFees,
+            insertionPoints,
+            currentTransactionIndex,
+            feesInserted,
+            feeTransactions,
+            results,
+          });
 
         insertionPoints = feeInsertionResult.insertionPoints;
         feesInserted = feeInsertionResult.feesInserted;
@@ -707,7 +599,7 @@ class SwapProcessingService {
     }
 
     // Insert any remaining fee transactions as fallback
-    this._insertRemainingFees({
+    this.smartFeeInsertionService.insertRemainingFees({
       shouldInsertFees,
       feesInserted,
       feeTransactions,
@@ -720,21 +612,25 @@ class SwapProcessingService {
   /**
    * Extract processing context from request parameters
    * @param {Object} executionContext - Execution context from intent handler
-   * @returns {Object} Processing context for swap operations
+   * @returns {SwapExecutionContext} Processing context for swap operations
    */
   static createProcessingContext(executionContext) {
     const { chainId, ethPrice, userAddress, params } = executionContext;
-    const { toTokenAddress, toTokenDecimals, slippage } = params;
+    const { toTokenAddress, toTokenDecimals, slippage, referralAddress } =
+      params;
 
-    return {
+    return new SwapExecutionContext({
       chainId,
       ethPrice,
       toTokenPrice: ethPrice, // Assuming ETH as target token
       userAddress,
-      toTokenAddress,
-      toTokenDecimals,
+      // Default to ETH for tests and legacy scenarios
+      toTokenAddress:
+        toTokenAddress || '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      toTokenDecimals: toTokenDecimals !== undefined ? toTokenDecimals : 18,
       slippage: slippage || 1, // Default 1% slippage
-    };
+      referralAddress,
+    });
   }
 }
 
