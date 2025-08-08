@@ -37,11 +37,11 @@ describe('DEX Aggregator Services', () => {
             fromToken: { symbol: 'USDC' },
             toToken: { symbol: 'WETH' },
             toAmount: '333333333333333333',
-            tx: { 
+            tx: {
               data: '0x...',
               to: '0x1111111254fb6c44bac0bed2854e76f90643097d',
               gas: '150000',
-              gasPrice: '20000000000'
+              gasPrice: '20000000000',
             },
           },
         };
@@ -63,7 +63,8 @@ describe('DEX Aggregator Services', () => {
               from: params.fromAddress,
               slippage: params.slippage,
               disableEstimate: 'true',
-              'liquidity-sources': 'ONE_INCH_LIMIT_ORDER_V3,ONE_INCH_LIMIT_ORDER_V4',
+              'liquidity-sources':
+                'ONE_INCH_LIMIT_ORDER_V3,ONE_INCH_LIMIT_ORDER_V4',
             }),
           })
         );
@@ -83,16 +84,16 @@ describe('DEX Aggregator Services', () => {
           slippage: 0.5,
         };
 
-        axios.get.mockResolvedValueOnce({ 
+        axios.get.mockResolvedValueOnce({
           data: {
             toAmount: '1000000000000000000',
             tx: {
               to: '0x1111111254fb6c44bac0bed2854e76f90643097d',
               data: '0x...',
               gas: '150000',
-              gasPrice: '20000000000'
-            }
-          } 
+              gasPrice: '20000000000',
+            },
+          },
         });
 
         await service.getSwapData(params);
@@ -101,7 +102,8 @@ describe('DEX Aggregator Services', () => {
           expect.any(String),
           expect.objectContaining({
             params: expect.objectContaining({
-              'liquidity-sources': 'ARBITRUM_ONE_INCH_LIMIT_ORDER_V3,ARBITRUM_ONE_INCH_LIMIT_ORDER_V4',
+              'liquidity-sources':
+                'ARBITRUM_ONE_INCH_LIMIT_ORDER_V3,ARBITRUM_ONE_INCH_LIMIT_ORDER_V4',
             }),
           })
         );
@@ -208,7 +210,9 @@ describe('DEX Aggregator Services', () => {
 
         axios.get.mockRejectedValueOnce(new Error('Price API Error'));
 
-        await expect(service.getSwapData(params)).rejects.toThrow('Price API Error');
+        await expect(service.getSwapData(params)).rejects.toThrow(
+          'Price API Error'
+        );
       });
     });
   });
@@ -245,7 +249,7 @@ describe('DEX Aggregator Services', () => {
               to: '0x456...',
               value: '0',
               gas: '150000',
-              gasPrice: '20000000000'
+              gasPrice: '20000000000',
             },
           },
         };
@@ -290,7 +294,9 @@ describe('DEX Aggregator Services', () => {
         error.response = { status: 429, data: { reason: 'Rate limited' } };
         axios.get.mockRejectedValueOnce(error);
 
-        await expect(service.getSwapData(params)).rejects.toThrow('0x API Error');
+        await expect(service.getSwapData(params)).rejects.toThrow(
+          '0x API Error'
+        );
       });
     });
   });

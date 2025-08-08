@@ -87,7 +87,9 @@ describe('TransactionBuilder', () => {
       const tx = builder.transactions[0];
       expect(tx.to).toBe(tokenAddress);
       expect(tx.value).toBe('0');
-      expect(tx.description).toBe(`Approve ${tokenAddress} for ${spenderAddress}`);
+      expect(tx.description).toBe(
+        `Approve ${tokenAddress} for ${spenderAddress}`
+      );
       expect(tx.gasLimit).toBe('30000');
       expect(tx.data).toBeDefined();
       expect(tx.data).toMatch(/^0x/); // Should be hex encoded
@@ -169,8 +171,11 @@ describe('TransactionBuilder', () => {
       const chainId = 1;
 
       // Mock TokenConfigService.getWETHAddress
-      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
-      TokenConfigService.getWETHAddress = jest.fn().mockReturnValue('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
+      const TokenConfigService =
+        require('../src/config/tokenConfig').TokenConfigService;
+      TokenConfigService.getWETHAddress = jest
+        .fn()
+        .mockReturnValue('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
 
       builder.addWETHDeposit(chainId, amount);
 
@@ -188,7 +193,8 @@ describe('TransactionBuilder', () => {
       const chainId = 999;
 
       // Mock TokenConfigService.getWETHAddress to return null
-      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
+      const TokenConfigService =
+        require('../src/config/tokenConfig').TokenConfigService;
       TokenConfigService.getWETHAddress = jest.fn().mockReturnValue(null);
 
       expect(() => builder.addWETHDeposit(chainId, amount)).toThrow(
@@ -251,8 +257,11 @@ describe('TransactionBuilder', () => {
       const wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 
       // Mock TokenConfigService.getWETHAddress
-      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
-      TokenConfigService.getWETHAddress = jest.fn().mockReturnValue(wethAddress);
+      const TokenConfigService =
+        require('../src/config/tokenConfig').TokenConfigService;
+      TokenConfigService.getWETHAddress = jest
+        .fn()
+        .mockReturnValue(wethAddress);
 
       builder
         .addWETHDeposit(chainId, amount)

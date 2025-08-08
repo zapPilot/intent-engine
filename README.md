@@ -254,11 +254,13 @@ The project maintains comprehensive test coverage with the following minimum thr
 - **Lines**: 75%
 
 Coverage is automatically checked:
+
 - On every commit via pre-commit hooks
 - On pull requests via GitHub Actions
 - When running `npm run test:coverage`
 
 To check coverage locally:
+
 ```bash
 # Run coverage check
 npm run test:coverage
