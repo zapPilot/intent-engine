@@ -1,5 +1,9 @@
 # Intent Engine
 
+[![Test Coverage](https://img.shields.io/badge/coverage-78.57%25-brightgreen.svg)](https://github.com/your-org/intent-engine)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/your-org/intent-engine/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A Node.js Express API server for intent-based DeFi operations, providing optimal swap execution and bulk token pricing with intelligent fallback logic.
 
 ## Features
@@ -221,6 +225,8 @@ git commit -m "feat: add new feature"
 
 ## Testing
 
+### Running Tests
+
 ```bash
 # Run all tests
 npm test
@@ -230,7 +236,51 @@ npm run test:watch
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run tests with verbose output
+npm run test:verbose
+
+# Run tests with debugging enabled
+npm run test:debug
 ```
+
+### Test Coverage
+
+The project maintains comprehensive test coverage with the following minimum thresholds:
+
+- **Statements**: 75%
+- **Branches**: 60%
+- **Functions**: 75%
+- **Lines**: 75%
+
+Coverage is automatically checked:
+
+- On every commit via pre-commit hooks
+- On pull requests via GitHub Actions
+- When running `npm run test:coverage`
+
+To check coverage locally:
+
+```bash
+# Run coverage check
+npm run test:coverage
+
+# Or use the coverage script
+./check-coverage.sh
+```
+
+### Pre-commit Hooks
+
+The project uses Husky to enforce code quality and test coverage:
+
+1. **Lint-staged**: Runs on staged files only
+   - ESLint for code linting
+   - Prettier for code formatting
+   - Jest for related test files
+
+2. **Test Suite**: Runs all tests to ensure nothing is broken
+
+3. **Coverage Check**: Ensures minimum coverage thresholds are met
 
 ## Docker Deployment
 

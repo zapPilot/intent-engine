@@ -443,9 +443,7 @@ class SmartFeeInsertionService {
       const remainingFees = feeTransactions.slice(feesInserted);
       results.transactions.push(...remainingFees);
 
-      console.log(
-        `Inserted ${remainingFees.length} remaining fee transactions as fallback`
-      );
+      // Inserted remaining fee transactions as fallback
     }
   }
 }

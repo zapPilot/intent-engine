@@ -2,14 +2,14 @@ name: Deploy Swagger Documentation
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'src/**'
       - 'docs/**'
       - 'package*.json'
       - '.github/workflows/deploy-swagger-docs.yml'
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'src/**'
       - 'docs/**'
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
         run: |
           # Generate swagger.json using npm script
           npm run docs:generate
-          
+
           # Ensure dist directory exists and copy generated file
           mkdir -p dist
           cp docs/swagger.json dist/swagger.json
@@ -53,7 +53,7 @@ jobs:
         run: |
           # Create the static site directories
           mkdir -p dist/docs
-          
+
           # Copy HTML templates from docs/ directory
           cp docs/swagger-ui.html dist/docs/index.html
           cp docs/landing-page.html dist/index.html
@@ -115,7 +115,7 @@ jobs:
         run: |
           # Generate swagger.json using npm script
           npm run docs:generate
-          
+
           # Copy for PR preview
           cp docs/swagger.json swagger-preview.json
           echo "Generated swagger-preview.json for PR review"

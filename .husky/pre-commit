@@ -1,5 +1,6 @@
 # Run lint-staged to check only staged files
 npx lint-staged
 
-# Run tests to ensure nothing is broken
-npm run test
+# Run tests with coverage to ensure nothing is broken and check coverage
+echo "Running tests with coverage..."
+npm run test:coverage
