@@ -1,4 +1,5 @@
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
+const { ValidationError } = require('../utils/errors');
 
 /**
  * DustZap Validator - Focused validation logic for DustZap intents
@@ -14,7 +15,7 @@ class DustZapValidator {
 
     const { params } = request;
     if (!params) {
-      throw new Error(config.ERRORS.MISSING_PARAMS);
+      throw new ValidationError(config.ERRORS.MISSING_PARAMS);
     }
 
     const {
@@ -27,11 +28,11 @@ class DustZapValidator {
 
     // Validate filteredDustTokens
     if (!filteredDustTokens || !Array.isArray(filteredDustTokens)) {
-      throw new Error('filteredDustTokens must be provided as an array');
+      throw new ValidationError('filteredDustTokens must be provided as an array');
     }
 
     if (filteredDustTokens.length === 0) {
-      throw new Error(config.ERRORS.NO_DUST_TOKENS);
+      throw new ValidationError(config.ERRORS.NO_DUST_TOKENS);
     }
 
     // Validate each token structure
@@ -43,39 +44,39 @@ class DustZapValidator {
         !token.raw_amount_hex_str ||
         !token.price
       ) {
-        throw new Error(
+        throw new ValidationError(
           'Each token must have address, symbol, decimals, raw_amount_hex_str, and price'
         );
       }
     }
 
     if (targetToken && !config.SUPPORTED_TARGET_TOKENS.includes(targetToken)) {
-      throw new Error(config.ERRORS.UNSUPPORTED_TARGET_TOKEN);
+      throw new ValidationError(config.ERRORS.UNSUPPORTED_TARGET_TOKEN);
     }
 
     if (
       referralAddress &&
       !config.VALIDATION.ETH_ADDRESS_PATTERN.test(referralAddress)
     ) {
-      throw new Error(config.ERRORS.INVALID_REFERRAL_ADDRESS);
+      throw new ValidationError(config.ERRORS.INVALID_REFERRAL_ADDRESS);
     }
 
     // Validate toTokenAddress
     if (!toTokenAddress) {
-      throw new Error(config.ERRORS.MISSING_TO_TOKEN_ADDRESS);
+      throw new ValidationError(config.ERRORS.MISSING_TO_TOKEN_ADDRESS);
     }
 
     if (!config.VALIDATION.ETH_ADDRESS_PATTERN.test(toTokenAddress)) {
-      throw new Error(config.ERRORS.INVALID_TO_TOKEN_ADDRESS);
+      throw new ValidationError(config.ERRORS.INVALID_TO_TOKEN_ADDRESS);
     }
 
     // Validate toTokenDecimals
     if (toTokenDecimals === undefined || toTokenDecimals === null) {
-      throw new Error(config.ERRORS.MISSING_TO_TOKEN_DECIMALS);
+      throw new ValidationError(config.ERRORS.MISSING_TO_TOKEN_DECIMALS);
     }
 
     if (!Number.isInteger(toTokenDecimals) || toTokenDecimals <= 0) {
-      throw new Error(config.ERRORS.INVALID_TO_TOKEN_DECIMALS);
+      throw new ValidationError(config.ERRORS.INVALID_TO_TOKEN_DECIMALS);
     }
   }
 
@@ -87,11 +88,11 @@ class DustZapValidator {
     const { userAddress, chainId } = request;
 
     if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-      throw new Error('Invalid userAddress: must be a valid Ethereum address');
+      throw new ValidationError('Invalid userAddress: must be a valid Ethereum address');
     }
 
     if (!chainId || !Number.isInteger(chainId) || chainId <= 0) {
-      throw new Error('Invalid chainId: must be a positive integer');
+      throw new ValidationError('Invalid chainId: must be a positive integer');
     }
   }
 }

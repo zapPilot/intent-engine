@@ -1,3 +1,5 @@
+const { ValidationError } = require('../utils/errors');
+
 /**
  * SSEEventParams - Standardized parameter object for SSE event creation
  * Consolidates the 13+ parameters needed for SSE events into structured objects
@@ -161,18 +163,18 @@ class SSEEventParams {
 
     for (const field of requiredBase) {
       if (this[field] === undefined || this[field] === null) {
-        throw new Error(`SSEEventParams missing required field: ${field}`);
+        throw new ValidationError(`SSEEventParams missing required field: ${field}`);
       }
     }
 
     if (eventType === 'success' && !this.transactions) {
-      throw new Error(
+      throw new ValidationError(
         'SSEEventParams for success event must include transactions'
       );
     }
 
     if (eventType === 'failure' && !this.error) {
-      throw new Error('SSEEventParams for failure event must include error');
+      throw new ValidationError('SSEEventParams for failure event must include error');
     }
   }
 

@@ -6,6 +6,7 @@
 const { SSE_EVENT_TYPES } = require('../utils/SwapErrorClassifier');
 const TokenProcessingResult = require('../valueObjects/TokenProcessingResult');
 const SSEEventParams = require('../valueObjects/SSEEventParams');
+const { AppError, ValidationError } = require('../utils/errors');
 
 class SSEEventFactory {
   /**
@@ -143,11 +144,11 @@ class SSEEventFactory {
     totalTokens
   ) {
     if (!(result instanceof TokenProcessingResult)) {
-      throw new Error('Expected TokenProcessingResult instance');
+      throw new ValidationError('Expected TokenProcessingResult instance');
     }
 
     if (!result.isSuccess()) {
-      throw new Error('Cannot create token ready event from failed result');
+      throw new AppError('Cannot create token ready event from failed result', 400, 'INVALID_RESULT_STATE');
     }
 
     const swapData = result.getSwapData();
@@ -182,12 +183,14 @@ class SSEEventFactory {
     totalTokens
   ) {
     if (!(result instanceof TokenProcessingResult)) {
-      throw new Error('Expected TokenProcessingResult instance');
+      throw new ValidationError('Expected TokenProcessingResult instance');
     }
 
     if (result.isSuccess()) {
-      throw new Error(
-        'Cannot create token failed event from successful result'
+      throw new AppError(
+        'Cannot create token failed event from successful result',
+        400,
+        'INVALID_RESULT_STATE'
       );
     }
 
@@ -326,7 +329,7 @@ class SSEEventFactory {
    */
   static formatForSSE(event) {
     if (!this.validateEvent(event)) {
-      throw new Error('Invalid event structure for SSE transmission');
+      throw new ValidationError('Invalid event structure for SSE transmission');
     }
 
     return `data: ${JSON.stringify(event)}\n\n`;

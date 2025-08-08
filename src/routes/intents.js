@@ -443,114 +443,34 @@ router.get('/api/v1/intents/health', async (req, res) => {
  * ZapIn intent endpoint - Vault deposits from any token
  * POST /api/v1/intents/zapIn
  */
-router.post('/api/v1/intents/zapIn', validateIntentRequest, (req, res) => {
-  try {
-    const { params } = req.body;
-    const { fromToken, vault, amount } = params;
-
-    // Validate required zapIn parameters
-    if (!fromToken || !vault || !amount) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'fromToken, vault, and amount are required for zapIn',
-          details: { fromToken, vault, amount },
-        },
-      });
-    }
-
-    // TODO: Implement zapIn logic
-    // 1. Get vault strategy configuration
-    // 2. Calculate optimal deposit path: approve → swap → deposit → stake
-    // 3. Build transaction batch
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'ZapIn intent implementation in progress',
-        expectedParams: {
-          fromToken: 'Token address to swap from',
-          vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
-          amount: 'Amount in wei',
-          slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
-        },
-      },
-    });
-  } catch (error) {
-    console.error('ZapIn intent error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to process zapIn intent',
-      },
-    });
-  }
+router.post('/api/v1/intents/zapIn', validateIntentRequest, (req, res, next) => {
+  const { AppError } = require('../utils/errors');
+  // Feature not yet implemented
+  next(new AppError('ZapIn intent not yet implemented', 501, 'NOT_IMPLEMENTED', {
+    expectedParams: {
+      fromToken: 'Token address to swap from',
+      vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
+      amount: 'Amount in wei',
+      slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
+    },
+  }));
 });
 
 /**
  * ZapOut intent endpoint - Vault withdrawals to any token
  * POST /api/v1/intents/zapOut
  */
-router.post('/api/v1/intents/zapOut', validateIntentRequest, (req, res) => {
-  try {
-    const { params } = req.body;
-    const { vault, percentage, toToken } = params;
-
-    // Validate required zapOut parameters
-    if (!vault || percentage === undefined || !toToken) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'vault, percentage, and toToken are required for zapOut',
-          details: { vault, percentage, toToken },
-        },
-      });
-    }
-
-    // Validate percentage range
-    if (percentage < 0 || percentage > 100) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'percentage must be between 0 and 100',
-          details: { percentage },
-        },
-      });
-    }
-
-    // TODO: Implement zapOut logic
-    // 1. Get user's vault position
-    // 2. Calculate withdrawal amount based on percentage
-    // 3. Build transaction batch: approve → withdraw → swap
-
-    res.status(501).json({
-      success: false,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'ZapOut intent implementation in progress',
-        expectedParams: {
-          vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
-          percentage: 'Withdrawal percentage (0-100)',
-          toToken: 'Target token address',
-          slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
-        },
-      },
-    });
-  } catch (error) {
-    console.error('ZapOut intent error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to process zapOut intent',
-      },
-    });
-  }
+router.post('/api/v1/intents/zapOut', validateIntentRequest, (req, res, next) => {
+  const { AppError } = require('../utils/errors');
+  // Feature not yet implemented
+  next(new AppError('ZapOut intent not yet implemented', 501, 'NOT_IMPLEMENTED', {
+    expectedParams: {
+      vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
+      percentage: 'Withdrawal percentage (0-100)',
+      toToken: 'Target token address',
+      slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
+    },
+  }));
 });
 
 /**
@@ -642,44 +562,16 @@ router.post(
           }
         }
 
-        // TODO: Implement rebalance logic
+        // Rebalance operation not yet implemented
         else if (operation === 'rebalance') {
-          results.operations.rebalance = {
-            success: false,
-            error: 'Rebalance operation not yet implemented',
-            placeholder: {
-              description:
-                'Will analyze portfolio deviation and rebalance based on vault strategy',
-              expectedLogic: [
-                '1. Get current portfolio weights from rebalance_backend',
-                '2. Compare with target vault strategy weights',
-                '3. Calculate rebalancing actions if deviation > threshold',
-                '4. Execute cross-chain and local rebalancing transactions',
-              ],
-              requiredIntegration:
-                'rebalance_backend /bundle_portfolio endpoint',
-            },
-          };
+          const { AppError } = require('../utils/errors');
+          throw new AppError('Rebalance operation not yet implemented', 501, 'NOT_IMPLEMENTED');
         }
 
-        // TODO: Implement compound logic
+        // Compound operation not yet implemented
         else if (operation === 'compound') {
-          results.operations.compound = {
-            success: false,
-            error: 'Compound operation not yet implemented',
-            placeholder: {
-              description:
-                'Will claim and reinvest pending rewards across all vault positions',
-              expectedLogic: [
-                '1. Identify all positions with claimable rewards',
-                '2. Calculate optimal compounding strategy',
-                '3. Claim rewards and swap to optimal vault tokens',
-                '4. Reinvest into highest APR positions within vault strategy',
-              ],
-              requiredIntegration:
-                'rebalance_backend /bundle_portfolio claimable_rewards',
-            },
-          };
+          const { AppError } = require('../utils/errors');
+          throw new AppError('Compound operation not yet implemented', 501, 'NOT_IMPLEMENTED');
         }
       }
 
@@ -718,238 +610,25 @@ router.post('/api/v1/intents/rebalance', (req, res) => {
  * Get all available vaults
  * GET /api/v1/vaults
  */
-router.get('/api/v1/vaults', (req, res) => {
-  try {
-    // TODO: Load vault configurations from frontend vault classes or database
-    const vaults = [
-      {
-        id: 'stablecoin-vault',
-        name: 'Stablecoin Vault',
-        description: 'Low-risk yield generation with stablecoins',
-        riskLevel: 'low',
-        expectedAPR: { min: 5, max: 15 },
-        supportedChains: [1, 42161, 8453, 10],
-        totalTVL: 0, // TODO: Calculate from rebalance_backend
-        status: 'active',
-      },
-      {
-        id: 'btc-vault',
-        name: 'BTC Vault',
-        description: 'Bitcoin-focused investment strategy',
-        riskLevel: 'medium',
-        expectedAPR: { min: 8, max: 25 },
-        supportedChains: [8453], // Base
-        totalTVL: 0,
-        status: 'active',
-      },
-      {
-        id: 'eth-vault',
-        name: 'ETH Vault',
-        description: 'Ethereum-focused investment strategy',
-        riskLevel: 'medium',
-        expectedAPR: { min: 6, max: 20 },
-        supportedChains: [42161, 8453], // Arbitrum, Base
-        totalTVL: 0,
-        status: 'active',
-      },
-      {
-        id: 'index500-vault',
-        name: 'Index 500 Vault',
-        description: 'S&P500-like index fund strategy for crypto markets',
-        riskLevel: 'medium-high',
-        expectedAPR: { min: 10, max: 30 },
-        supportedChains: [42161, 8453],
-        totalTVL: 0,
-        status: 'active',
-      },
-    ];
-
-    res.json({
-      success: true,
-      vaults,
-      total: vaults.length,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error fetching vaults:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to fetch vault information',
-      },
-    });
-  }
+router.get('/api/v1/vaults', (req, res, next) => {
+  const { AppError } = require('../utils/errors');
+  // Vault configurations not yet implemented
+  next(new AppError('Vault configurations not yet implemented', 501, 'NOT_IMPLEMENTED', {
+    message: 'Vault metadata will be loaded from frontend vault classes or database',
+    expectedVaults: ['stablecoin-vault', 'btc-vault', 'eth-vault', 'index500-vault', 'real-yield-vault'],
+  }));
 });
 
 /**
  * Get vault strategy configuration
  * GET /api/v1/vaults/:vaultId/strategy
  */
-router.get('/api/v1/vaults/:vaultId/strategy', (req, res) => {
-  try {
-    const { vaultId } = req.params;
-
-    // TODO: Load actual vault strategy from frontend vault classes
-    const mockStrategies = {
-      'stablecoin-vault': {
-        description:
-          'Diversified stablecoin yield farming across multiple protocols',
-        weightMapping: {
-          stablecoins: 1.0,
-        },
-        protocols: [
-          {
-            protocol: 'aave',
-            chain: 'arbitrum',
-            weight: 0.4,
-            tokens: ['USDC', 'USDT'],
-            type: 'lending',
-          },
-          {
-            protocol: 'convex',
-            chain: 'arbitrum',
-            weight: 0.6,
-            tokens: ['USDC', 'USDT'],
-            type: 'LP',
-          },
-        ],
-        rebalanceThreshold: 0.05,
-        constraints: {
-          maxSingleProtocolWeight: 0.7,
-          minAPRThreshold: 3.0,
-        },
-      },
-      'btc-vault': {
-        description: 'Bitcoin-focused strategy with BTC-denominated yields',
-        weightMapping: {
-          btc: 1.0,
-        },
-        protocols: [
-          {
-            protocol: 'aerodrome',
-            chain: 'base',
-            weight: 0.8,
-            tokens: ['tBTC', 'cbBTC'],
-            type: 'LP',
-          },
-          {
-            protocol: 'equilibria',
-            chain: 'base',
-            weight: 0.2,
-            tokens: ['cbBTC'],
-            type: 'single',
-          },
-        ],
-        rebalanceThreshold: 0.05,
-      },
-      'eth-vault': {
-        description: 'Ethereum liquid staking and yield strategies',
-        weightMapping: {
-          long_term_bond: 1.0,
-        },
-        protocols: [
-          {
-            protocol: 'pendle',
-            chain: 'arbitrum',
-            weight: 0.54,
-            tokens: ['wstETH', 'eETH'],
-            type: 'PT',
-          },
-          {
-            protocol: 'aave',
-            chain: 'base',
-            weight: 0.24,
-            tokens: ['WETH'],
-            type: 'lending',
-          },
-          {
-            protocol: 'aerodrome',
-            chain: 'base',
-            weight: 0.22,
-            tokens: ['WETH', 'msETH'],
-            type: 'LP',
-          },
-        ],
-        rebalanceThreshold: 0.05,
-      },
-      'index500-vault': {
-        description: 'Diversified crypto index with BTC and ETH focus',
-        weightMapping: {
-          btc: 0.841,
-          eth: 0.159,
-        },
-        protocols: [
-          // BTC portion (84.1%)
-          {
-            protocol: 'aerodrome',
-            chain: 'base',
-            weight: 0.673, // 0.8 * 0.841
-            tokens: ['tBTC', 'cbBTC'],
-            type: 'LP',
-          },
-          {
-            protocol: 'equilibria',
-            chain: 'base',
-            weight: 0.168, // 0.2 * 0.841
-            tokens: ['cbBTC'],
-            type: 'single',
-          },
-          // ETH portion (15.9%)
-          {
-            protocol: 'pendle',
-            chain: 'arbitrum',
-            weight: 0.086, // 0.54 * 0.159
-            tokens: ['wstETH', 'eETH'],
-            type: 'PT',
-          },
-          {
-            protocol: 'aave',
-            chain: 'base',
-            weight: 0.038, // 0.24 * 0.159
-            tokens: ['WETH'],
-            type: 'lending',
-          },
-          {
-            protocol: 'aerodrome',
-            chain: 'base',
-            weight: 0.035, // 0.22 * 0.159
-            tokens: ['WETH', 'msETH'],
-            type: 'LP',
-          },
-        ],
-        rebalanceThreshold: 0.05,
-      },
-    };
-
-    const strategy = mockStrategies[vaultId];
-    if (!strategy) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'VAULT_NOT_FOUND',
-          message: `Vault '${vaultId}' not found`,
-          availableVaults: Object.keys(mockStrategies),
-        },
-      });
-    }
-
-    res.json({
-      success: true,
-      vaultId,
-      strategy,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error fetching vault strategy:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to fetch vault strategy',
-      },
-    });
-  }
+router.get('/api/v1/vaults/:vaultId/strategy', (req, res, next) => {
+  const { AppError } = require('../utils/errors');
+  // Vault strategy configurations not yet implemented
+  next(new AppError('Vault strategy configurations not yet implemented', 501, 'NOT_IMPLEMENTED', {
+    message: 'Vault strategies will be loaded from frontend vault classes',
+    vaultId: req.params.vaultId,
 });
 
 // Export both router and intentService for cleanup in tests

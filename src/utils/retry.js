@@ -1,4 +1,5 @@
 const retry = require('retry');
+const appConfig = require('../config/appConfig');
 
 /**
  * Retry function with configurable options and custom retry logic
@@ -9,10 +10,10 @@ const retry = require('retry');
  */
 function retryWithBackoff(fn, options = {}, shouldRetryFn = null) {
   const defaultOptions = {
-    retries: parseInt(process.env.MAX_RETRIES) || 3,
-    factor: 2,
-    minTimeout: parseInt(process.env.RETRY_DELAY) || 3000,
-    maxTimeout: 10000,
+    retries: appConfig.retry.attempts,
+    factor: appConfig.retry.factor,
+    minTimeout: appConfig.retry.minTimeout,
+    maxTimeout: appConfig.retry.maxTimeout,
     randomize: true,
   };
 

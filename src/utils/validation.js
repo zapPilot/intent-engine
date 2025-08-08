@@ -1,4 +1,5 @@
 const { query, validationResult } = require('express-validator');
+const { ValidationError } = require('./errors');
 
 /**
  * Validation rules for swap quote endpoint (aggregates all providers)
@@ -82,10 +83,7 @@ const swapDataValidation = [
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      details: errors.array(),
-    });
+    return next(new ValidationError('Validation failed', errors.array()));
   }
   next();
 };
@@ -105,28 +103,28 @@ const bulkPricesValidation = [
         .filter(token => token);
 
       if (tokens.length === 0) {
-        throw new Error('tokens cannot be empty');
+        throw new ValidationError('tokens cannot be empty');
       }
 
       if (tokens.length > 100) {
-        throw new Error('tokens cannot exceed 100 items');
+        throw new ValidationError('tokens cannot exceed 100 items');
       }
 
       // Validate each token symbol
       for (const token of tokens) {
         if (typeof token !== 'string' || token === '') {
-          throw new Error('all tokens must be non-empty strings');
+          throw new ValidationError('all tokens must be non-empty strings');
         }
 
         // Basic token symbol validation (alphanumeric, dashes, underscores)
         if (!/^[a-zA-Z0-9_-]+$/.test(token)) {
-          throw new Error(
+          throw new ValidationError(
             `invalid token symbol: ${token}. Only alphanumeric characters, dashes, and underscores allowed`
           );
         }
 
         if (token.length > 20) {
-          throw new Error(
+          throw new ValidationError(
             `token symbol too long: ${token}. Maximum 20 characters allowed`
           );
         }
@@ -153,9 +151,7 @@ const validateTokenAddresses = (req, res, next) => {
   const { fromTokenAddress, toTokenAddress } = req.query;
 
   if (fromTokenAddress.toLowerCase() === toTokenAddress.toLowerCase()) {
-    return res.status(400).json({
-      error: 'fromTokenAddress and toTokenAddress cannot be the same',
-    });
+    return next(new ValidationError('fromTokenAddress and toTokenAddress cannot be the same'));
   }
 
   next();

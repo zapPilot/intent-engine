@@ -1,4 +1,5 @@
 const DustZapIntentHandler = require('./DustZapIntentHandler');
+const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
 
 /**
  * Intent Service - Orchestrates different intent handlers
@@ -27,14 +28,15 @@ class IntentService {
   async processIntent(intentType, request) {
     // Validate intent type
     if (!intentType || typeof intentType !== 'string') {
-      throw new Error('Intent type is required and must be a string');
+      throw new ValidationError('Intent type is required and must be a string');
     }
 
     // Get handler for intent type
     const handler = this.handlers.get(intentType);
     if (!handler) {
-      throw new Error(
-        `Unknown intent type: ${intentType}. Supported types: ${Array.from(this.handlers.keys()).join(', ')}`
+      throw new NotFoundError(
+        'Intent handler',
+        `${intentType}. Supported types: ${Array.from(this.handlers.keys()).join(', ')}`
       );
     }
 
@@ -47,13 +49,15 @@ class IntentService {
 
       // Ensure result has required fields
       if (!result || typeof result !== 'object') {
-        throw new Error('Intent handler returned invalid result');
+        throw new AppError('Intent handler returned invalid result', 500, 'INVALID_HANDLER_RESULT');
       }
 
       // All intents now use SSE streaming mode
       if (!result.intentId || !result.streamUrl) {
-        throw new Error(
-          'SSE streaming response must include intentId and streamUrl'
+        throw new AppError(
+          'SSE streaming response must include intentId and streamUrl',
+          500,
+          'INVALID_HANDLER_RESPONSE'
         );
       }
 
@@ -70,21 +74,21 @@ class IntentService {
    */
   validateRequest(request) {
     if (!request || typeof request !== 'object') {
-      throw new Error('Request must be an object');
+      throw new ValidationError('Request must be an object');
     }
 
     const { userAddress, chainId, params } = request;
 
     if (!userAddress) {
-      throw new Error('userAddress is required');
+      throw new ValidationError('userAddress is required');
     }
 
     if (!chainId) {
-      throw new Error('chainId is required');
+      throw new ValidationError('chainId is required');
     }
 
     if (!params || typeof params !== 'object') {
-      throw new Error('params object is required');
+      throw new ValidationError('params object is required');
     }
   }
 

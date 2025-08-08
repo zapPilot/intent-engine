@@ -2,6 +2,7 @@ const OneInchService = require('./dexAggregators/oneinch');
 const ParaswapService = require('./dexAggregators/paraswap');
 const ZeroXService = require('./dexAggregators/zerox');
 const { retryWithBackoff, RetryStrategies } = require('../utils/retry');
+const appConfig = require('../config/appConfig');
 
 /**
  * Main Swap Service that orchestrates all DEX aggregators
@@ -26,7 +27,7 @@ class SwapService {
       ethPrice:
         params.eth_price && params.eth_price !== 'null'
           ? parseFloat(params.eth_price)
-          : 3000,
+          : appConfig.externalServices.ethPrice.default,
     };
 
     const quotes = await Promise.allSettled(
