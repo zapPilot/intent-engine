@@ -21,30 +21,30 @@ module.exports = {
   // Coverage thresholds - Realistic baseline with growth targets
   coverageThreshold: {
     global: {
-      branches: 48,
-      functions: 69,
-      lines: 62,
-      statements: 63,
+      branches: 48.9,
+      functions: 69.7,
+      lines: 62.8,
+      statements: 63.1,
     },
     // Well-tested areas - maintain high standards
     './src/config/': {
-      statements: 60,
-      branches: 40,
-      functions: 55,
-      lines: 60,
+      statements: 64,
+      branches: 46,
+      functions: 58,
+      lines: 64,
     },
     './src/middleware/': {
-      statements: 75,
-      branches: 25,
+      statements: 100,
+      branches: 71,
       functions: 100,
-      lines: 75,
+      lines: 100,
     },
     // Utilities - achievable improvements
     './src/utils/retry.js': {
-      statements: 75,
-      branches: 50,
-      functions: 85,
-      lines: 75,
+      statements: 90,
+      branches: 70,
+      functions: 100,
+      lines: 90,
     },
     './src/utils/validation.js': {
       statements: 80,
