@@ -33,6 +33,13 @@ const SSE_EVENT_TYPES = {
   TOKEN_FAILED: 'token_failed',
   COMPLETE: 'complete',
   ERROR: 'error',
+
+  // Intent batch transaction event types
+  INTENT_BATCH: 'intent_batch',
+  TRANSACTION_UPDATE: 'transaction_update',
+  BATCH_PROCESSING: 'batch_processing',
+  BATCH_COMPLETE: 'batch_complete',
+  BATCH_FAILED: 'batch_failed',
 };
 
 class SwapErrorClassifier {

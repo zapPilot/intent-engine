@@ -4,6 +4,8 @@
  */
 
 const { SSE_EVENT_TYPES } = require('../utils/SwapErrorClassifier');
+const TokenProcessingResult = require('../valueObjects/TokenProcessingResult');
+const SSEEventParams = require('../valueObjects/SSEEventParams');
 
 class SSEEventFactory {
   /**
@@ -23,10 +25,18 @@ class SSEEventFactory {
 
   /**
    * Create token processing success event
-   * @param {Object} params - Token success parameters
+   * @param {Object|SSEEventParams} params - Token success parameters or SSEEventParams value object
    * @returns {Object} SSE token ready event
    */
   static createTokenReadyEvent(params) {
+    // Support both direct parameters and SSEEventParams value object
+    let eventData;
+    if (params instanceof SSEEventParams) {
+      eventData = params.getTokenReadyParams();
+    } else {
+      eventData = params;
+    }
+
     const {
       tokenIndex,
       token,
@@ -39,7 +49,7 @@ class SSEEventFactory {
       tradingLoss,
       processedTokens,
       totalTokens,
-    } = params;
+    } = eventData;
 
     return {
       type: SSE_EVENT_TYPES.TOKEN_READY,
@@ -66,10 +76,18 @@ class SSEEventFactory {
 
   /**
    * Create token processing failure event
-   * @param {Object} params - Token failure parameters
+   * @param {Object|SSEEventParams} params - Token failure parameters or SSEEventParams value object
    * @returns {Object} SSE token failed event
    */
   static createTokenFailedEvent(params) {
+    // Support both direct parameters and SSEEventParams value object
+    let eventData;
+    if (params instanceof SSEEventParams) {
+      eventData = params.getTokenFailedParams();
+    } else {
+      eventData = params;
+    }
+
     const {
       tokenIndex,
       token,
@@ -80,7 +98,7 @@ class SSEEventFactory {
       tradingLoss = null,
       processedTokens,
       totalTokens,
-    } = params;
+    } = eventData;
 
     return {
       type: SSE_EVENT_TYPES.TOKEN_FAILED,
@@ -108,6 +126,82 @@ class SSEEventFactory {
       totalTokens,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Create token ready event from TokenProcessingResult value object
+   * @param {TokenProcessingResult} result - Token processing result
+   * @param {number} tokenIndex - Token index in processing order
+   * @param {number} processedTokens - Number of tokens processed so far
+   * @param {number} totalTokens - Total number of tokens to process
+   * @returns {Object} SSE token ready event
+   */
+  static createTokenReadyEventFromResult(
+    result,
+    tokenIndex,
+    processedTokens,
+    totalTokens
+  ) {
+    if (!(result instanceof TokenProcessingResult)) {
+      throw new Error('Expected TokenProcessingResult instance');
+    }
+
+    if (!result.isSuccess()) {
+      throw new Error('Cannot create token ready event from failed result');
+    }
+
+    const swapData = result.getSwapData();
+
+    return this.createTokenReadyEvent({
+      tokenIndex,
+      token: result.token,
+      transactions: result.transactions || [],
+      provider: swapData?.provider || result.provider,
+      expectedTokenAmount: swapData?.expectedTokenAmount || '0',
+      minToAmount: swapData?.minToAmount || '0',
+      toUsd: swapData?.toUsd || 0,
+      gasCostUSD: swapData?.gasCostUSD || 0,
+      tradingLoss: result.tradingLoss,
+      processedTokens,
+      totalTokens,
+    });
+  }
+
+  /**
+   * Create token failed event from TokenProcessingResult value object
+   * @param {TokenProcessingResult} result - Token processing result
+   * @param {number} tokenIndex - Token index in processing order
+   * @param {number} processedTokens - Number of tokens processed so far
+   * @param {number} totalTokens - Total number of tokens to process
+   * @returns {Object} SSE token failed event
+   */
+  static createTokenFailedEventFromResult(
+    result,
+    tokenIndex,
+    processedTokens,
+    totalTokens
+  ) {
+    if (!(result instanceof TokenProcessingResult)) {
+      throw new Error('Expected TokenProcessingResult instance');
+    }
+
+    if (result.isSuccess()) {
+      throw new Error(
+        'Cannot create token failed event from successful result'
+      );
+    }
+
+    return this.createTokenFailedEvent({
+      tokenIndex,
+      token: result.token,
+      error: result.error,
+      errorCategory: result.metadata?.errorCategory || 'unknown',
+      userFriendlyMessage: result.metadata?.userFriendlyMessage || result.error,
+      provider: result.provider || 'failed',
+      tradingLoss: result.tradingLoss,
+      processedTokens,
+      totalTokens,
+    });
   }
 
   /**
@@ -236,6 +330,93 @@ class SSEEventFactory {
     }
 
     return `data: ${JSON.stringify(event)}\n\n`;
+  }
+
+  /**
+   * Create stream writer function for consistent SSE output
+   * @param {Response} res - Express response object
+   * @returns {Function} Stream writer function
+   */
+
+  /**
+   * Create intent batch transaction event
+   * @param {Object} batchData - Batch transaction data
+   * @returns {Object} Intent batch event
+   */
+  static createIntentBatchEvent(batchData) {
+    const {
+      batchId,
+      intentType,
+      transactions = [],
+      batchIndex = 0,
+      totalBatches = 1,
+      status = 'completed',
+      metadata = {},
+      error = null,
+    } = batchData;
+
+    const baseEvent = {
+      type: SSE_EVENT_TYPES.INTENT_BATCH,
+      batchId,
+      intentType,
+      batchIndex,
+      totalBatches,
+      progress: (batchIndex + 1) / totalBatches,
+      status, // 'processing', 'completed', 'failed'
+      timestamp: new Date().toISOString(),
+      metadata: {
+        batchSize: transactions.length,
+        ...metadata,
+      },
+    };
+
+    // Add appropriate data based on status
+    if (status === 'failed' && error) {
+      return {
+        ...baseEvent,
+        error: typeof error === 'string' ? error : error.message,
+        transactions: [], // Don't include transactions on failure
+      };
+    }
+
+    return {
+      ...baseEvent,
+      transactions,
+    };
+  }
+
+  /**
+   * Create transaction update event for individual transactions
+   * @param {Object} txnData - Transaction data
+   * @returns {Object} Transaction update event
+   */
+  static createTransactionUpdateEvent(txnData) {
+    const {
+      transactionId,
+      txnIndex,
+      totalTxns,
+      status = 'pending',
+      transactionHash = null,
+      gasUsed = null,
+      blockNumber = null,
+      error = null,
+      metadata = {},
+    } = txnData;
+
+    return {
+      type: SSE_EVENT_TYPES.TRANSACTION_UPDATE,
+      transactionId,
+      txnIndex,
+      totalTxns,
+      progress: (txnIndex + 1) / totalTxns,
+      status, // 'pending', 'confirmed', 'failed'
+      transactionHash,
+      gasUsed,
+      blockNumber,
+      error: error ? (typeof error === 'string' ? error : error.message) : null,
+      timestamp: new Date().toISOString(),
+      metadata,
+    };
   }
 
   /**

@@ -1,32 +1,30 @@
 const BaseIntentHandler = require('./BaseIntentHandler');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
-const FeeCalculationService = require('../services/FeeCalculationService');
-const SmartFeeInsertionService = require('../services/SmartFeeInsertionService');
-const SwapProcessingService = require('../services/SwapProcessingService');
-const SSEEventFactory = require('../services/SSEEventFactory');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
-const { groupIntoBatches } = require('../utils/dustFilters');
+const DustZapValidator = require('../validators/DustZapValidator');
+const ExecutionContextManager = require('../managers/ExecutionContextManager');
+const DustZapExecutor = require('../executors/DustZapExecutor');
 
 /**
- * DustZap Intent Handler - Converts dust tokens to ETH
+ * DustZap Intent Handler - Converts dust tokens to ETH (Refactored)
+ * Now focused on orchestration using specialized components
+ */
+/**
+ * DustZap Intent Handler - Converts dust tokens to ETH (Refactored)
+ * Now focused on orchestration using specialized components
  */
 class DustZapIntentHandler extends BaseIntentHandler {
   constructor(swapService, priceService, rebalanceClient) {
     super(swapService, priceService, rebalanceClient);
-    this.feeCalculationService = new FeeCalculationService();
-    this.smartFeeInsertionService = new SmartFeeInsertionService();
-    this.swapProcessingService = new SwapProcessingService(
+
+    // Initialize specialized components
+    this.validator = DustZapValidator;
+    this.contextManager = new ExecutionContextManager(DUST_ZAP_CONFIG);
+    this.executor = new DustZapExecutor(
       swapService,
-      priceService
+      priceService,
+      rebalanceClient
     );
-
-    // In-memory storage for execution contexts (in production, use Redis or similar)
-    this.executionContexts = new Map();
-
-    // Cleanup expired contexts periodically
-    this.cleanupTimer = setInterval(() => {
-      this.cleanupExpiredContexts();
-    }, DUST_ZAP_CONFIG.SSE_STREAMING.CLEANUP_INTERVAL);
   }
 
   /**
@@ -34,75 +32,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
    * @param {Object} request - Intent request
    */
   validate(request) {
-    this.validateCommon(request);
-
-    const { params } = request;
-    if (!params) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_PARAMS);
-    }
-
-    const {
-      dustTokens: filteredDustTokens,
-      targetToken,
-      referralAddress,
-      toTokenAddress,
-      toTokenDecimals,
-    } = params;
-    // Validate filteredDustTokens
-    if (!filteredDustTokens || !Array.isArray(filteredDustTokens)) {
-      throw new Error('filteredDustTokens must be provided as an array');
-    }
-
-    if (filteredDustTokens.length === 0) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.NO_DUST_TOKENS);
-    }
-
-    // Validate each token structure
-    for (const token of filteredDustTokens) {
-      if (
-        !token.address ||
-        !token.symbol ||
-        !token.decimals ||
-        !token.raw_amount_hex_str ||
-        !token.price
-      ) {
-        throw new Error(
-          'Each token must have address, symbol, decimals, raw_amount_hex_str, and price'
-        );
-      }
-    }
-
-    if (
-      targetToken &&
-      !DUST_ZAP_CONFIG.SUPPORTED_TARGET_TOKENS.includes(targetToken)
-    ) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.UNSUPPORTED_TARGET_TOKEN);
-    }
-
-    if (
-      referralAddress &&
-      !DUST_ZAP_CONFIG.VALIDATION.ETH_ADDRESS_PATTERN.test(referralAddress)
-    ) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_REFERRAL_ADDRESS);
-    }
-
-    // Validate toTokenAddress
-    if (!toTokenAddress) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_TO_TOKEN_ADDRESS);
-    }
-
-    if (!DUST_ZAP_CONFIG.VALIDATION.ETH_ADDRESS_PATTERN.test(toTokenAddress)) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_TO_TOKEN_ADDRESS);
-    }
-
-    // Validate toTokenDecimals
-    if (toTokenDecimals === undefined || toTokenDecimals === null) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.MISSING_TO_TOKEN_DECIMALS);
-    }
-
-    if (!Number.isInteger(toTokenDecimals) || toTokenDecimals <= 0) {
-      throw new Error(DUST_ZAP_CONFIG.ERRORS.INVALID_TO_TOKEN_DECIMALS);
-    }
+    this.validator.validate(request, DUST_ZAP_CONFIG);
   }
 
   /**
@@ -115,7 +45,8 @@ class DustZapIntentHandler extends BaseIntentHandler {
 
     try {
       // 1. Prepare execution context with all required data
-      const executionContext = await this.prepareExecutionContext(request);
+      const executionContext =
+        await this.executor.prepareExecutionContext(request);
 
       // 2. Return SSE streaming response immediately
       return this.buildSSEResponse(executionContext);
@@ -123,48 +54,6 @@ class DustZapIntentHandler extends BaseIntentHandler {
       console.error('DustZap execution error:', error);
       throw error;
     }
-  }
-
-  /**
-   * Prepare execution context with all required data
-   * @param {Object} request - Intent request
-   * @returns {Promise<Object>} - Execution context object
-   */
-  async prepareExecutionContext(request) {
-    const { userAddress, chainId, params } = request;
-    const {
-      dustTokens: filteredDustTokens,
-      referralAddress,
-      toTokenAddress,
-      toTokenDecimals,
-      slippage,
-    } = params;
-
-    // 1. Use frontend-filtered tokens directly
-    const dustTokens = filteredDustTokens;
-
-    // 2. Get ETH price for fee calculations
-    const ethPrice = await this.getETHPrice();
-
-    // 3. Group tokens into batches
-    const batches = groupIntoBatches(
-      dustTokens,
-      DUST_ZAP_CONFIG.DEFAULT_BATCH_SIZE
-    );
-
-    return {
-      userAddress,
-      chainId,
-      params: {
-        referralAddress,
-        toTokenAddress,
-        toTokenDecimals,
-        slippage,
-      },
-      dustTokens,
-      ethPrice,
-      batches,
-    };
   }
 
   /**
@@ -177,7 +66,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
     const intentId = IntentIdGenerator.generate('dustZap', userAddress);
 
     // Store execution context for SSE processing
-    this.storeExecutionContext(intentId, executionContext);
+    this.contextManager.storeExecutionContext(intentId, executionContext);
 
     return {
       success: true,
@@ -187,230 +76,120 @@ class DustZapIntentHandler extends BaseIntentHandler {
       streamUrl: `/api/dustzap/${intentId}/stream`,
       metadata: {
         totalTokens: dustTokens.length,
-        estimatedDuration: this.estimateProcessingDuration(dustTokens.length),
+        estimatedDuration: this.executor.estimateProcessingDuration(
+          dustTokens.length
+        ),
         streamingEnabled: true,
       },
     };
   }
 
   /**
-   * Get current ETH price
-   * @returns {Promise<number>} - ETH price in USD
-   */
-  async getETHPrice() {
-    const priceObj = await this.priceService.getPrice('eth');
-    return priceObj.price;
-  }
-
-  /**
-   * Store execution context for SSE processing
-   * @param {string} intentId - Intent ID
-   * @param {Object} executionContext - Execution context to store
-   */
-  storeExecutionContext(intentId, executionContext) {
-    this.executionContexts.set(intentId, {
-      ...executionContext,
-      intentId, // Store the intent ID for cleanup
-      createdAt: Date.now(),
-    });
-  }
-
-  /**
-   * Retrieve execution context for SSE processing
-   * @param {string} intentId - Intent ID
-   * @returns {Object|null} - Execution context or null if not found
-   */
-  getExecutionContext(intentId) {
-    return this.executionContexts.get(intentId) || null;
-  }
-
-  /**
-   * Remove execution context after processing
-   * @param {string} intentId - Intent ID
-   */
-  removeExecutionContext(intentId) {
-    this.executionContexts.delete(intentId);
-  }
-
-  /**
-   * Estimate processing duration based on token count
-   * @param {number} tokenCount - Number of tokens to process
-   * @returns {string} - Estimated duration range
-   */
-  estimateProcessingDuration(tokenCount) {
-    // Rough estimate: 1-2 seconds per token (includes API calls, gas estimation, etc.)
-    const minSeconds = Math.max(5, tokenCount * 1);
-    const maxSeconds = Math.max(10, tokenCount * 2);
-
-    if (maxSeconds < 60) {
-      return `${minSeconds}-${maxSeconds} seconds`;
-    } else {
-      const minMinutes = Math.floor(minSeconds / 60);
-      const maxMinutes = Math.ceil(maxSeconds / 60);
-      return `${minMinutes}-${maxMinutes} minutes`;
-    }
-  }
-
-  /**
-   * Process tokens with SSE streaming (token-level granularity) with dynamic fee insertion
+   * Process tokens with SSE streaming (delegated to SSE orchestrator)
    * @param {Object} executionContext - Execution context
    * @param {Function} streamWriter - Function to write SSE events
    * @returns {Promise<Object>} - Final processing results
    */
-  async processTokensWithSSEStreaming(executionContext, streamWriter) {
-    const { dustTokens, params, batches } = executionContext;
-    const { referralAddress } = params;
+  processTokensWithSSEStreaming(executionContext, streamWriter) {
+    // Import here to avoid circular dependencies
+    const { DustZapSSEOrchestrator } = require('../services/SSEStreamManager');
 
-    try {
-      // Calculate estimated total value for fee calculations (pre-processing estimation)
-      let estimatedTotalValueUSD = 0;
-      for (const token of dustTokens) {
-        estimatedTotalValueUSD += token.amount * token.price || 0;
-      }
-
-      // Validate estimated total value
-      if (estimatedTotalValueUSD <= 0) {
-        const errorMessage = `Invalid estimated totalValueUSD: ${estimatedTotalValueUSD}. All tokens appear to have zero value.`;
-        console.error(errorMessage, {
-          dustTokensLength: dustTokens.length,
-          estimatedTotalValueUSD,
-        });
-
-        throw new Error(errorMessage);
-      }
-
-      // Pre-calculate fee transactions using estimated value
-      const { txBuilder: feeTxBuilder } =
-        this.feeCalculationService.createFeeTransactions(
-          estimatedTotalValueUSD,
-          executionContext.ethPrice,
-          executionContext.chainId,
-          referralAddress
-        );
-
-      // Get fee transactions from builder
-      const feeTransactions = feeTxBuilder.getTransactions();
-
-      // Calculate insertion strategy using SmartFeeInsertionService
-      // Create batches if not provided (for backward compatibility with tests)
-      const tokenBatches = batches || [dustTokens];
-      const totalExpectedTransactions = dustTokens.length * 2; // Approve + Swap per token
-      const insertionStrategy =
-        this.smartFeeInsertionService.calculateInsertionStrategy(
-          tokenBatches,
-          feeTransactions.length * 0.001, // Rough ETH estimate for fee insertion threshold
-          totalExpectedTransactions,
-          feeTransactions.length
-        );
-
-      console.log(`Fee insertion strategy:`, {
-        totalFeeTransactions: feeTransactions.length,
-        insertionPoints: insertionStrategy.insertionPoints,
-        strategy: insertionStrategy.strategy,
-        totalExpectedTransactions,
-      });
-
-      // Create processing context for swap service
-      const processingContext =
-        SwapProcessingService.createProcessingContext(executionContext);
-
-      // Use SwapProcessingService to process tokens with unified error handling and dynamic fee insertion
-      const batchResults =
-        await this.swapProcessingService.processTokenBatchWithSSE({
-          tokens: dustTokens,
-          context: processingContext,
-          streamWriter: streamWriter,
-          feeTransactions: feeTransactions,
-          insertionStrategy: insertionStrategy,
-          onProgress: _progressData => {
-            // Optional: Add any custom progress handling here
-          },
-        });
-
-      // Calculate actual total value from successful swaps
-      let actualTotalValueUSD = 0;
-      for (const result of batchResults.successful) {
-        actualTotalValueUSD += result.inputValueUSD || 0;
-      }
-
-      // All transactions are now returned from SwapProcessingService (including fees)
-      const allTransactions = [...batchResults.transactions];
-
-      // Stream completion with all transactions (now includes dynamically inserted fees)
-      const finalResult = SSEEventFactory.createCompletionEvent({
-        transactions: allTransactions,
-        metadata: {
-          totalTokens: dustTokens.length,
-          processedTokens:
-            batchResults.successful.length + batchResults.failed.length,
-          successfulTokens: batchResults.successful.length,
-          failedTokens: batchResults.failed.length,
-          totalValueUSD: actualTotalValueUSD,
-          feeInfo: this.feeCalculationService.buildFeeInfo(
-            actualTotalValueUSD,
-            referralAddress,
-            true // useWETHPattern
-          ),
-          feeInsertionStrategy: {
-            strategy: insertionStrategy.strategy,
-            insertionPoints: insertionStrategy.insertionPoints,
-            totalFeeTransactions: feeTransactions.length,
-          },
-          estimatedTotalGas: allTransactions
-            .reduce(
-              (sum, tx) => sum + BigInt(tx.gasLimit || '21000'),
-              BigInt(0)
-            )
-            .toString(),
-        },
-      });
-
-      streamWriter(finalResult);
-
-      return {
-        allTransactions,
-        totalValueUSD: actualTotalValueUSD,
-        processedTokens:
-          batchResults.successful.length + batchResults.failed.length,
-        successfulTokens: batchResults.successful.length,
-        failedTokens: batchResults.failed.length,
-        feeInsertionStrategy: insertionStrategy,
-      };
-    } catch (error) {
-      console.error('Token processing error:', error);
-
-      const errorEvent = SSEEventFactory.createErrorEvent(error, {
-        processedTokens: 0,
-        totalTokens: dustTokens.length,
-      });
-
-      streamWriter(errorEvent);
-      throw error;
-    }
+    const sseOrchestrator = new DustZapSSEOrchestrator(this);
+    return sseOrchestrator.orchestrateSSEStreaming(
+      executionContext,
+      streamWriter
+    );
   }
 
   /**
-   * Cleanup expired execution contexts
+   * Store execution context (delegated to context manager)
+   * @param {string} intentId - Intent ID
+   * @param {Object} executionContext - Execution context to store
+   */
+  storeExecutionContext(intentId, executionContext) {
+    this.contextManager.storeExecutionContext(intentId, executionContext);
+  }
+
+  /**
+   * Get execution context (delegated to context manager)
+   * @param {string} intentId - Intent ID
+   * @returns {Object|null} - Execution context or null if not found
+   */
+  getExecutionContext(intentId) {
+    return this.contextManager.getExecutionContext(intentId);
+  }
+
+  /**
+   * Remove execution context (delegated to context manager)
+   * @param {string} intentId - Intent ID
+   */
+  removeExecutionContext(intentId) {
+    this.contextManager.removeExecutionContext(intentId);
+  }
+
+  /**
+   * Get ETH price (delegated to executor)
+   * @returns {Promise<number>} - ETH price in USD
+   */
+  getETHPrice() {
+    return this.executor.getETHPrice();
+  }
+
+  /**
+   * Estimate processing duration (delegated to executor)
+   * @param {number} tokenCount - Number of tokens to process
+   * @returns {string} - Estimated duration range
+   */
+  estimateProcessingDuration(tokenCount) {
+    return this.executor.estimateProcessingDuration(tokenCount);
+  }
+
+  /**
+   * Cleanup expired execution contexts (delegated to context manager)
    */
   cleanupExpiredContexts() {
-    const now = Date.now();
-    const maxAge = DUST_ZAP_CONFIG.SSE_STREAMING.CONNECTION_TIMEOUT;
-
-    for (const [intentId, context] of this.executionContexts.entries()) {
-      if (now - context.createdAt > maxAge) {
-        this.executionContexts.delete(intentId);
-      }
-    }
+    this.contextManager.cleanupExpiredContexts();
   }
 
   /**
-   * Cleanup method for tests - clears the interval timer
+   * Get fee calculation service (for test compatibility)
+   */
+  get feeCalculationService() {
+    return this.executor.feeCalculationService;
+  }
+
+  /**
+   * Cleanup method - delegates to context manager
    */
   cleanup() {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
+    this.contextManager.cleanup();
+  }
+
+  /**
+   * Get execution contexts Map (for test compatibility)
+   * @returns {Map} - Direct access to execution contexts Map
+   */
+  get executionContexts() {
+    return this.contextManager.executionContexts;
+  }
+
+  /**
+   * Get cleanup timer (for test compatibility)
+   * @returns {NodeJS.Timeout|null} - Cleanup timer
+   */
+  get cleanupTimer() {
+    return this.contextManager.cleanupTimer;
+  }
+
+  /**
+   * Get status for debugging
+   */
+  getStatus() {
+    return {
+      contextManager: this.contextManager.getStatus(),
+      executor: 'active',
+      validator: 'static',
+    };
   }
 }
 

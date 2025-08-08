@@ -22,17 +22,22 @@ class FeeCalculationService {
   calculateFeeAmounts(totalValueUSD, ethPrice, referralAddress = null) {
     const baseFeeInfo = feeConfig.calculateFees(totalValueUSD);
 
-    // Convert USD amounts to ETH and Wei
+    // Convert USD amounts to ETH and Wei using precise BigInt arithmetic
     const totalFeeETH = baseFeeInfo.totalFeeUSD / ethPrice;
-    const totalFeeWei = Math.floor(totalFeeETH * DUST_ZAP_CONFIG.WEI_FACTOR);
+    // Use BigInt to avoid precision loss in Wei calculations
+    const totalFeeWei = BigInt(
+      Math.floor(
+        (baseFeeInfo.totalFeeUSD / ethPrice) * DUST_ZAP_CONFIG.WEI_FACTOR
+      )
+    );
 
     let referrerFeeWei = 0n;
-    let treasuryFeeWei = BigInt(totalFeeWei);
+    let treasuryFeeWei = totalFeeWei;
 
     if (referralAddress) {
       // Calculate referrer share using precise BigInt arithmetic
       const referrerFeeWeiCalculated =
-        (BigInt(totalFeeWei) *
+        (totalFeeWei *
           BigInt(
             Math.floor(
               feeConfig.referrerFeeShare *
@@ -42,7 +47,7 @@ class FeeCalculationService {
         BigInt(DUST_ZAP_CONFIG.FEE_PERCENTAGE_PRECISION);
 
       referrerFeeWei = referrerFeeWeiCalculated;
-      treasuryFeeWei = BigInt(totalFeeWei) - referrerFeeWei;
+      treasuryFeeWei = totalFeeWei - referrerFeeWei;
     }
 
     return {
