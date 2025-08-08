@@ -9,7 +9,6 @@ class CoinGeckoProvider {
   constructor() {
     this.name = 'coingecko';
     this.baseUrl = 'https://api.coingecko.com/api/v3';
-    this.terminalBaseUrl = 'https://api.geckoterminal.com/api/v2/simple';
   }
 
   /**
@@ -163,55 +162,6 @@ class CoinGeckoProvider {
         throw new Error(`CoinGecko network error: ${error.message}`);
       } else {
         throw new Error(`CoinGecko error: ${error.message}`);
-      }
-    }
-  }
-
-  /**
-   * Get price by token address (alternative method for tokens not in coin list)
-   * @param {string} chain - Chain name (e.g., 'ethereum', 'polygon')
-   * @param {string} address - Token contract address
-   * @param {Object} options - Request options
-   * @returns {Promise<Object>} - Price response
-   */
-  async getPriceByAddress(chain, address, options = {}) {
-    const config = {
-      method: 'GET',
-      url: `${this.terminalBaseUrl}/networks/${chain}/token_price/${address}`,
-      timeout: options.timeout || 5000,
-    };
-
-    try {
-      const response = await axios(config);
-      const data = response.data;
-
-      const priceData =
-        data.data?.attributes?.token_prices?.[address.toLowerCase()];
-      if (!priceData) {
-        throw new Error(
-          `Price data not found for token at address ${address} on ${chain}`
-        );
-      }
-
-      return {
-        success: true,
-        price: parseFloat(priceData),
-        symbol: `${chain}:${address}`,
-        provider: this.name,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          chain,
-          address: address.toLowerCase(),
-        },
-      };
-    } catch (error) {
-      if (error.response) {
-        const errorMessage = error.response.data?.message || error.message;
-        throw new Error(`CoinGecko Terminal API error: ${errorMessage}`);
-      } else if (error.request) {
-        throw new Error(`CoinGecko Terminal network error: ${error.message}`);
-      } else {
-        throw new Error(`CoinGecko Terminal error: ${error.message}`);
       }
     }
   }

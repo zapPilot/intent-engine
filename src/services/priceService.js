@@ -1,5 +1,6 @@
 const CoinMarketCapProvider = require('./priceProviders/coinmarketcap');
 const CoinGeckoProvider = require('./priceProviders/coingecko');
+const StaticPriceProvider = require('./priceProviders/static');
 const RateLimitManager = require('./rateLimiting/rateLimitManager');
 const {
   getProvidersByPriority,
@@ -14,6 +15,7 @@ class PriceService {
     this.providers = {
       coinmarketcap: new CoinMarketCapProvider(),
       coingecko: new CoinGeckoProvider(),
+      static: new StaticPriceProvider(),
     };
 
     this.rateLimitManager = new RateLimitManager();

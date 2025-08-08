@@ -94,6 +94,17 @@ describe('Price API Endpoints', () => {
 
       expect(response.body.results).toBeDefined();
     }, 10000);
+
+    it('should return cached bulk prices on subsequent requests', async () => {
+      const tokens = 'btc,eth';
+      await request(app).get('/tokens/prices').query({ tokens }).expect(200);
+      const response = await request(app)
+        .get('/tokens/prices')
+        .query({ tokens })
+        .expect(200);
+
+      expect(response.body.fromCache).toBe(2);
+    }, 10000);
   });
 
   describe('GET /tokens/price/:symbol', () => {
@@ -122,6 +133,12 @@ describe('Price API Endpoints', () => {
 
       expect(response.body.error).toBeDefined();
     });
+
+    it('should return cached result on subsequent requests', async () => {
+      await request(app).get('/tokens/price/btc').expect(200);
+      const response = await request(app).get('/tokens/price/btc').expect(200);
+      expect(response.body.fromCache).toBe(true);
+    }, 10000);
   });
 
   describe('GET /tokens/providers', () => {

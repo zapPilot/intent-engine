@@ -27,9 +27,18 @@ const priceConfig = {
       baseUrl: 'https://api.geckoterminal.com/api/v2/simple',
       requiresApiKey: false,
     },
+    static: {
+      priority: 3,
+      rateLimit: {
+        rate: Infinity,
+        capacity: Infinity,
+      },
+      timeout: 0,
+      requiresApiKey: false,
+    },
     // Future providers can be added here
     cryptocompare: {
-      priority: 3,
+      priority: 4,
       rateLimit: {
         rate: 50 / 60, // 50 requests per minute
         capacity: 50,
