@@ -1,23 +1,28 @@
-const axios = require('axios');
+const BaseDexAggregator = require('./BaseDexAggregator');
 
 /**
  * Paraswap DEX Aggregator Service
  */
-class ParaswapService {
+class ParaswapService extends BaseDexAggregator {
   constructor() {
-    this.baseURL = 'https://api.paraswap.io/swap';
-
-    // Chain ID to Paraswap proxy address mapping
-    this.chainProxyMap = {
-      1: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      10: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      56: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      137: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      1101: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-      8453: '0x93aAAe79a53759cD164340E4C8766E4Db5331cD7',
-      42161: '0x216B4B4Ba9F3e719726886d34a177484278Bfcae',
-      43114: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-    };
+    super({
+      name: 'paraswap',
+      baseURL: 'https://api.paraswap.io/swap',
+      apiKey: null, // Paraswap doesn't require an API key
+      chainConfig: {
+        // Chain ID to Paraswap proxy address mapping
+        chainProxyMap: {
+          1: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+          10: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+          56: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+          137: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+          1101: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+          8453: '0x93aAAe79a53759cD164340E4C8766E4Db5331cD7',
+          42161: '0x216B4B4Ba9F3e719726886d34a177484278Bfcae',
+          43114: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+        }
+      }
+    });
   }
 
   /**
@@ -38,8 +43,8 @@ class ParaswapService {
       toTokenPrice,
     } = params;
 
-    // Convert slippage to basis points (1% = 100 basis points)
-    const customSlippage = parseInt(parseFloat(slippage) * 100);
+    // Convert slippage to basis points
+    const customSlippage = this.slippageToBasisPoints(slippage);
 
     const requestConfig = {
       headers: {
@@ -58,13 +63,17 @@ class ParaswapService {
         excludeDEXS: 'AugustusRFQ',
       },
     };
-    const response = await axios.get(this.baseURL, requestConfig);
-    const data = response.data;
+    
+    const data = await this.makeRequest({
+      method: 'GET',
+      url: this.baseURL,
+      ...requestConfig
+    });
 
     const gasCostUSD = parseFloat(data.priceRoute.gasCostUSD);
 
     return {
-      approve_to: this.chainProxyMap[chainId],
+      approve_to: this.chainConfig.chainProxyMap[chainId],
       to: data.txParams.to,
       toAmount: data.priceRoute.destAmount,
       minToAmount: this.getMinToAmount(data.priceRoute.destAmount, slippage),
@@ -72,22 +81,12 @@ class ParaswapService {
       gasCostUSD: gasCostUSD,
       gas: data.priceRoute.gasCost,
       custom_slippage: customSlippage,
-      toUsd:
-        (parseInt(data.priceRoute.destAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.calculateTokenValueUSD(
+        data.priceRoute.destAmount,
+        toTokenPrice,
+        toTokenDecimals
+      ),
     };
-  }
-
-  /**
-   * Calculate minimum amount considering slippage
-   * @param {string} toAmount - Output amount
-   * @param {number} slippage - Slippage percentage
-   * @returns {number} - Minimum amount
-   */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
   }
 }
 

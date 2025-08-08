@@ -1,45 +1,31 @@
-const axios = require('axios');
+const BasePriceProvider = require('./BasePriceProvider');
 const { getTokenId } = require('../../config/priceConfig');
+const { TokenNotSupportedError } = require('../../utils/errorHandler');
 
 /**
  * CoinMarketCap Price Provider
- * Ported from Python implementation in rebalance_backend
+ * Uses CoinMarketCap API for token price data
  */
-class CoinMarketCapProvider {
+class CoinMarketCapProvider extends BasePriceProvider {
   constructor() {
-    this.name = 'coinmarketcap';
-    this.baseUrl = 'https://pro-api.coinmarketcap.com/v2/cryptocurrency';
-    this.apiKeys = this.initializeApiKeys();
-    this.currentKeyIndex = 0;
-  }
+    super({
+      name: 'coinmarketcap',
+      baseUrl: 'https://pro-api.coinmarketcap.com/v2',
+      apiKey: process.env.COINMARKETCAP_API_KEY,
+    });
 
-  /**
-   * Initialize API keys from environment variable
-   * @returns {Array<string>} - Array of API keys
-   */
-  initializeApiKeys() {
-    const apiKeyString = process.env.COINMARKETCAP_API_KEY || '';
-    if (!apiKeyString) {
+    // Check if API key is configured
+    if (!this.apiKey) {
       console.warn('COINMARKETCAP_API_KEY not configured');
-      return [];
     }
-    return apiKeyString
-      .split(',')
-      .map(key => key.trim())
-      .filter(key => key);
   }
 
   /**
-   * Get next API key from the rotation
-   * @returns {string|null} - Next API key or null if none available
+   * Check if provider is available
+   * @returns {boolean} - Whether provider is available
    */
-  getNextApiKey() {
-    if (this.apiKeys.length === 0) {
-      return null;
-    }
-    const key = this.apiKeys[this.currentKeyIndex];
-    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
-    return key;
+  isAvailable() {
+    return !!this.apiKey;
   }
 
   /**
@@ -51,75 +37,51 @@ class CoinMarketCapProvider {
   async getPrice(symbol, options = {}) {
     const tokenId = getTokenId(this.name, symbol);
     if (!tokenId) {
-      throw new Error(`Token ${symbol} not supported by ${this.name}`);
+      throw new TokenNotSupportedError(symbol, this.name);
     }
 
-    const apiKey = this.getNextApiKey();
-    if (!apiKey) {
-      throw new Error('No CoinMarketCap API key available');
-    }
-
-    const config = {
+    const config = this.buildRequestConfig({
       method: 'GET',
-      url: `${this.baseUrl}/quotes/latest`,
+      url: `${this.baseUrl}/cryptocurrency/quotes/latest`,
       params: {
         id: tokenId,
         convert: 'USD',
       },
-      headers: {
-        'X-CMC_PRO_API_KEY': apiKey,
-      },
       timeout: options.timeout || 5000,
-    };
+    });
 
-    try {
-      const response = await axios(config);
-      const data = response.data;
+    const response = await this.makeRequest(config);
 
-      if (data.status.error_code !== 0) {
-        throw new Error(
-          `CoinMarketCap API error: ${data.status.error_message}`
-        );
-      }
-
-      const priceData = data.data[tokenId]?.quote?.USD;
-      if (!priceData) {
-        throw new Error(
-          `Price data not found for token ${symbol} (ID: ${tokenId})`
-        );
-      }
-
-      return {
-        success: true,
-        price: priceData.price,
-        symbol: symbol.toLowerCase(),
-        provider: this.name,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          tokenId,
-          marketCap: priceData.market_cap,
-          volume24h: priceData.volume_24h,
-          percentChange24h: priceData.percent_change_24h,
-        },
-      };
-    } catch (error) {
-      if (error.response) {
-        // API returned an error response
-        const errorMessage =
-          error.response.data?.status?.error_message || error.message;
-        throw new Error(`CoinMarketCap API error: ${errorMessage}`);
-      } else if (error.request) {
-        // Network error
-        throw new Error(`CoinMarketCap network error: ${error.message}`);
-      } else {
-        // Other error
-        throw new Error(`CoinMarketCap error: ${error.message}`);
-      }
+    const tokenData = response.data?.[tokenId];
+    if (!tokenData) {
+      throw new Error(
+        `Price data not found for token ${symbol} (ID: ${tokenId})`
+      );
     }
+
+    const quote = tokenData.quote?.USD;
+    if (!quote) {
+      throw new Error(`USD quote not found for token ${symbol}`);
+    }
+
+    return this.formatPriceResponse(
+      { price: quote.price },
+      symbol,
+      {
+        tokenId,
+        name: tokenData.name,
+        slug: tokenData.slug,
+        marketCap: quote.market_cap,
+        volume24h: quote.volume_24h,
+        percentChange24h: quote.percent_change_24h,
+        percentChange7d: quote.percent_change_7d,
+        lastUpdated: quote.last_updated,
+      }
+    );
   }
 
   /**
-   * Get prices for multiple tokens in a single request
+   * Get prices for multiple tokens
    * @param {Array<string>} symbols - Array of token symbols
    * @param {Object} options - Request options
    * @returns {Promise<Object>} - Bulk price response
@@ -134,7 +96,7 @@ class CoinMarketCapProvider {
       const tokenId = getTokenId(this.name, symbol);
       if (tokenId) {
         tokenIds.push(tokenId);
-        symbolToIdMap[tokenId] = symbol.toLowerCase();
+        symbolToIdMap[symbol.toLowerCase()] = tokenId;
       } else {
         unsupportedTokens.push(symbol.toLowerCase());
       }
@@ -144,93 +106,86 @@ class CoinMarketCapProvider {
       throw new Error('No supported tokens found for CoinMarketCap');
     }
 
-    const apiKey = this.getNextApiKey();
-    if (!apiKey) {
-      throw new Error('No CoinMarketCap API key available');
-    }
-
-    const config = {
+    const config = this.buildRequestConfig({
       method: 'GET',
-      url: `${this.baseUrl}/quotes/latest`,
+      url: `${this.baseUrl}/cryptocurrency/quotes/latest`,
       params: {
         id: tokenIds.join(','),
         convert: 'USD',
       },
-      headers: {
-        'X-CMC_PRO_API_KEY': apiKey,
-      },
       timeout: options.timeout || 5000,
-    };
+    });
 
-    try {
-      const response = await axios(config);
-      const data = response.data;
+    const response = await this.makeRequest(config);
 
-      if (data.status.error_code !== 0) {
-        throw new Error(
-          `CoinMarketCap API error: ${data.status.error_message}`
-        );
-      }
+    const prices = {};
+    const errors = [];
 
-      const results = {};
-      const errors = [];
-
-      // Process successful responses
-      for (const [tokenId, tokenData] of Object.entries(data.data)) {
-        const symbol = symbolToIdMap[tokenId];
-        const priceData = tokenData.quote?.USD;
-
-        if (priceData && symbol) {
-          results[symbol] = {
-            success: true,
-            price: priceData.price,
-            symbol,
-            provider: this.name,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              tokenId,
-              marketCap: priceData.market_cap,
-              volume24h: priceData.volume_24h,
-              percentChange24h: priceData.percent_change_24h,
-            },
-          };
+    // Process successful responses
+    for (const symbol of symbols) {
+      const normalizedSymbol = symbol.toLowerCase();
+      const tokenId = symbolToIdMap[normalizedSymbol];
+      
+      if (!tokenId) {
+        if (!unsupportedTokens.includes(normalizedSymbol)) {
+          errors.push(this.createTokenError(symbol, 'Token not supported'));
         }
+        continue;
       }
 
-      // Add errors for unsupported tokens
-      for (const symbol of unsupportedTokens) {
-        errors.push({
-          symbol,
-          error: `Token ${symbol} not supported by ${this.name}`,
-          provider: this.name,
-        });
+      const tokenData = response.data?.[tokenId];
+      if (!tokenData) {
+        errors.push(this.createTokenError(symbol, 'Price data not found'));
+        continue;
       }
 
-      return {
-        results,
-        errors,
+      const quote = tokenData.quote?.USD;
+      if (!quote) {
+        errors.push(this.createTokenError(symbol, 'USD quote not found'));
+        continue;
+      }
+
+      prices[normalizedSymbol] = {
+        price: quote.price,
+        symbol: normalizedSymbol,
         provider: this.name,
         timestamp: new Date().toISOString(),
+        metadata: {
+          tokenId,
+          name: tokenData.name,
+          slug: tokenData.slug,
+          marketCap: quote.market_cap,
+          volume24h: quote.volume_24h,
+          percentChange24h: quote.percent_change_24h,
+          percentChange7d: quote.percent_change_7d,
+          lastUpdated: quote.last_updated,
+        },
       };
-    } catch (error) {
-      if (error.response) {
-        const errorMessage =
-          error.response.data?.status?.error_message || error.message;
-        throw new Error(`CoinMarketCap API error: ${errorMessage}`);
-      } else if (error.request) {
-        throw new Error(`CoinMarketCap network error: ${error.message}`);
-      } else {
-        throw new Error(`CoinMarketCap error: ${error.message}`);
-      }
     }
+
+    // Add errors for unsupported tokens
+    for (const symbol of unsupportedTokens) {
+      errors.push(this.createTokenError(symbol, 'Token not supported'));
+    }
+
+    return this.formatBulkResponse(prices, errors);
   }
 
   /**
-   * Check if provider is available
-   * @returns {boolean} - Whether provider is available
+   * Extract error message from CoinMarketCap response
+   * @param {Object} response - API error response
+   * @returns {string} - Error message
    */
-  isAvailable() {
-    return this.apiKeys.length > 0;
+  extractErrorMessage(response) {
+    const { data } = response;
+    
+    // CoinMarketCap specific error patterns
+    if (data?.status?.error_message) {
+      return data.status.error_message;
+    }
+    
+    // Fall back to base implementation
+    return super.extractErrorMessage(response);
   }
 
   /**
@@ -241,8 +196,8 @@ class CoinMarketCapProvider {
     return {
       name: this.name,
       available: this.isAvailable(),
-      apiKeysCount: this.apiKeys.length,
-      currentKeyIndex: this.currentKeyIndex,
+      requiresApiKey: true,
+      hasApiKey: !!this.apiKey,
     };
   }
 }

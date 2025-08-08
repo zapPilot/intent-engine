@@ -1,33 +1,32 @@
+const {
+  formatErrorResponse,
+  getErrorStatusCode,
+  logError,
+  ApiError,
+} = require('../utils/errorHandler');
+
 /**
  * Global error handling middleware
+ * Handles all errors in a consistent format
  */
 const errorHandler = (err, req, res, _next) => {
-  console.error('Error:', err);
-
-  // Axios error
-  if (err.response) {
-    return res.status(err.response.status || 500).json({
-      error: 'External API error',
-      message: err.response.data?.message || err.message,
-      provider: req.query?.provider || 'unknown',
-    });
-  }
-
-  // Network error
-  if (err.request) {
-    return res.status(503).json({
-      error: 'Network error',
-      message: 'Unable to connect to external service',
-      provider: req.query?.provider || 'unknown',
-    });
-  }
-
-  // Application error
-  res.status(500).json({
-    error: 'Internal server error',
-    message: err.message,
-    provider: req.query?.provider || 'unknown',
+  // Log error with context
+  logError(err, {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    body: req.body,
+    user: req.user?.id,
   });
+
+  // Get appropriate status code
+  const statusCode = getErrorStatusCode(err);
+
+  // Format error response
+  const errorResponse = formatErrorResponse(err);
+
+  // Send response
+  res.status(statusCode).json(errorResponse);
 };
 
 module.exports = errorHandler;

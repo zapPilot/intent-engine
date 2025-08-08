@@ -1,21 +1,25 @@
-const axios = require('axios');
+const BaseDexAggregator = require('./BaseDexAggregator');
 
 /**
  * 1inch DEX Aggregator Service
  */
-class OneInchService {
+class OneInchService extends BaseDexAggregator {
   constructor() {
-    this.baseURL = 'https://api.1inch.dev/swap';
-    this.apiKey = process.env.ONE_INCH_API_KEY;
-
-    // Chain ID to protocol name prefix mapping
-    this.chainPrefixMap = {
-      1: '', // Ethereum
-      42161: 'ARBITRUM_', // Arbitrum
-      8453: 'BASE_', // Base
-      10: 'OPTIMISM_', // Optimism
-      137: 'POLYGON_', // Polygon
-    };
+    super({
+      name: '1inch',
+      baseURL: 'https://api.1inch.dev/swap',
+      apiKey: process.env.ONE_INCH_API_KEY,
+      chainConfig: {
+        // Chain ID to protocol name prefix mapping
+        chainPrefixMap: {
+          1: '', // Ethereum
+          42161: 'ARBITRUM_', // Arbitrum
+          8453: 'BASE_', // Base
+          10: 'OPTIMISM_', // Optimism
+          137: 'POLYGON_', // Polygon
+        }
+      }
+    });
   }
 
   /**
@@ -36,7 +40,7 @@ class OneInchService {
       toTokenDecimals,
     } = params;
 
-    const chainPrefix = this.chainPrefixMap[chainId] || '';
+    const chainPrefix = this.chainConfig.chainPrefixMap[chainId] || '';
     const excludedProtocols = [
       `${chainPrefix}ONE_INCH_LIMIT_ORDER_V3`,
       `${chainPrefix}ONE_INCH_LIMIT_ORDER_V4`,
@@ -57,13 +61,18 @@ class OneInchService {
         'liquidity-sources': excludedProtocols.join(','),
       },
     };
-    const response = await axios.get(apiUrl, requestConfig);
-    const data = response.data;
+    
+    const data = await this.makeRequest({
+      method: 'GET',
+      url: apiUrl,
+      ...requestConfig
+    });
 
-    const gasCostUSD =
-      ((parseInt(data.tx.gas) * parseInt(data.tx.gasPrice)) /
-        Math.pow(10, 18)) *
-      ethPrice;
+    const gasCostUSD = this.calculateGasCostUSD(
+      data.tx.gas,
+      data.tx.gasPrice,
+      ethPrice
+    );
 
     return {
       approve_to: data.tx.to,
@@ -74,22 +83,12 @@ class OneInchService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.tx.gasPrice),
       custom_slippage: slippage,
-      toUsd:
-        (parseInt(data.toAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.calculateTokenValueUSD(
+        data.toAmount,
+        toTokenPrice,
+        toTokenDecimals
+      ),
     };
-  }
-
-  /**
-   * Calculate minimum amount considering slippage
-   * @param {string} toAmount - Output amount
-   * @param {number} slippage - Slippage percentage
-   * @returns {number} - Minimum amount
-   */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
   }
 }
 

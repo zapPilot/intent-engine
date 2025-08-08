@@ -1,12 +1,15 @@
-const axios = require('axios');
+const BaseDexAggregator = require('./BaseDexAggregator');
 
 /**
  * 0x Protocol DEX Aggregator Service
  */
-class ZeroXService {
+class ZeroXService extends BaseDexAggregator {
   constructor() {
-    this.baseURL = 'https://api.0x.org/swap/allowance-holder/quote';
-    this.apiKey = process.env.ZEROX_API_KEY;
+    super({
+      name: 'zerox',
+      baseURL: 'https://api.0x.org/swap/allowance-holder/quote',
+      apiKey: process.env.ZEROX_API_KEY,
+    });
   }
 
   /**
@@ -27,8 +30,8 @@ class ZeroXService {
       toTokenDecimals,
     } = params;
 
-    // Convert slippage to basis points (1% = 100 basis points)
-    const customSlippage = parseInt(parseFloat(slippage) * 100);
+    // Convert slippage to basis points
+    const customSlippage = this.slippageToBasisPoints(slippage);
 
     const requestConfig = {
       headers: {
@@ -45,18 +48,24 @@ class ZeroXService {
       },
     };
 
-    const response = await axios.get(this.baseURL, requestConfig);
-    if (response.data.liquidityAvailable === false) {
+    const data = await this.makeRequest({
+      method: 'GET',
+      url: this.baseURL,
+      ...requestConfig
+    });
+    
+    // Check liquidity availability - 0x specific check
+    if (data.liquidityAvailable === false) {
       const err = new Error('liquidityAvailable: false');
       err.liquidityAvailable = false; // Custom property for retry strategy
       throw err;
     }
-    const data = response.data;
 
-    const gasCostUSD =
-      ((parseInt(data.transaction.gas) * parseInt(data.transaction.gasPrice)) /
-        Math.pow(10, 18)) *
-      ethPrice;
+    const gasCostUSD = this.calculateGasCostUSD(
+      data.transaction.gas,
+      data.transaction.gasPrice,
+      ethPrice
+    );
 
     return {
       toAmount: data.buyAmount,
@@ -67,22 +76,12 @@ class ZeroXService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.transaction.gas),
       custom_slippage: customSlippage,
-      toUsd:
-        (parseInt(data.buyAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.calculateTokenValueUSD(
+        data.buyAmount,
+        toTokenPrice,
+        toTokenDecimals
+      ),
     };
-  }
-
-  /**
-   * Calculate minimum amount considering slippage
-   * @param {string} toAmount - Output amount
-   * @param {number} slippage - Slippage percentage
-   * @returns {number} - Minimum amount
-   */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
   }
 }
 
