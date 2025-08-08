@@ -74,6 +74,24 @@ describe('Enhanced Retry System', () => {
       const shouldRetry = RetryStrategies.oneInch(error, 1, {});
       expect(shouldRetry).toBe(true);
     });
+
+    it('should not retry on HTTP 429 rate limit errors', () => {
+      const error = {
+        response: { status: 429, data: { message: 'Too Many Requests' } },
+      };
+
+      const shouldRetry = RetryStrategies.oneInch(error, 1, {});
+      expect(shouldRetry).toBe(false);
+    });
+
+    it('should not retry on authentication errors', () => {
+      const error = {
+        response: { status: 401, data: { message: 'Unauthorized' } },
+      };
+
+      const shouldRetry = RetryStrategies.oneInch(error, 1, {});
+      expect(shouldRetry).toBe(false);
+    });
   });
 
   describe('RetryStrategies.paraswap', () => {
@@ -97,6 +115,31 @@ describe('Enhanced Retry System', () => {
       const shouldRetry = RetryStrategies.paraswap(error, 1, {});
       expect(shouldRetry).toBe(false);
     });
+
+    it('should not retry on HTTP 500 server errors', () => {
+      const error = {
+        response: { status: 500, data: { message: 'Internal Server Error' } },
+      };
+
+      const shouldRetry = RetryStrategies.paraswap(error, 1, {});
+      expect(shouldRetry).toBe(false);
+    });
+
+    it('should not retry on token not supported errors', () => {
+      const error = {
+        response: { status: 200, data: { message: 'Token not supported' } },
+      };
+
+      const shouldRetry = RetryStrategies.paraswap(error, 1, {});
+      expect(shouldRetry).toBe(false);
+    });
+
+    it('should retry on network errors', () => {
+      const error = { code: 'ECONNRESET' };
+
+      const shouldRetry = RetryStrategies.paraswap(error, 1, {});
+      expect(shouldRetry).toBe(true);
+    });
   });
 
   describe('RetryStrategies.zeroX', () => {
@@ -107,6 +150,22 @@ describe('Enhanced Retry System', () => {
 
       const shouldRetry = RetryStrategies.zeroX(error, 1, {});
       expect(shouldRetry).toBe(false);
+    });
+
+    it('should not retry on HTTP 404 errors', () => {
+      const error = {
+        response: { status: 404, data: { message: 'Not Found' } },
+      };
+
+      const shouldRetry = RetryStrategies.zeroX(error, 1, {});
+      expect(shouldRetry).toBe(false);
+    });
+
+    it('should retry for other errors', () => {
+      const error = { message: 'Random failure' };
+
+      const shouldRetry = RetryStrategies.zeroX(error, 1, {});
+      expect(shouldRetry).toBe(true);
     });
   });
 });
