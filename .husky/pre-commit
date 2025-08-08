@@ -1,9 +1,6 @@
 # Run lint-staged to check only staged files
 npx lint-staged
 
-# Run tests to ensure nothing is broken
-npm run test
-
-# Run coverage check with minimum thresholds
-echo "Running test coverage check..."
-npm run test:coverage -- --coverageThreshold='{"global":{"branches":60,"functions":75,"lines":75,"statements":75}}'
+# Run tests with coverage to ensure nothing is broken and check coverage
+echo "Running tests with coverage..."
+npm run test:coverage
