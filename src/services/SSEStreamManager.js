@@ -4,6 +4,7 @@
  */
 
 const SSEEventFactory = require('./SSEEventFactory');
+const SwapProcessingService = require('./SwapProcessingService');
 
 class SSEStreamManager {
   /**
@@ -345,70 +346,79 @@ class DustZapSSEOrchestrator {
    * @returns {Promise<Object>} - Processing results
    */
   async processTokensWithStreaming(executionContext, streamWriter) {
-    // Delegate to executor's pure business method, then emit SSE events
-    const businessResults =
-      await this.dustZapHandler.executor.processTokensBusiness(
-        executionContext
+    // Create processing context for swap service (same as business logic)
+    const processingContext =
+      SwapProcessingService.createProcessingContext(executionContext);
+
+    // Calculate fee transactions and insertion strategy (same as business logic)
+    const { dustTokens, params } = executionContext;
+    const { referralAddress } = params;
+
+    // Calculate estimated total value for fee calculations
+    let estimatedTotalValueUSD = 0;
+    for (const token of dustTokens) {
+      estimatedTotalValueUSD += token.amount * token.price || 0;
+    }
+
+    // Pre-calculate fee transactions using estimated value
+    const { txBuilder: feeTxBuilder, feeAmounts } =
+      this.dustZapHandler.executor.feeCalculationService.createFeeTransactions(
+        estimatedTotalValueUSD,
+        executionContext.ethPrice,
+        executionContext.chainId,
+        referralAddress
       );
 
-    // Transform business results into SSE events
-    this.emitTokenProcessingEvents(businessResults, streamWriter);
+    const feeTransactions = feeTxBuilder.getTransactions();
 
-    return businessResults;
-  }
+    // Calculate insertion strategy
+    const batches = executionContext.batches || [dustTokens];
+    const totalExpectedTransactions = dustTokens.length * 2;
+    const insertionStrategy =
+      this.dustZapHandler.executor.smartFeeInsertionService.calculateInsertionStrategy(
+        batches,
+        feeAmounts.totalFeeETH,
+        totalExpectedTransactions,
+        feeTransactions.length
+      );
 
-  /**
-   * Emit SSE events based on business processing results
-   * @param {Object} businessResults - Results from pure business logic
-   * @param {Function} streamWriter - SSE stream writer
-   */
-  emitTokenProcessingEvents(businessResults, streamWriter) {
-    const { successful, failed } = businessResults;
-    const totalTokens = successful.length + failed.length;
+    // ✅ FIX: Use processTokenBatchWithSSE for real-time streaming
+    const batchResults =
+      await this.dustZapHandler.executor.swapProcessingService.processTokenBatchWithSSE(
+        {
+          tokens: dustTokens,
+          context: processingContext,
+          streamWriter: streamWriter, // This enables real-time streaming
+          feeTransactions: feeTransactions,
+          insertionStrategy: insertionStrategy,
+        }
+      );
 
-    // Emit events for successful tokens
-    successful.forEach((result, resultIndex) => {
-      // Use tokenIndex from result if available, otherwise use resultIndex
-      const tokenIndex =
-        typeof result.tokenIndex === 'number' ? result.tokenIndex : resultIndex;
+    // Calculate actual total value from successful swaps
+    let actualTotalValueUSD = 0;
+    for (const result of batchResults.successful) {
+      actualTotalValueUSD += result.inputValueUSD || 0;
+    }
 
-      const tokenReadyEvent = SSEEventFactory.createTokenReadyEvent({
-        tokenIndex: tokenIndex,
-        token: result.token,
-        transactions: result.transactions,
-        // ✅ ADD: Missing swap quote data for progress bar
-        provider: result.swapQuote?.provider,
-        expectedTokenAmount: result.swapQuote?.toAmount || '0',
-        minToAmount: result.swapQuote?.minToAmount || '0',
-        toUsd: result.swapQuote?.toUsd || 0,
-        gasCostUSD: result.swapQuote?.gasCostUSD || 0,
-        tradingLoss: result.tradingLoss, // ✅ KEY FIX: Add trading loss for progress bar
-        // Pass processedTokens and totalTokens for progress calculation
-        processedTokens: tokenIndex,
-        totalTokens: totalTokens,
-      });
-      streamWriter(tokenReadyEvent);
-    });
+    const feeInfo =
+      this.dustZapHandler.executor.feeCalculationService.buildFeeInfo(
+        actualTotalValueUSD,
+        referralAddress,
+        true // useWETHPattern
+      );
 
-    // Emit events for failed tokens
-    failed.forEach((result, resultIndex) => {
-      // Use tokenIndex from result if available, otherwise use resultIndex
-      const tokenIndex =
-        typeof result.tokenIndex === 'number' ? result.tokenIndex : resultIndex;
-
-      const tokenFailedEvent = SSEEventFactory.createTokenFailedEvent({
-        tokenIndex: tokenIndex,
-        token: result.token,
-        error: result.error,
-        provider: 'failed',
-        // Add trading loss even for failed tokens if available
-        tradingLoss: result.tradingLoss || null,
-        // Pass processedTokens and totalTokens for progress calculation
-        processedTokens: tokenIndex,
-        totalTokens: totalTokens,
-      });
-      streamWriter(tokenFailedEvent);
-    });
+    return {
+      allTransactions: [...batchResults.transactions],
+      totalValueUSD: actualTotalValueUSD,
+      processedTokens:
+        batchResults.successful.length + batchResults.failed.length,
+      successfulTokens: batchResults.successful.length,
+      failedTokens: batchResults.failed.length,
+      successful: batchResults.successful,
+      failed: batchResults.failed,
+      feeInsertionStrategy: insertionStrategy,
+      feeInfo,
+    };
   }
 
   /**
