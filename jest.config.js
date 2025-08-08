@@ -21,10 +21,10 @@ module.exports = {
   // Coverage thresholds - Realistic baseline with growth targets
   coverageThreshold: {
     global: {
-      branches: 48.9,
-      functions: 69.7,
-      lines: 62.8,
-      statements: 63.1,
+      branches: 56.7,
+      functions: 75.0,
+      lines: 73.3,
+      statements: 73.5,
     },
     // Well-tested areas - maintain high standards
     './src/config/': {
