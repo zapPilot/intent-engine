@@ -1,9 +1,9 @@
 jest.mock('../src/services/priceProviders/coinmarketcap', () => {
   return jest.fn().mockImplementation(() => ({
-    getPrice: jest.fn(async () => {
+    getPrice: jest.fn(() => {
       throw new Error('CMC down');
     }),
-    getBulkPrices: jest.fn(async () => {
+    getBulkPrices: jest.fn(() => {
       throw new Error('bulk down');
     }),
     isAvailable: jest.fn(() => true),
@@ -13,16 +13,24 @@ jest.mock('../src/services/priceProviders/coinmarketcap', () => {
 
 jest.mock('../src/services/priceProviders/coingecko', () => {
   return jest.fn().mockImplementation(() => ({
-    getPrice: jest.fn(async symbol => ({
+    getPrice: jest.fn(symbol => ({
       success: true,
       price: 42,
       symbol,
       provider: 'coingecko',
       timestamp: new Date().toISOString(),
     })),
-    getBulkPrices: jest.fn(async symbols => ({
+    getBulkPrices: jest.fn(symbols => ({
       results: symbols.includes('eth')
-        ? { eth: { success: true, price: 1, symbol: 'eth', provider: 'coingecko', timestamp: new Date().toISOString() } }
+        ? {
+            eth: {
+              success: true,
+              price: 1,
+              symbol: 'eth',
+              provider: 'coingecko',
+              timestamp: new Date().toISOString(),
+            },
+          }
         : {},
       errors: symbols
         .filter(s => s !== 'eth')
@@ -50,9 +58,13 @@ describe('PriceService advanced scenarios', () => {
 
   it('bulk uses provider bulk when available and falls back for others', async () => {
     const service = new PriceService();
-    const out = await service.getBulkPrices(['eth', 'unknown'], { useCache: false });
+    const out = await service.getBulkPrices(['eth', 'unknown'], {
+      useCache: false,
+    });
     expect(out.results.eth).toBeDefined();
-    expect(out.errors).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: 'unknown' })]));
+    expect(out.errors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ symbol: 'unknown' })])
+    );
     expect(out.fromProviders).toBeGreaterThanOrEqual(1);
     expect(out.totalRequested).toBe(2);
   });
