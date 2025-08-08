@@ -1,3 +1,53 @@
+const mockGetBulkPrices = jest.fn(async symbols => {
+  await Promise.resolve();
+  return {
+    results: symbols.reduce((acc, symbol) => {
+      acc[symbol] = {
+        success: true,
+        price: 100,
+        symbol,
+        provider: 'mock',
+        timestamp: new Date().toISOString(),
+      };
+      return acc;
+    }, {}),
+    errors: [],
+    totalRequested: symbols.length,
+    fromCache: 0,
+    fromProviders: symbols.length,
+    failed: 0,
+    timestamp: new Date().toISOString(),
+  };
+});
+
+const mockGetPrice = jest.fn(async symbol => {
+  await Promise.resolve();
+  if (symbol === 'unsupported-token-xyz') {
+    throw new Error('Token unsupported');
+  }
+  return {
+    success: true,
+    price: 100,
+    symbol,
+    provider: 'mock',
+    timestamp: new Date().toISOString(),
+  };
+});
+
+jest.mock('../src/services/priceService', () => {
+  return jest.fn().mockImplementation(() => ({
+    getBulkPrices: mockGetBulkPrices,
+    getPrice: mockGetPrice,
+    getSupportedProviders: jest.fn(() => ['mock']),
+    getStatus: jest.fn(() => ({
+      providers: { mock: { available: true } },
+      rateLimits: {},
+      cache: { size: 0, entries: [] },
+    })),
+    clearCache: jest.fn(),
+  }));
+});
+
 const request = require('supertest');
 const app = require('../src/app');
 const intentRoutes = require('../src/routes/intents');
