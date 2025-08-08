@@ -49,7 +49,11 @@ class IntentService {
 
       // Ensure result has required fields
       if (!result || typeof result !== 'object') {
-        throw new AppError('Intent handler returned invalid result', 500, 'INVALID_HANDLER_RESULT');
+        throw new AppError(
+          'Intent handler returned invalid result',
+          500,
+          'INVALID_HANDLER_RESULT'
+        );
       }
 
       // All intents now use SSE streaming mode

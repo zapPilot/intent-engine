@@ -6,7 +6,12 @@
  * Base error class for all application errors
  */
 class AppError extends Error {
-  constructor(message, statusCode = 500, code = 'INTERNAL_ERROR', details = null) {
+  constructor(
+    message,
+    statusCode = 500,
+    code = 'INTERNAL_ERROR',
+    details = null
+  ) {
     super(message);
     this.name = this.constructor.name;
     this.statusCode = statusCode;

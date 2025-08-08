@@ -28,7 +28,9 @@ class DustZapValidator {
 
     // Validate filteredDustTokens
     if (!filteredDustTokens || !Array.isArray(filteredDustTokens)) {
-      throw new ValidationError('filteredDustTokens must be provided as an array');
+      throw new ValidationError(
+        'filteredDustTokens must be provided as an array'
+      );
     }
 
     if (filteredDustTokens.length === 0) {
@@ -88,7 +90,9 @@ class DustZapValidator {
     const { userAddress, chainId } = request;
 
     if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-      throw new ValidationError('Invalid userAddress: must be a valid Ethereum address');
+      throw new ValidationError(
+        'Invalid userAddress: must be a valid Ethereum address'
+      );
     }
 
     if (!chainId || !Number.isInteger(chainId) || chainId <= 0) {

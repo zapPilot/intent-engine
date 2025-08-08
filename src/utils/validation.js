@@ -151,7 +151,11 @@ const validateTokenAddresses = (req, res, next) => {
   const { fromTokenAddress, toTokenAddress } = req.query;
 
   if (fromTokenAddress.toLowerCase() === toTokenAddress.toLowerCase()) {
-    return next(new ValidationError('fromTokenAddress and toTokenAddress cannot be the same'));
+    return next(
+      new ValidationError(
+        'fromTokenAddress and toTokenAddress cannot be the same'
+      )
+    );
   }
 
   next();

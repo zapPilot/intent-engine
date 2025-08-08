@@ -1,8 +1,16 @@
 /**
  * Global error handling middleware
  */
-const { AppError, ExternalAPIError, ServiceUnavailableError } = require('../utils/errors');
-const { createErrorResponse, logError, sanitizeErrorMessage } = require('../utils/errorResponse');
+const {
+  AppError,
+  ExternalAPIError,
+  ServiceUnavailableError,
+} = require('../utils/errors');
+const {
+  createErrorResponse,
+  logError,
+  sanitizeErrorMessage,
+} = require('../utils/errorResponse');
 
 const errorHandler = (err, req, res, _next) => {
   // Log the error with context
@@ -10,7 +18,7 @@ const errorHandler = (err, req, res, _next) => {
 
   // Convert non-AppError instances to AppError
   let error = err;
-  
+
   // Handle Axios errors (external API calls)
   if (err.isAxiosError) {
     if (err.response) {
@@ -40,9 +48,12 @@ const errorHandler = (err, req, res, _next) => {
       );
     }
   }
-  
+
   // Handle validation errors from express-validator
-  else if (err.name === 'ValidationError' || err.type === 'entity.parse.failed') {
+  else if (
+    err.name === 'ValidationError' ||
+    err.type === 'entity.parse.failed'
+  ) {
     error = new AppError(
       'Invalid request data',
       400,
@@ -50,7 +61,7 @@ const errorHandler = (err, req, res, _next) => {
       err.errors || err.body
     );
   }
-  
+
   // Ensure we have an AppError instance
   else if (!(error instanceof AppError)) {
     const statusCode = err.statusCode || err.status || 500;
@@ -60,7 +71,7 @@ const errorHandler = (err, req, res, _next) => {
 
   // Create standardized error response
   const errorResponse = createErrorResponse(error, req);
-  
+
   // Set status code and send response
   res.status(error.statusCode).json(errorResponse);
 };

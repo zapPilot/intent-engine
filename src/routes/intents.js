@@ -443,35 +443,52 @@ router.get('/api/v1/intents/health', async (req, res) => {
  * ZapIn intent endpoint - Vault deposits from any token
  * POST /api/v1/intents/zapIn
  */
-router.post('/api/v1/intents/zapIn', validateIntentRequest, (req, res, next) => {
-  const { AppError } = require('../utils/errors');
-  // Feature not yet implemented
-  next(new AppError('ZapIn intent not yet implemented', 501, 'NOT_IMPLEMENTED', {
-    expectedParams: {
-      fromToken: 'Token address to swap from',
-      vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
-      amount: 'Amount in wei',
-      slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
-    },
-  }));
-});
+router.post(
+  '/api/v1/intents/zapIn',
+  validateIntentRequest,
+  (req, res, next) => {
+    const { AppError } = require('../utils/errors');
+    // Feature not yet implemented
+    next(
+      new AppError('ZapIn intent not yet implemented', 501, 'NOT_IMPLEMENTED', {
+        expectedParams: {
+          fromToken: 'Token address to swap from',
+          vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
+          amount: 'Amount in wei',
+          slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
+        },
+      })
+    );
+  }
+);
 
 /**
  * ZapOut intent endpoint - Vault withdrawals to any token
  * POST /api/v1/intents/zapOut
  */
-router.post('/api/v1/intents/zapOut', validateIntentRequest, (req, res, next) => {
-  const { AppError } = require('../utils/errors');
-  // Feature not yet implemented
-  next(new AppError('ZapOut intent not yet implemented', 501, 'NOT_IMPLEMENTED', {
-    expectedParams: {
-      vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
-      percentage: 'Withdrawal percentage (0-100)',
-      toToken: 'Target token address',
-      slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
-    },
-  }));
-});
+router.post(
+  '/api/v1/intents/zapOut',
+  validateIntentRequest,
+  (req, res, next) => {
+    const { AppError } = require('../utils/errors');
+    // Feature not yet implemented
+    next(
+      new AppError(
+        'ZapOut intent not yet implemented',
+        501,
+        'NOT_IMPLEMENTED',
+        {
+          expectedParams: {
+            vault: 'Vault identifier (stablecoin-vault, btc-vault, etc.)',
+            percentage: 'Withdrawal percentage (0-100)',
+            toToken: 'Target token address',
+            slippageTolerance: 'Optional: slippage tolerance (default: 0.5)',
+          },
+        }
+      )
+    );
+  }
+);
 
 /**
  * Optimize intent endpoint - Unified dustZap, rebalance, compound operations
@@ -565,13 +582,21 @@ router.post(
         // Rebalance operation not yet implemented
         else if (operation === 'rebalance') {
           const { AppError } = require('../utils/errors');
-          throw new AppError('Rebalance operation not yet implemented', 501, 'NOT_IMPLEMENTED');
+          throw new AppError(
+            'Rebalance operation not yet implemented',
+            501,
+            'NOT_IMPLEMENTED'
+          );
         }
 
         // Compound operation not yet implemented
         else if (operation === 'compound') {
           const { AppError } = require('../utils/errors');
-          throw new AppError('Compound operation not yet implemented', 501, 'NOT_IMPLEMENTED');
+          throw new AppError(
+            'Compound operation not yet implemented',
+            501,
+            'NOT_IMPLEMENTED'
+          );
         }
       }
 
@@ -613,10 +638,24 @@ router.post('/api/v1/intents/rebalance', (req, res) => {
 router.get('/api/v1/vaults', (req, res, next) => {
   const { AppError } = require('../utils/errors');
   // Vault configurations not yet implemented
-  next(new AppError('Vault configurations not yet implemented', 501, 'NOT_IMPLEMENTED', {
-    message: 'Vault metadata will be loaded from frontend vault classes or database',
-    expectedVaults: ['stablecoin-vault', 'btc-vault', 'eth-vault', 'index500-vault', 'real-yield-vault'],
-  }));
+  next(
+    new AppError(
+      'Vault configurations not yet implemented',
+      501,
+      'NOT_IMPLEMENTED',
+      {
+        message:
+          'Vault metadata will be loaded from frontend vault classes or database',
+        expectedVaults: [
+          'stablecoin-vault',
+          'btc-vault',
+          'eth-vault',
+          'index500-vault',
+          'real-yield-vault',
+        ],
+      }
+    )
+  );
 });
 
 /**
@@ -626,9 +665,17 @@ router.get('/api/v1/vaults', (req, res, next) => {
 router.get('/api/v1/vaults/:vaultId/strategy', (req, res, next) => {
   const { AppError } = require('../utils/errors');
   // Vault strategy configurations not yet implemented
-  next(new AppError('Vault strategy configurations not yet implemented', 501, 'NOT_IMPLEMENTED', {
-    message: 'Vault strategies will be loaded from frontend vault classes',
-    vaultId: req.params.vaultId,
+  next(
+    new AppError(
+      'Vault strategy configurations not yet implemented',
+      501,
+      'NOT_IMPLEMENTED',
+      {
+        message: 'Vault strategies will be loaded from frontend vault classes',
+        vaultId: req.params.vaultId,
+      }
+    )
+  );
 });
 
 // Export both router and intentService for cleanup in tests

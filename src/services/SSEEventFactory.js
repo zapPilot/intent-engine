@@ -148,7 +148,11 @@ class SSEEventFactory {
     }
 
     if (!result.isSuccess()) {
-      throw new AppError('Cannot create token ready event from failed result', 400, 'INVALID_RESULT_STATE');
+      throw new AppError(
+        'Cannot create token ready event from failed result',
+        400,
+        'INVALID_RESULT_STATE'
+      );
     }
 
     const swapData = result.getSwapData();

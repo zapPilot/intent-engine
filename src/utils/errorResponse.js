@@ -11,7 +11,7 @@
 const createErrorResponse = (error, req = null) => {
   const timestamp = new Date().toISOString();
   const requestId = req?.headers?.['x-request-id'] || generateRequestId();
-  
+
   // Base error response structure
   const response = {
     success: false,
@@ -110,7 +110,7 @@ const logError = (error, req = null) => {
  * @param {Error} error - The error object
  * @returns {string} Sanitized error message
  */
-const sanitizeErrorMessage = (error) => {
+const sanitizeErrorMessage = error => {
   // In production, hide sensitive error details
   if (process.env.NODE_ENV === 'production') {
     // Map specific error types to user-friendly messages
@@ -125,7 +125,10 @@ const sanitizeErrorMessage = (error) => {
       RATE_LIMIT_EXCEEDED: 'Too many requests',
     };
 
-    return errorMessageMap[error.code] || 'An error occurred while processing your request';
+    return (
+      errorMessageMap[error.code] ||
+      'An error occurred while processing your request'
+    );
   }
 
   return error.message;

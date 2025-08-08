@@ -163,7 +163,9 @@ class SSEEventParams {
 
     for (const field of requiredBase) {
       if (this[field] === undefined || this[field] === null) {
-        throw new ValidationError(`SSEEventParams missing required field: ${field}`);
+        throw new ValidationError(
+          `SSEEventParams missing required field: ${field}`
+        );
       }
     }
 
@@ -174,7 +176,9 @@ class SSEEventParams {
     }
 
     if (eventType === 'failure' && !this.error) {
-      throw new ValidationError('SSEEventParams for failure event must include error');
+      throw new ValidationError(
+        'SSEEventParams for failure event must include error'
+      );
     }
   }
 

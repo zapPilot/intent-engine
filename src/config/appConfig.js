@@ -76,8 +76,10 @@ const config = {
 
   // SSE (Server-Sent Events) configuration
   sse: {
-    heartbeatInterval: parseInt(process.env.SSE_HEARTBEAT_INTERVAL, 10) || 30000,
-    connectionTimeout: parseInt(process.env.SSE_CONNECTION_TIMEOUT, 10) || 300000, // 5 minutes
+    heartbeatInterval:
+      parseInt(process.env.SSE_HEARTBEAT_INTERVAL, 10) || 30000,
+    connectionTimeout:
+      parseInt(process.env.SSE_CONNECTION_TIMEOUT, 10) || 300000, // 5 minutes
     maxConnections: parseInt(process.env.SSE_MAX_CONNECTIONS, 10) || 1000,
   },
 
@@ -104,8 +106,10 @@ const config = {
 
   // Validation
   validation: {
-    maxTokensPerRequest: parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 100,
-    maxTokenSymbolLength: parseInt(process.env.MAX_TOKEN_SYMBOL_LENGTH, 10) || 20,
+    maxTokensPerRequest:
+      parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 100,
+    maxTokenSymbolLength:
+      parseInt(process.env.MAX_TOKEN_SYMBOL_LENGTH, 10) || 20,
     ethAddressPattern: /^0x[a-fA-F0-9]{40}$/,
   },
 };
