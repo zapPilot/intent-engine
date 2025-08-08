@@ -33,26 +33,25 @@ describe('DEX Aggregator Services', () => {
         };
 
         const mockResponse = {
-          data: {
-            fromToken: { symbol: 'USDC' },
-            toToken: { symbol: 'WETH' },
-            toAmount: '333333333333333333',
-            tx: {
-              data: '0x...',
-              to: '0x1111111254fb6c44bac0bed2854e76f90643097d',
-              gas: '150000',
-              gasPrice: '20000000000',
-            },
+          fromToken: { symbol: 'USDC' },
+          toToken: { symbol: 'WETH' },
+          toAmount: '333333333333333333',
+          tx: {
+            data: '0x...',
+            to: '0x1111111254fb6c44bac0bed2854e76f90643097d',
+            gas: '150000',
+            gasPrice: '20000000000',
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        axios.mockResolvedValueOnce({ data: mockResponse });
 
         const result = await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
-          'https://api.1inch.dev/swap/v5.2/1/swap',
+        expect(axios).toHaveBeenCalledWith(
           expect.objectContaining({
+            method: 'GET',
+            url: 'https://api.1inch.dev/swap/v5.2/1/swap',
             headers: {
               Authorization: 'Bearer test-api-key',
             },
@@ -84,7 +83,7 @@ describe('DEX Aggregator Services', () => {
           slippage: 0.5,
         };
 
-        axios.get.mockResolvedValueOnce({
+        axios.mockResolvedValueOnce({
           data: {
             toAmount: '1000000000000000000',
             tx: {
@@ -98,9 +97,10 @@ describe('DEX Aggregator Services', () => {
 
         await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(axios).toHaveBeenCalledWith(
           expect.objectContaining({
+            method: 'GET',
+            url: expect.any(String),
             params: expect.objectContaining({
               'liquidity-sources':
                 'ARBITRUM_ONE_INCH_LIMIT_ORDER_V3,ARBITRUM_ONE_INCH_LIMIT_ORDER_V4',
@@ -121,7 +121,7 @@ describe('DEX Aggregator Services', () => {
 
         const error = new Error('API Error');
         error.response = { status: 400, data: { error: 'Bad Request' } };
-        axios.get.mockRejectedValueOnce(error);
+        axios.mockRejectedValueOnce(error);
 
         await expect(service.getSwapData(params)).rejects.toThrow(
           '1inch error:'
@@ -152,31 +152,30 @@ describe('DEX Aggregator Services', () => {
         };
 
         const mockResponse = {
-          data: {
-            priceRoute: {
-              srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-              destToken: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-              destAmount: '333333333333333333',
-              gasCostUSD: '10.5',
-              gasCost: '150000',
-            },
-            txParams: {
-              from: '0x123...',
-              to: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-              data: '0x...',
-              value: '0',
-            },
+          priceRoute: {
+            srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            destToken: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+            destAmount: '333333333333333333',
+            gasCostUSD: '10.5',
+            gasCost: '150000',
+          },
+          txParams: {
+            from: '0x123...',
+            to: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
+            data: '0x...',
+            value: '0',
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        axios.mockResolvedValueOnce({ data: mockResponse });
 
         const result = await service.getSwapData(params);
 
         // Check API call
-        expect(axios.get).toHaveBeenCalledWith(
-          'https://api.paraswap.io/swap',
+        expect(axios).toHaveBeenCalledWith(
           expect.objectContaining({
+            method: 'GET',
+            url: 'https://api.paraswap.io/swap',
             headers: {
               'Content-Type': 'application/json',
             },
@@ -210,7 +209,7 @@ describe('DEX Aggregator Services', () => {
           slippage: 100,
         };
 
-        axios.get.mockRejectedValueOnce(new Error('Price API Error'));
+        axios.mockRejectedValueOnce(new Error('Price API Error'));
 
         await expect(service.getSwapData(params)).rejects.toThrow(
           'paraswap error:'
@@ -242,27 +241,26 @@ describe('DEX Aggregator Services', () => {
         };
 
         const mockResponse = {
-          data: {
-            buyToken: { symbol: 'WETH', address: params.toTokenAddress },
-            sellToken: { symbol: 'USDC', address: params.fromTokenAddress },
-            buyAmount: '333333333333333333',
-            transaction: {
-              data: '0x...',
-              to: '0x456...',
-              value: '0',
-              gas: '150000',
-              gasPrice: '20000000000',
-            },
+          buyToken: { symbol: 'WETH', address: params.toTokenAddress },
+          sellToken: { symbol: 'USDC', address: params.fromTokenAddress },
+          buyAmount: '333333333333333333',
+          transaction: {
+            data: '0x...',
+            to: '0x456...',
+            value: '0',
+            gas: '150000',
+            gasPrice: '20000000000',
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        axios.mockResolvedValueOnce({ data: mockResponse });
 
         const result = await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
-          'https://api.0x.org/swap/allowance-holder/quote',
+        expect(axios).toHaveBeenCalledWith(
           expect.objectContaining({
+            method: 'GET',
+            url: 'https://api.0x.org/swap/allowance-holder/quote',
             headers: {
               '0x-api-key': 'test-0x-key',
               '0x-version': 'v2',
@@ -279,7 +277,7 @@ describe('DEX Aggregator Services', () => {
         );
 
         expect(result).toBeDefined();
-        expect(result.toAmount).toBe(mockResponse.data.buyAmount);
+        expect(result.toAmount).toBe(mockResponse.buyAmount);
       });
 
       it('should handle API errors', async () => {
@@ -294,7 +292,7 @@ describe('DEX Aggregator Services', () => {
 
         const error = new Error('0x API Error');
         error.response = { status: 429, data: { reason: 'Rate limited' } };
-        axios.get.mockRejectedValueOnce(error);
+        axios.mockRejectedValueOnce(error);
 
         await expect(service.getSwapData(params)).rejects.toThrow(
           'zerox error:'
