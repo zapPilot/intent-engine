@@ -1,8 +1,5 @@
 const axios = require('axios');
-const {
-  TokenNotSupportedError,
-  createExternalServiceError,
-} = require('../../utils/errorHandler');
+const { createExternalServiceError } = require('../../utils/errorHandler');
 
 /**
  * Base class for Price Provider Services
@@ -14,7 +11,7 @@ class BasePriceProvider {
     this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
     this.headers = config.headers || {};
-    
+
     // Optional additional URLs (e.g., for terminal endpoints)
     this.additionalUrls = config.additionalUrls || {};
   }
@@ -22,20 +19,20 @@ class BasePriceProvider {
   /**
    * Get price for a single token - must be implemented by subclasses
    * @param {string} symbol - Token symbol
-   * @param {Object} options - Request options
+   * @param {Object} _options - Request options
    * @returns {Promise<Object>} - Price response
    */
-  async getPrice(symbol, options = {}) {
+  getPrice(symbol, _options = {}) {
     throw new Error('getPrice must be implemented by subclass');
   }
 
   /**
    * Get prices for multiple tokens - must be implemented by subclasses
    * @param {Array<string>} symbols - Array of token symbols
-   * @param {Object} options - Request options
+   * @param {Object} _options - Request options
    * @returns {Promise<Object>} - Bulk price response
    */
-  async getBulkPrices(symbols, options = {}) {
+  getBulkPrices(symbols, _options = {}) {
     throw new Error('getBulkPrices must be implemented by subclass');
   }
 
@@ -68,14 +65,16 @@ class BasePriceProvider {
    */
   extractErrorMessage(response) {
     const { data } = response;
-    
+
     // Common patterns for error messages in API responses
-    return data?.error || 
-           data?.message || 
-           data?.error_message ||
-           data?.status?.error_message || 
-           response.statusText || 
-           'Unknown error';
+    return (
+      data?.error ||
+      data?.message ||
+      data?.error_message ||
+      data?.status?.error_message ||
+      response.statusText ||
+      'Unknown error'
+    );
   }
 
   /**
@@ -94,8 +93,8 @@ class BasePriceProvider {
       timestamp: new Date().toISOString(),
       metadata: {
         ...metadata,
-        ...data.metadata
-      }
+        ...data.metadata,
+      },
     };
   }
 
@@ -141,7 +140,7 @@ class BasePriceProvider {
    */
   buildRequestConfig(config) {
     const headers = { ...this.headers };
-    
+
     if (this.apiKey) {
       // Different providers use different header names for API keys
       if (this.name === 'coinmarketcap') {

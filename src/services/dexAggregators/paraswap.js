@@ -20,8 +20,8 @@ class ParaswapService extends BaseDexAggregator {
           8453: '0x93aAAe79a53759cD164340E4C8766E4Db5331cD7',
           42161: '0x216B4B4Ba9F3e719726886d34a177484278Bfcae',
           43114: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
-        }
-      }
+        },
+      },
     });
   }
 
@@ -63,11 +63,11 @@ class ParaswapService extends BaseDexAggregator {
         excludeDEXS: 'AugustusRFQ',
       },
     };
-    
+
     const data = await this.makeRequest({
       method: 'GET',
       url: this.baseURL,
-      ...requestConfig
+      ...requestConfig,
     });
 
     const gasCostUSD = parseFloat(data.priceRoute.gasCostUSD);

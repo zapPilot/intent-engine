@@ -7,7 +7,12 @@
  * Base API Error class
  */
 class ApiError extends Error {
-  constructor(message, statusCode = 500, code = 'INTERNAL_ERROR', details = {}) {
+  constructor(
+    message,
+    statusCode = 500,
+    code = 'INTERNAL_ERROR',
+    details = {}
+  ) {
     super(message);
     this.name = 'ApiError';
     this.statusCode = statusCode;
@@ -140,12 +145,18 @@ function getErrorStatusCode(error) {
   if (error instanceof ApiError) {
     return error.statusCode;
   }
-  
+
   // Check for common error properties
-  if (error.status) return error.status;
-  if (error.statusCode) return error.statusCode;
-  if (error.response?.status) return error.response.status;
-  
+  if (error.status) {
+    return error.status;
+  }
+  if (error.statusCode) {
+    return error.statusCode;
+  }
+  if (error.response?.status) {
+    return error.response.status;
+  }
+
   return 500;
 }
 
@@ -190,21 +201,22 @@ function logError(error, context = {}) {
  */
 function createExternalServiceError(service, error) {
   let message = 'Unknown error';
-  
+
   if (error.response) {
     // Extract message from various possible locations
     const data = error.response.data;
-    message = data?.message || 
-              data?.error || 
-              data?.error_message ||
-              data?.status?.error_message || 
-              error.message;
+    message =
+      data?.message ||
+      data?.error ||
+      data?.error_message ||
+      data?.status?.error_message ||
+      error.message;
   } else if (error.request) {
     message = `Network error: ${error.message}`;
   } else {
     message = error.message;
   }
-  
+
   return new ExternalServiceError(service, message, error);
 }
 
@@ -217,7 +229,7 @@ module.exports = {
   RateLimitError,
   InsufficientLiquidityError,
   TokenNotSupportedError,
-  
+
   // Utility functions
   formatErrorResponse,
   getErrorStatusCode,

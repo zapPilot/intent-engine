@@ -64,20 +64,16 @@ class CoinMarketCapProvider extends BasePriceProvider {
       throw new Error(`USD quote not found for token ${symbol}`);
     }
 
-    return this.formatPriceResponse(
-      { price: quote.price },
-      symbol,
-      {
-        tokenId,
-        name: tokenData.name,
-        slug: tokenData.slug,
-        marketCap: quote.market_cap,
-        volume24h: quote.volume_24h,
-        percentChange24h: quote.percent_change_24h,
-        percentChange7d: quote.percent_change_7d,
-        lastUpdated: quote.last_updated,
-      }
-    );
+    return this.formatPriceResponse({ price: quote.price }, symbol, {
+      tokenId,
+      name: tokenData.name,
+      slug: tokenData.slug,
+      marketCap: quote.market_cap,
+      volume24h: quote.volume_24h,
+      percentChange24h: quote.percent_change_24h,
+      percentChange7d: quote.percent_change_7d,
+      lastUpdated: quote.last_updated,
+    });
   }
 
   /**
@@ -125,7 +121,7 @@ class CoinMarketCapProvider extends BasePriceProvider {
     for (const symbol of symbols) {
       const normalizedSymbol = symbol.toLowerCase();
       const tokenId = symbolToIdMap[normalizedSymbol];
-      
+
       if (!tokenId) {
         if (!unsupportedTokens.includes(normalizedSymbol)) {
           errors.push(this.createTokenError(symbol, 'Token not supported'));
@@ -178,12 +174,12 @@ class CoinMarketCapProvider extends BasePriceProvider {
    */
   extractErrorMessage(response) {
     const { data } = response;
-    
+
     // CoinMarketCap specific error patterns
     if (data?.status?.error_message) {
       return data.status.error_message;
     }
-    
+
     // Fall back to base implementation
     return super.extractErrorMessage(response);
   }

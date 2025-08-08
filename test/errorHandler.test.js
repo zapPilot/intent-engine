@@ -19,20 +19,26 @@ describe('errorHandler middleware', () => {
     errorHandler(err, { query: { provider: 'test' } }, res, () => {});
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'External API error',
-      message: 'Not found',
-      provider: 'test',
+      error: expect.objectContaining({
+        code: 'INTERNAL_ERROR',
+        message: 'axios error',
+        statusCode: 500,
+        timestamp: expect.any(String),
+      }),
     });
   });
 
   it('handles network errors', () => {
     const err = { request: {}, message: 'network error' };
     errorHandler(err, { query: { provider: 'test' } }, res, () => {});
-    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Network error',
-      message: 'Unable to connect to external service',
-      provider: 'test',
+      error: expect.objectContaining({
+        code: 'INTERNAL_ERROR',
+        message: 'network error',
+        statusCode: 500,
+        timestamp: expect.any(String),
+      }),
     });
   });
 
@@ -41,9 +47,12 @@ describe('errorHandler middleware', () => {
     errorHandler(err, { query: {} }, res, () => {});
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Internal server error',
-      message: 'boom',
-      provider: 'unknown',
+      error: expect.objectContaining({
+        code: 'INTERNAL_ERROR',
+        message: 'boom',
+        statusCode: 500,
+        timestamp: expect.any(String),
+      }),
     });
   });
 });

@@ -1,6 +1,5 @@
 const axios = require('axios');
 const {
-  ExternalServiceError,
   InsufficientLiquidityError,
   createExternalServiceError,
 } = require('../../utils/errorHandler');
@@ -14,17 +13,17 @@ class BaseDexAggregator {
     this.name = config.name;
     this.baseURL = config.baseURL;
     this.apiKey = config.apiKey;
-    
+
     // Optional chain-specific configurations
     this.chainConfig = config.chainConfig || {};
   }
 
   /**
    * Get swap data from DEX API - must be implemented by subclasses
-   * @param {Object} params - Swap parameters
+   * @param {Object} _params - Swap parameters
    * @returns {Promise<Object>} - Swap data response
    */
-  async getSwapData(params) {
+  getSwapData(_params) {
     throw new Error('getSwapData must be implemented by subclass');
   }
 
@@ -48,8 +47,8 @@ class BaseDexAggregator {
    */
   handleApiError(error) {
     if (error.response) {
-      const { status, data } = error.response;
-      
+      const { data } = error.response;
+
       // Check for specific error patterns that indicate insufficient liquidity
       const errorMessage = data?.message || data?.error || error.message || '';
       const liquidityPatterns = [
@@ -59,18 +58,23 @@ class BaseDexAggregator {
         'no route found',
         'pair not found',
       ];
-      
-      if (liquidityPatterns.some(pattern => 
-        errorMessage.toLowerCase().includes(pattern)
-      )) {
+
+      if (
+        liquidityPatterns.some(pattern =>
+          errorMessage.toLowerCase().includes(pattern)
+        )
+      ) {
         throw new InsufficientLiquidityError(this.name, errorMessage);
       }
-      
+
       // Check for 0x specific liquidity flag
       if (this.name === 'zerox' && data?.liquidityAvailable === false) {
-        throw new InsufficientLiquidityError(this.name, 'liquidityAvailable: false');
+        throw new InsufficientLiquidityError(
+          this.name,
+          'liquidityAvailable: false'
+        );
       }
-      
+
       // For other errors, throw external service error
       throw createExternalServiceError(this.name, error);
     } else {
@@ -125,10 +129,10 @@ class BaseDexAggregator {
   /**
    * Format swap response in a consistent structure
    * @param {Object} data - Raw API response data
-   * @param {Object} params - Original request parameters
+   * @param {Object} _params - Original request parameters
    * @returns {Object} - Formatted swap data
    */
-  formatSwapResponse(data, params) {
+  formatSwapResponse(data, _params) {
     // This provides a base implementation that can be overridden
     return {
       provider: this.name,

@@ -51,9 +51,9 @@ class ZeroXService extends BaseDexAggregator {
     const data = await this.makeRequest({
       method: 'GET',
       url: this.baseURL,
-      ...requestConfig
+      ...requestConfig,
     });
-    
+
     // Check liquidity availability - 0x specific check
     if (data.liquidityAvailable === false) {
       const err = new Error('liquidityAvailable: false');

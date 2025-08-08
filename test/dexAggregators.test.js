@@ -123,7 +123,9 @@ describe('DEX Aggregator Services', () => {
         error.response = { status: 400, data: { error: 'Bad Request' } };
         axios.get.mockRejectedValueOnce(error);
 
-        await expect(service.getSwapData(params)).rejects.toThrow('API Error');
+        await expect(service.getSwapData(params)).rejects.toThrow(
+          '1inch error:'
+        );
       });
     });
   });
@@ -211,7 +213,7 @@ describe('DEX Aggregator Services', () => {
         axios.get.mockRejectedValueOnce(new Error('Price API Error'));
 
         await expect(service.getSwapData(params)).rejects.toThrow(
-          'Price API Error'
+          'paraswap error:'
         );
       });
     });
@@ -295,7 +297,7 @@ describe('DEX Aggregator Services', () => {
         axios.get.mockRejectedValueOnce(error);
 
         await expect(service.getSwapData(params)).rejects.toThrow(
-          '0x API Error'
+          'zerox error:'
         );
       });
     });

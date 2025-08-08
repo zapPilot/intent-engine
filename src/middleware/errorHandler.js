@@ -2,7 +2,6 @@ const {
   formatErrorResponse,
   getErrorStatusCode,
   logError,
-  ApiError,
 } = require('../utils/errorHandler');
 
 /**

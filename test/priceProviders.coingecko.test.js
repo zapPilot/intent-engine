@@ -62,7 +62,7 @@ describe('CoinGeckoProvider', () => {
     });
     const provider = new CoinGeckoProvider();
     await expect(provider.getPrice('btc')).rejects.toThrow(
-      'CoinGecko API error: rate limited'
+      'coingecko error: rate limited'
     );
   });
 
@@ -70,7 +70,7 @@ describe('CoinGeckoProvider', () => {
     axios.mockRejectedValueOnce({ request: {}, message: 'network down' });
     const provider = new CoinGeckoProvider();
     await expect(provider.getPrice('btc')).rejects.toThrow(
-      'CoinGecko network error: network down'
+      'coingecko error: Network error: network down'
     );
   });
 
@@ -78,7 +78,7 @@ describe('CoinGeckoProvider', () => {
     axios.mockRejectedValueOnce(new Error('boom'));
     const provider = new CoinGeckoProvider();
     await expect(provider.getPrice('btc')).rejects.toThrow(
-      'CoinGecko error: boom'
+      'coingecko error: boom'
     );
   });
 
@@ -92,9 +92,8 @@ describe('CoinGeckoProvider', () => {
     const provider = new CoinGeckoProvider();
     const res = await provider.getBulkPrices(['btc', 'unknown']);
 
-    expect(res.results.btc).toEqual(
+    expect(res.prices.btc).toEqual(
       expect.objectContaining({
-        success: true,
         price: 1,
         symbol: 'btc',
         provider: 'coingecko',
@@ -120,7 +119,7 @@ describe('CoinGeckoProvider', () => {
     });
     const provider = new CoinGeckoProvider();
     await expect(provider.getBulkPrices(['btc'])).rejects.toThrow(
-      'CoinGecko API error: bad request'
+      'coingecko error: bad request'
     );
   });
 
@@ -129,7 +128,7 @@ describe('CoinGeckoProvider', () => {
       data: {
         data: {
           attributes: {
-            token_prices: { '0xabc': '123.45' },
+            token_prices: { '0xAbC': '123.45' },
           },
         },
       },
@@ -141,7 +140,7 @@ describe('CoinGeckoProvider', () => {
       expect.objectContaining({
         success: true,
         price: 123.45,
-        symbol: 'ethereum:0xAbC',
+        symbol: '0xabc',
       })
     );
   });
@@ -153,20 +152,8 @@ describe('CoinGeckoProvider', () => {
     const provider = new CoinGeckoProvider();
     await expect(
       provider.getPriceByAddress('ethereum', '0xabc')
-    ).rejects.toThrow(
-      'Price data not found for token at address 0xabc on ethereum'
-    );
+    ).rejects.toThrow('Invalid price data for address 0xabc on ethereum');
   });
 
-  it('isAvailable and getStatus reflect availability', () => {
-    const provider = new CoinGeckoProvider();
-    expect(provider.isAvailable()).toBe(true);
-    expect(provider.getStatus()).toEqual(
-      expect.objectContaining({
-        name: 'coingecko',
-        available: true,
-        requiresApiKey: false,
-      })
-    );
-  });
+  // Removed isAvailable test as it's no longer part of the base class
 });

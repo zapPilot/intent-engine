@@ -13,8 +13,8 @@ class CoinGeckoProvider extends BasePriceProvider {
       baseUrl: 'https://api.coingecko.com/api/v3',
       apiKey: process.env.COINGECKO_API_KEY,
       additionalUrls: {
-        terminal: 'https://api.geckoterminal.com/api/v2/simple'
-      }
+        terminal: 'https://api.geckoterminal.com/api/v2/simple',
+      },
     });
   }
 
@@ -52,16 +52,12 @@ class CoinGeckoProvider extends BasePriceProvider {
       );
     }
 
-    return this.formatPriceResponse(
-      { price: priceData.usd },
-      symbol,
-      {
-        coinId,
-        marketCap: priceData.usd_market_cap,
-        volume24h: priceData.usd_24h_vol,
-        percentChange24h: priceData.usd_24h_change,
-      }
-    );
+    return this.formatPriceResponse({ price: priceData.usd }, symbol, {
+      coinId,
+      marketCap: priceData.usd_market_cap,
+      volume24h: priceData.usd_24h_vol,
+      percentChange24h: priceData.usd_24h_change,
+    });
   }
 
   /**
@@ -134,7 +130,10 @@ class CoinGeckoProvider extends BasePriceProvider {
     // Check for missing prices
     for (const symbol of symbols) {
       const normalizedSymbol = symbol.toLowerCase();
-      if (!prices[normalizedSymbol] && !errors.find(e => e.symbol === normalizedSymbol)) {
+      if (
+        !prices[normalizedSymbol] &&
+        !errors.find(e => e.symbol === normalizedSymbol)
+      ) {
         errors.push(this.createTokenError(symbol, 'Price data not found'));
       }
     }
@@ -160,27 +159,19 @@ class CoinGeckoProvider extends BasePriceProvider {
 
     const attributes = data?.data?.attributes;
     if (!attributes || !attributes.token_prices) {
-      throw new Error(
-        `No price data found for address ${address} on ${chain}`
-      );
+      throw new Error(`No price data found for address ${address} on ${chain}`);
     }
 
     const price = parseFloat(attributes.token_prices[address]);
     if (isNaN(price)) {
-      throw new Error(
-        `Invalid price data for address ${address} on ${chain}`
-      );
+      throw new Error(`Invalid price data for address ${address} on ${chain}`);
     }
 
-    return this.formatPriceResponse(
-      { price },
+    return this.formatPriceResponse({ price }, address, {
+      chain,
       address,
-      {
-        chain,
-        address,
-        source: 'geckoterminal',
-      }
-    );
+      source: 'geckoterminal',
+    });
   }
 
   /**
@@ -190,17 +181,17 @@ class CoinGeckoProvider extends BasePriceProvider {
    */
   extractErrorMessage(response) {
     const { data } = response;
-    
+
     // CoinGecko specific error patterns
     if (data?.error) {
       return data.error;
     }
-    
+
     // GeckoTerminal specific error patterns
     if (data?.message) {
       return data.message;
     }
-    
+
     // Fall back to base implementation
     return super.extractErrorMessage(response);
   }

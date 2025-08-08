@@ -17,8 +17,8 @@ class OneInchService extends BaseDexAggregator {
           8453: 'BASE_', // Base
           10: 'OPTIMISM_', // Optimism
           137: 'POLYGON_', // Polygon
-        }
-      }
+        },
+      },
     });
   }
 
@@ -61,11 +61,11 @@ class OneInchService extends BaseDexAggregator {
         'liquidity-sources': excludedProtocols.join(','),
       },
     };
-    
+
     const data = await this.makeRequest({
       method: 'GET',
       url: apiUrl,
-      ...requestConfig
+      ...requestConfig,
     });
 
     const gasCostUSD = this.calculateGasCostUSD(
