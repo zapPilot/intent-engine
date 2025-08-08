@@ -18,13 +18,13 @@ module.exports = {
   // Coverage configuration
   collectCoverageFrom: ['src/**/*.js', '!src/**/*.test.js', '!src/**/index.js'],
 
-  // Coverage thresholds - Realistic baseline with growth targets
+  // Coverage thresholds - Minimum acceptable coverage levels
   coverageThreshold: {
     global: {
-      branches: 56.7,
-      functions: 75.0,
-      lines: 73.3,
-      statements: 73.5,
+      branches: 60,
+      functions: 75,
+      lines: 75,
+      statements: 75,
     },
     // Well-tested areas - maintain high standards
     './src/config/': {
@@ -39,18 +39,19 @@ module.exports = {
       functions: 100,
       lines: 100,
     },
-    // Utilities - achievable improvements
-    './src/utils/retry.js': {
-      statements: 90,
-      branches: 70,
-      functions: 100,
-      lines: 90,
+    // Services - critical business logic
+    './src/services/': {
+      statements: 70,
+      branches: 50,
+      functions: 75,
+      lines: 70,
     },
-    './src/utils/validation.js': {
-      statements: 80,
+    // Utilities - achievable improvements
+    './src/utils/': {
+      statements: 90,
       branches: 75,
-      functions: 80,
-      lines: 80,
+      functions: 90,
+      lines: 90,
     },
   },
 

@@ -3,3 +3,7 @@ npx lint-staged
 
 # Run tests to ensure nothing is broken
 npm run test
+
+# Run coverage check with minimum thresholds
+echo "Running test coverage check..."
+npm run test:coverage -- --coverageThreshold='{"global":{"branches":60,"functions":75,"lines":75,"statements":75}}'

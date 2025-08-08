@@ -67,7 +67,8 @@
   "lint-staged": {
     "**/*.js": [
       "eslint --fix",
-      "prettier --write"
+      "prettier --write",
+      "jest --bail --findRelatedTests --coverage"
     ],
     "**/*.{json,md}": [
       "prettier --write"
