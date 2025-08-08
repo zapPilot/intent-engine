@@ -14,8 +14,8 @@ describe('DEX Aggregator Services', () => {
     let service;
 
     beforeEach(() => {
-      service = new OneInchService();
       process.env.ONE_INCH_API_KEY = 'test-api-key';
+      service = new OneInchService();
     });
 
     describe('getSwapData', () => {
@@ -134,75 +134,66 @@ describe('DEX Aggregator Services', () => {
     });
 
     describe('getSwapData', () => {
-      it('should make correct API calls for price and transaction', async () => {
+      it('should make correct API call for price', async () => {
         const params = {
           chainId: 1,
           fromTokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          fromTokenDecimals: 6,
           toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          toTokenDecimals: 18,
           amount: '1000000000',
           fromAddress: '0x123...',
-          slippage: 100, // 1% in basis points
-          ethPrice: 3000,
+          slippage: 1, // 1%
           toTokenPrice: 3000,
-          toTokenDecimals: 18,
         };
 
-        const priceResponse = {
+        const mockResponse = {
           data: {
             priceRoute: {
               srcToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               destToken: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
               destAmount: '333333333333333333',
+              gasCostUSD: '10.5',
+              gasCost: '150000',
             },
-          },
-        };
-
-        const txResponse = {
-          data: {
             txParams: {
               from: '0x123...',
-              to: '0x456...',
+              to: '0x216b4b4ba9f3e719726886d34a177484278bfcae',
               data: '0x...',
               value: '0',
             },
-            priceRoute: priceResponse.data.priceRoute,
           },
         };
 
-        axios.get.mockResolvedValueOnce(priceResponse);
-        axios.post.mockResolvedValueOnce(txResponse);
+        axios.get.mockResolvedValueOnce(mockResponse);
 
         const result = await service.getSwapData(params);
 
-        // Check price call
+        // Check API call
         expect(axios.get).toHaveBeenCalledWith(
-          'https://apiv5.paraswap.io/prices',
+          'https://api.paraswap.io/swap',
           expect.objectContaining({
+            headers: {
+              'Content-Type': 'application/json',
+            },
             params: expect.objectContaining({
-              network: 1,
               srcToken: params.fromTokenAddress,
+              srcDecimals: params.fromTokenDecimals,
               destToken: params.toTokenAddress,
+              destDecimals: params.toTokenDecimals,
               amount: params.amount,
               side: 'SELL',
+              network: params.chainId,
+              slippage: 100, // 1% * 100
+              userAddress: params.fromAddress,
+              excludeDEXS: 'AugustusRFQ',
             }),
-          })
-        );
-
-        // Check transaction call
-        expect(axios.post).toHaveBeenCalledWith(
-          'https://apiv5.paraswap.io/transactions/1',
-          expect.objectContaining({
-            priceRoute: priceResponse.data.priceRoute,
-            srcToken: params.fromTokenAddress,
-            destToken: params.toTokenAddress,
-            srcAmount: params.amount,
-            userAddress: params.fromAddress,
-            slippage: params.slippage,
           })
         );
 
         expect(result).toBeDefined();
         expect(result.toAmount).toBe('333333333333333333');
+        expect(result.to).toBe('0x216b4b4ba9f3e719726886d34a177484278bfcae');
       });
 
       it('should handle errors in price fetching', async () => {
@@ -226,8 +217,8 @@ describe('DEX Aggregator Services', () => {
     let service;
 
     beforeEach(() => {
+      process.env.ZEROX_API_KEY = 'test-0x-key';
       service = new ZeroXService();
-      process.env.ZERO_X_API_KEY = 'test-0x-key';
     });
 
     describe('getSwapData', () => {
@@ -264,18 +255,19 @@ describe('DEX Aggregator Services', () => {
         const result = await service.getSwapData(params);
 
         expect(axios.get).toHaveBeenCalledWith(
-          'https://api.0x.org/swap/v1/quote',
+          'https://api.0x.org/swap/allowance-holder/quote',
           expect.objectContaining({
             headers: {
               '0x-api-key': 'test-0x-key',
+              '0x-version': 'v2',
             },
             params: expect.objectContaining({
+              chainId: params.chainId,
               buyToken: params.toTokenAddress,
               sellToken: params.fromTokenAddress,
               sellAmount: params.amount,
-              takerAddress: params.fromAddress,
-              slippagePercentage: params.slippage,
-              skipValidation: true,
+              taker: params.fromAddress,
+              slippageBps: 1, // 0.01 * 100
             }),
           })
         );

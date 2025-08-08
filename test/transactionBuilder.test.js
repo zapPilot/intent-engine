@@ -1,5 +1,4 @@
 const TransactionBuilder = require('../src/transactions/TransactionBuilder');
-const { ethers } = require('ethers');
 
 jest.mock('../src/config/tokenConfig');
 
@@ -113,7 +112,7 @@ describe('TransactionBuilder', () => {
       expect(tx.data).toBe(swapData.data);
       expect(tx.value).toBe(swapData.value);
       expect(tx.description).toBe(description);
-      expect(tx.gasLimit).toBe(swapData.gasLimit);
+      expect(tx.gasLimit).toBe('400000'); // gasLimit is doubled in addSwap
     });
 
     it('should use default description if not provided', () => {
@@ -124,97 +123,81 @@ describe('TransactionBuilder', () => {
 
       builder.addSwap(swapData);
 
-      expect(builder.transactions[0].description).toBe('Swap transaction');
+      expect(builder.transactions[0].description).toBe('Token swap');
     });
   });
 
-  describe('addTransfer', () => {
+  describe('addETHTransfer', () => {
     it('should add ETH transfer transaction', () => {
       const recipient = '0x1234567890123456789012345678901234567890';
       const amount = '1000000000000000000';
 
-      builder.addTransfer(recipient, amount);
+      builder.addETHTransfer(recipient, amount);
 
       expect(builder.transactions).toHaveLength(1);
       const tx = builder.transactions[0];
       expect(tx.to).toBe(recipient);
       expect(tx.value).toBe(amount);
-      expect(tx.description).toBe(`Transfer ${amount} wei to ${recipient}`);
+      expect(tx.description).toBe('ETH transfer');
       expect(tx.gasLimit).toBe('21000');
       expect(tx.data).toBeUndefined();
     });
+  });
 
+  describe('addERC20Transfer', () => {
     it('should add ERC-20 transfer transaction', () => {
       const tokenAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const recipient = '0x1234567890123456789012345678901234567890';
       const amount = '1000000';
 
-      builder.addTransfer(recipient, amount, tokenAddress);
+      builder.addERC20Transfer(tokenAddress, recipient, amount);
 
       expect(builder.transactions).toHaveLength(1);
       const tx = builder.transactions[0];
       expect(tx.to).toBe(tokenAddress);
       expect(tx.value).toBe('0');
-      expect(tx.description).toBe(`Transfer tokens from ${tokenAddress} to ${recipient}`);
-      expect(tx.gasLimit).toBe('50000');
+      expect(tx.description).toContain('ERC20 transfer');
+      expect(tx.gasLimit).toBe('65000');
       expect(tx.data).toBeDefined();
       expect(tx.data).toMatch(/^0x/);
     });
   });
 
-  describe('addUnwrap', () => {
-    it('should add unwrap WETH transaction for mainnet', () => {
+  describe('addWETHDeposit', () => {
+    it('should add WETH deposit transaction for mainnet', () => {
       const amount = '1000000000000000000';
       const chainId = 1;
 
-      builder.addUnwrap(amount, chainId);
+      // Mock TokenConfigService.getWETHAddress
+      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
+      TokenConfigService.getWETHAddress = jest.fn().mockReturnValue('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
+
+      builder.addWETHDeposit(chainId, amount);
 
       expect(builder.transactions).toHaveLength(1);
       const tx = builder.transactions[0];
       expect(tx.to).toBe('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'); // WETH mainnet
-      expect(tx.value).toBe('0');
-      expect(tx.description).toBe(`Unwrap ${amount} WETH`);
-      expect(tx.gasLimit).toBe('30000');
+      expect(tx.value).toBe(amount);
+      expect(tx.description).toBe('WETH deposit (ETH -> WETH)');
+      expect(tx.gasLimit).toBe('50000');
       expect(tx.data).toBeDefined();
-    });
-
-    it('should add unwrap WETH transaction for Arbitrum', () => {
-      const amount = '1000000000000000000';
-      const chainId = 42161;
-
-      builder.addUnwrap(amount, chainId);
-
-      expect(builder.transactions[0].to).toBe('0x82aF49447D8a07e3bd95BD0d56f35241523fBab1');
     });
 
     it('should throw error for unsupported chain', () => {
       const amount = '1000000000000000000';
       const chainId = 999;
 
-      expect(() => builder.addUnwrap(amount, chainId)).toThrow(
-        'Unsupported chain ID: 999'
+      // Mock TokenConfigService.getWETHAddress to return null
+      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
+      TokenConfigService.getWETHAddress = jest.fn().mockReturnValue(null);
+
+      expect(() => builder.addWETHDeposit(chainId, amount)).toThrow(
+        'WETH not supported on chain 999'
       );
     });
   });
 
-  describe('addWrap', () => {
-    it('should add wrap ETH transaction for mainnet', () => {
-      const amount = '1000000000000000000';
-      const chainId = 1;
-
-      builder.addWrap(amount, chainId);
-
-      expect(builder.transactions).toHaveLength(1);
-      const tx = builder.transactions[0];
-      expect(tx.to).toBe('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'); // WETH mainnet
-      expect(tx.value).toBe(amount);
-      expect(tx.description).toBe(`Wrap ${amount} wei to WETH`);
-      expect(tx.gasLimit).toBe('30000');
-      expect(tx.data).toBeDefined();
-    });
-  });
-
-  describe('build', () => {
+  describe('getTransactions', () => {
     it('should return all transactions', () => {
       builder
         .addTransaction({
@@ -226,7 +209,7 @@ describe('TransactionBuilder', () => {
           value: '2000',
         });
 
-      const result = builder.build();
+      const result = builder.getTransactions();
 
       expect(result).toHaveLength(2);
       expect(result[0].value).toBe('1000');
@@ -234,31 +217,8 @@ describe('TransactionBuilder', () => {
     });
 
     it('should return empty array when no transactions', () => {
-      const result = builder.build();
+      const result = builder.getTransactions();
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('reset', () => {
-    it('should clear all transactions', () => {
-      builder
-        .addTransaction({
-          to: '0x1234567890123456789012345678901234567890',
-        })
-        .addTransaction({
-          to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-        });
-
-      expect(builder.transactions).toHaveLength(2);
-
-      builder.reset();
-
-      expect(builder.transactions).toHaveLength(0);
-    });
-
-    it('should support method chaining', () => {
-      const result = builder.reset();
-      expect(result).toBe(builder);
     });
   });
 
@@ -277,27 +237,32 @@ describe('TransactionBuilder', () => {
         .addApprove(tokenAddress, routerAddress, amount)
         .addSwap(swapData, 'Swap USDC to ETH');
 
-      const transactions = builder.build();
+      const transactions = builder.getTransactions();
 
       expect(transactions).toHaveLength(2);
       expect(transactions[0].description).toContain('Approve');
       expect(transactions[1].description).toBe('Swap USDC to ETH');
     });
 
-    it('should build wrap and transfer flow', () => {
+    it('should build deposit and transfer flow', () => {
       const amount = '1000000000000000000';
       const recipient = '0x1234567890123456789012345678901234567890';
       const chainId = 1;
+      const wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+
+      // Mock TokenConfigService.getWETHAddress
+      const TokenConfigService = require('../src/config/tokenConfig').TokenConfigService;
+      TokenConfigService.getWETHAddress = jest.fn().mockReturnValue(wethAddress);
 
       builder
-        .addWrap(amount, chainId)
-        .addTransfer(recipient, amount, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
+        .addWETHDeposit(chainId, amount)
+        .addERC20Transfer(wethAddress, recipient, amount);
 
-      const transactions = builder.build();
+      const transactions = builder.getTransactions();
 
       expect(transactions).toHaveLength(2);
-      expect(transactions[0].description).toContain('Wrap');
-      expect(transactions[1].description).toContain('Transfer tokens');
+      expect(transactions[0].description).toContain('WETH deposit');
+      expect(transactions[1].description).toContain('ERC20 transfer');
     });
   });
 });

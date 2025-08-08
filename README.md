@@ -1,6 +1,6 @@
 # Intent Engine
 
-[![Test Coverage](https://img.shields.io/badge/coverage-78%25-yellowgreen.svg)](https://github.com/your-org/intent-engine)
+[![Test Coverage](https://img.shields.io/badge/coverage-78.57%25-brightgreen.svg)](https://github.com/your-org/intent-engine)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/your-org/intent-engine/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
