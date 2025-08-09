@@ -1,6 +1,25 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
 # Run lint-staged to check only staged files
+echo "🔍 Running lint-staged on staged files..."
 npx lint-staged
 
+# Check if lint-staged passed
+if [ $? -ne 0 ]; then
+    echo "❌ Lint-staged failed. Please fix the issues before committing."
+    exit 1
+fi
+
 # Run tests with coverage to ensure nothing is broken and check coverage
-echo "Running tests with coverage..."
+echo "🧪 Running tests with coverage..."
 npm run test:coverage
+
+# Check if tests passed
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed or coverage thresholds not met. Please fix before committing."
+    echo "💡 Tip: Run 'npm run test:coverage' to see detailed coverage report."
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

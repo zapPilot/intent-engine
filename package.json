@@ -44,6 +44,7 @@
     "jest": "^29.7.0",
     "lint-staged": "^15.2.2",
     "nodemon": "^3.0.1",
+    "pre-commit": "^1.2.2",
     "prettier": "^3.2.5",
     "supertest": "^6.3.3"
   },
@@ -67,8 +68,7 @@
   "lint-staged": {
     "**/*.js": [
       "eslint --fix",
-      "prettier --write",
-      "jest --bail --findRelatedTests --coverage"
+      "prettier --write"
     ],
     "**/*.{json,md}": [
       "prettier --write"

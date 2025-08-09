@@ -465,4 +465,110 @@ describe('Intent API Endpoints', () => {
       }
     });
   });
+
+  describe('Vault Endpoints', () => {
+    describe('GET /api/v1/vaults', () => {
+      it('should return list of vaults', async () => {
+        const response = await request(app).get('/api/v1/vaults');
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('success', true);
+        expect(response.body).toHaveProperty('vaults');
+        expect(Array.isArray(response.body.vaults)).toBe(true);
+        expect(response.body).toHaveProperty('total');
+        expect(response.body).toHaveProperty('timestamp');
+      });
+
+      it('should handle errors when fetching vaults', async () => {
+        // Mock console.error to avoid noise in test output
+        const consoleErrorSpy = jest
+          .spyOn(console, 'error')
+          .mockImplementation();
+
+        // Mock the router to throw an error
+        const originalToISOString = Date.prototype.toISOString;
+        Date.prototype.toISOString = () => {
+          throw new Error('Simulated error');
+        };
+
+        const response = await request(app).get('/api/v1/vaults');
+
+        expect(response.status).toBe(500);
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('error');
+        expect(response.body.error).toHaveProperty(
+          'code',
+          'INTERNAL_SERVER_ERROR'
+        );
+        expect(response.body.error).toHaveProperty(
+          'message',
+          'Failed to fetch vault information'
+        );
+
+        // Restore original function
+        Date.prototype.toISOString = originalToISOString;
+        consoleErrorSpy.mockRestore();
+      });
+    });
+
+    describe('GET /api/v1/vaults/:vaultId/strategy', () => {
+      it('should return vault strategy for valid vaultId', async () => {
+        const response = await request(app).get(
+          '/api/v1/vaults/stablecoin-vault/strategy'
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('success', true);
+        expect(response.body).toHaveProperty('vaultId', 'stablecoin-vault');
+        expect(response.body).toHaveProperty('strategy');
+        expect(response.body.strategy).toHaveProperty('description');
+        expect(response.body.strategy).toHaveProperty('protocols');
+        expect(response.body).toHaveProperty('timestamp');
+      });
+
+      it('should return 404 for non-existent vaultId', async () => {
+        const response = await request(app).get(
+          '/api/v1/vaults/INVALID-VAULT/strategy'
+        );
+
+        expect(response.status).toBe(404);
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('error');
+        expect(response.body.error).toHaveProperty('code', 'VAULT_NOT_FOUND');
+      });
+
+      it('should handle errors when fetching vault strategy', async () => {
+        // Mock console.error to avoid noise in test output
+        const consoleErrorSpy = jest
+          .spyOn(console, 'error')
+          .mockImplementation();
+
+        // Mock the router to throw an error
+        const originalToISOString = Date.prototype.toISOString;
+        Date.prototype.toISOString = () => {
+          throw new Error('Simulated error');
+        };
+
+        const response = await request(app).get(
+          '/api/v1/vaults/stablecoin-vault/strategy'
+        );
+
+        expect(response.status).toBe(500);
+        expect(response.body).toHaveProperty('success', false);
+        expect(response.body).toHaveProperty('error');
+        expect(response.body.error).toHaveProperty(
+          'code',
+          'INTERNAL_SERVER_ERROR'
+        );
+        expect(response.body.error).toHaveProperty(
+          'message',
+          'Failed to fetch vault strategy'
+        );
+
+        // Restore original function
+        Date.prototype.toISOString = originalToISOString;
+        consoleErrorSpy.mockRestore();
+      });
+    });
+  });
 });

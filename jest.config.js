@@ -21,20 +21,20 @@ module.exports = {
   // Coverage configuration
   collectCoverageFrom: ['src/**/*.js', '!src/**/*.test.js', '!src/**/index.js'],
 
-  // Coverage thresholds - Minimum acceptable coverage levels
+  // Coverage thresholds - Updated to reflect current coverage and maintain quality
   coverageThreshold: {
     global: {
-      branches: 60,
-      functions: 75,
-      lines: 75,
-      statements: 75,
+      branches: 78,
+      functions: 87,
+      lines: 87,
+      statements: 87,
     },
     // Well-tested areas - maintain high standards
     './src/config/': {
-      statements: 64,
-      branches: 46,
-      functions: 58,
-      lines: 64,
+      statements: 92,
+      branches: 80,
+      functions: 100,
+      lines: 92,
     },
     './src/middleware/': {
       statements: 100,
@@ -44,17 +44,24 @@ module.exports = {
     },
     // Services - critical business logic
     './src/services/': {
-      statements: 70,
-      branches: 50,
-      functions: 75,
-      lines: 70,
-    },
-    // Utilities - achievable improvements
-    './src/utils/': {
-      statements: 90,
+      statements: 85,
       branches: 75,
       functions: 90,
-      lines: 90,
+      lines: 85,
+    },
+    // Routes - improved coverage
+    './src/routes/': {
+      statements: 73,
+      branches: 75,
+      functions: 90,
+      lines: 73,
+    },
+    // Utilities - high standards
+    './src/utils/': {
+      statements: 93,
+      branches: 79,
+      functions: 94,
+      lines: 93,
     },
   },
 
