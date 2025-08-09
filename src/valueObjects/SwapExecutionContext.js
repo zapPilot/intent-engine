@@ -1,3 +1,5 @@
+const { ValidationError } = require('../utils/errors');
+
 /**
  * SwapExecutionContext - Standardized context object for swap execution
  * Consolidates swap execution parameters into a single, well-structured object
@@ -118,25 +120,25 @@ class SwapExecutionContext {
     );
 
     if (missing.length > 0) {
-      throw new Error(
+      throw new ValidationError(
         `SwapExecutionContext missing required fields: ${missing.join(', ')}`
       );
     }
 
     // Validate types
     if (typeof params.chainId !== 'number' || params.chainId <= 0) {
-      throw new Error('chainId must be a positive number');
+      throw new ValidationError('chainId must be a positive number');
     }
 
     if (typeof params.ethPrice !== 'number' || params.ethPrice <= 0) {
-      throw new Error('ethPrice must be a positive number');
+      throw new ValidationError('ethPrice must be a positive number');
     }
 
     if (
       typeof params.userAddress !== 'string' ||
       !/^0x[a-fA-F0-9]{40}$/.test(params.userAddress)
     ) {
-      throw new Error('userAddress must be a valid Ethereum address');
+      throw new ValidationError('userAddress must be a valid Ethereum address');
     }
   }
 

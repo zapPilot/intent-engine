@@ -3,6 +3,8 @@
  * Centralized configuration for dust token zapping functionality
  */
 
+const appConfig = require('./appConfig');
+
 module.exports = {
   /**
    * Default batch size for processing dust tokens
@@ -29,7 +31,7 @@ module.exports = {
     /**
      * SSE connection timeout in milliseconds
      */
-    CONNECTION_TIMEOUT: 300000, // 5 minutes
+    CONNECTION_TIMEOUT: appConfig.sse.connectionTimeout,
 
     /**
      * Maximum concurrent SSE connections per user

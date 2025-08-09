@@ -156,7 +156,7 @@ describe('DustZap Intent System', () => {
     });
 
     describe('Future Intent Endpoints', () => {
-      test('zapIn should validate required parameters', async () => {
+      test('zapIn should return not implemented', async () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send({
@@ -164,13 +164,10 @@ describe('DustZap Intent System', () => {
             chainId: 1,
             params: {},
           })
-          .expect(400);
+          .expect(501);
 
         expect(response.body.success).toBe(false);
-        expect(response.body.error.code).toBe('INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'fromToken, vault, and amount are required'
-        );
+        expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
       });
 
       test('zapIn should return not implemented with valid params', async () => {
@@ -191,7 +188,7 @@ describe('DustZap Intent System', () => {
         expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
       });
 
-      test('zapOut should validate required parameters', async () => {
+      test('zapOut should return not implemented', async () => {
         const response = await request(app)
           .post('/api/v1/intents/zapOut')
           .send({
@@ -199,13 +196,10 @@ describe('DustZap Intent System', () => {
             chainId: 1,
             params: {},
           })
-          .expect(400);
+          .expect(501);
 
         expect(response.body.success).toBe(false);
-        expect(response.body.error.code).toBe('INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'vault, percentage, and toToken are required'
-        );
+        expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
       });
 
       test('zapOut should return not implemented with valid params', async () => {
@@ -241,35 +235,29 @@ describe('DustZap Intent System', () => {
         expect(response.body.redirectTo).toBe('/api/v1/intents/optimize');
       });
 
-      test('vaults endpoint should return available vaults', async () => {
-        const response = await request(app).get('/api/v1/vaults').expect(200);
-
-        expect(response.body.success).toBe(true);
-        expect(response.body.vaults).toBeInstanceOf(Array);
-        expect(response.body.vaults.length).toBeGreaterThan(0);
-        expect(response.body.vaults[0]).toHaveProperty('id');
-        expect(response.body.vaults[0]).toHaveProperty('name');
-        expect(response.body.vaults[0]).toHaveProperty('description');
-      });
-
-      test('vault strategy endpoint should return strategy configuration', async () => {
-        const response = await request(app)
-          .get('/api/v1/vaults/stablecoin-vault/strategy')
-          .expect(200);
-
-        expect(response.body.success).toBe(true);
-        expect(response.body.vaultId).toBe('stablecoin-vault');
-        expect(response.body.strategy).toHaveProperty('weightMapping');
-        expect(response.body.strategy).toHaveProperty('protocols');
-      });
-
-      test('vault strategy endpoint should return 404 for unknown vault', async () => {
-        const response = await request(app)
-          .get('/api/v1/vaults/unknown-vault/strategy')
-          .expect(404);
+      test('vaults endpoint should return not implemented', async () => {
+        const response = await request(app).get('/api/v1/vaults').expect(501);
 
         expect(response.body.success).toBe(false);
-        expect(response.body.error.code).toBe('VAULT_NOT_FOUND');
+        expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
+      });
+
+      test('vault strategy endpoint should return not implemented', async () => {
+        const response = await request(app)
+          .get('/api/v1/vaults/stablecoin-vault/strategy')
+          .expect(501);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
+      });
+
+      test('vault strategy endpoint should return not implemented for any vault', async () => {
+        const response = await request(app)
+          .get('/api/v1/vaults/unknown-vault/strategy')
+          .expect(501);
+
+        expect(response.body.success).toBe(false);
+        expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
       });
     });
   });

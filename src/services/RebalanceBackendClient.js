@@ -6,8 +6,9 @@ const { retryWithBackoff } = require('../utils/retry');
  */
 class RebalanceBackendClient {
   constructor() {
-    this.baseUrl = process.env.REBALANCE_BACKEND_URL || 'http://localhost:5000';
-    this.timeout = parseInt(process.env.REBALANCE_BACKEND_TIMEOUT) || 10000;
+    const appConfig = require('../config/appConfig');
+    this.baseUrl = appConfig.externalServices.rebalanceBackend.url;
+    this.timeout = appConfig.externalServices.rebalanceBackend.timeout;
     this.retries = 3;
   }
 

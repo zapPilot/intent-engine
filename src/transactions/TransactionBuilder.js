@@ -3,6 +3,8 @@
  */
 const { isAddress, Interface } = require('ethers');
 const { TokenConfigService } = require('../config/tokenConfig');
+const appConfig = require('../config/appConfig');
+const { ValidationError, ConfigurationError } = require('../utils/errors');
 
 class TransactionBuilder {
   constructor() {
@@ -16,7 +18,7 @@ class TransactionBuilder {
   addTransaction(transaction) {
     const { to, value = '0', data, description, gasLimit } = transaction;
     if (!to || !isAddress(to)) {
-      throw new Error(
+      throw new ValidationError(
         'Invalid transaction: to address must be valid Ethereum address'
       );
     }
@@ -54,7 +56,7 @@ class TransactionBuilder {
       value: '0',
       data,
       description: `Approve ${tokenAddress} for ${spenderAddress}`,
-      gasLimit: '30000',
+      gasLimit: appConfig.transaction.approvalGasLimit,
     });
   }
 
@@ -97,7 +99,7 @@ class TransactionBuilder {
   addWETHDeposit(chainId, amount, description) {
     const wethAddress = TokenConfigService.getWETHAddress(chainId);
     if (!wethAddress) {
-      throw new Error(`WETH not supported on chain ${chainId}`);
+      throw new ConfigurationError(`WETH not supported on chain ${chainId}`);
     }
 
     // Create interface for WETH
@@ -187,7 +189,7 @@ class TransactionBuilder {
    */
   insertTransactionsAtIndices(transactions, insertionPoints) {
     if (transactions.length !== insertionPoints.length) {
-      throw new Error(
+      throw new ValidationError(
         'Number of transactions must match number of insertion points'
       );
     }
@@ -198,7 +200,7 @@ class TransactionBuilder {
       index => index < 0 || index > maxIndex
     );
     if (invalidIndices.length > 0) {
-      throw new Error(
+      throw new ValidationError(
         `Invalid insertion indices: ${invalidIndices.join(', ')}`
       );
     }

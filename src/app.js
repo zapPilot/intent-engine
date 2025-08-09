@@ -6,9 +6,10 @@ const corsMiddleware = require('./middleware/cors');
 const errorHandler = require('./middleware/errorHandler');
 const swapRoutes = require('./routes/swap');
 const intentRoutes = require('./routes/intents');
+const appConfig = require('./config/appConfig');
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = appConfig.server.port;
 
 // Middleware
 app.use(corsMiddleware);
@@ -49,7 +50,7 @@ app.use(errorHandler);
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Intent Engine Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Environment: ${appConfig.server.env}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
     console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
     console.log(`Supported DEX providers: 1inch, paraswap, 0x`);
