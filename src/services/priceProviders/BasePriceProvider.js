@@ -17,6 +17,15 @@ class BasePriceProvider {
   }
 
   /**
+   * Indicates whether this provider is available for use.
+   * Subclasses can override to add stricter checks (e.g., API key required).
+   * @returns {boolean}
+   */
+  isAvailable() {
+    return true;
+  }
+
+  /**
    * Get price for a single token - must be implemented by subclasses
    * @param {string} symbol - Token symbol
    * @param {Object} _options - Request options
@@ -156,6 +165,19 @@ class BasePriceProvider {
         ...headers,
         ...config.headers,
       },
+    };
+  }
+
+  /**
+   * Basic status information. Subclasses may override/extend.
+   * @returns {Object}
+   */
+  getStatus() {
+    return {
+      name: this.name,
+      available: this.isAvailable(),
+      requiresApiKey: false,
+      hasApiKey: !!this.apiKey,
     };
   }
 }
