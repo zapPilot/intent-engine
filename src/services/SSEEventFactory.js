@@ -295,14 +295,16 @@ class SSEEventFactory {
     // Validate specific event types
     switch (event.type) {
       case SSE_EVENT_TYPES.TOKEN_READY:
-      case SSE_EVENT_TYPES.TOKEN_FAILED:
-        return (
+      case SSE_EVENT_TYPES.TOKEN_FAILED: {
+        const tokenValidation = !!(
           event.tokenSymbol &&
           event.tokenAddress &&
           typeof event.tokenIndex === 'number' &&
           typeof event.processedTokens === 'number' &&
           typeof event.totalTokens === 'number'
         );
+        return tokenValidation;
+      }
 
       case SSE_EVENT_TYPES.COMPLETE:
         return (

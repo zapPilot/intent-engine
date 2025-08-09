@@ -12,6 +12,9 @@ module.exports = {
   // Setup file for console mocking and test utilities (Option 2)
   setupFilesAfterEnv: ['<rootDir>/test/setup.js'],
 
+  // Global teardown for cleaning up resources
+  globalTeardown: '<rootDir>/test/globalTeardown.js',
+
   // Test file patterns
   testMatch: ['<rootDir>/test/**/*.test.js'],
 
