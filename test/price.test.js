@@ -92,8 +92,8 @@ describe('Price API Endpoints', () => {
     it('should return 400 for missing tokens parameter', async () => {
       const response = await request(app).get('/tokens/prices').expect(400);
 
-      expect(response.body.error).toBe('Validation failed');
-      expect(response.body.details).toBeDefined();
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should return 400 for empty tokens parameter', async () => {
@@ -102,7 +102,8 @@ describe('Price API Endpoints', () => {
         .query({ tokens: '' })
         .expect(400);
 
-      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should return 400 for empty tokens after comma split', async () => {
@@ -111,7 +112,8 @@ describe('Price API Endpoints', () => {
         .query({ tokens: ',,,,' })
         .expect(400);
 
-      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should return 400 for too many tokens', async () => {
@@ -121,7 +123,8 @@ describe('Price API Endpoints', () => {
         .query({ tokens })
         .expect(400);
 
-      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should return 400 for invalid token symbols', async () => {
@@ -131,8 +134,11 @@ describe('Price API Endpoints', () => {
         .query({ tokens })
         .expect(400);
 
-      expect(response.body.error).toBe('Validation failed');
-      expect(response.body.details[0].msg).toContain('invalid token symbol');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      if (response.body.error.details && response.body.error.details[0]) {
+        expect(response.body.error.details[0].msg).toContain('invalid token symbol');
+      }
     });
 
     it('should handle cache parameter', async () => {

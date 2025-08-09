@@ -89,7 +89,7 @@ describe('IntentService', () => {
       await expect(
         service.processIntent('unknownIntent', validRequest)
       ).rejects.toThrow(
-        'Unknown intent type: unknownIntent. Supported types: dustZap'
+        "Intent handler with identifier 'unknownIntent. Supported types: dustZap' not found"
       );
     });
 

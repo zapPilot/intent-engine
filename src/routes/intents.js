@@ -581,22 +581,20 @@ router.post(
 
         // Rebalance operation not yet implemented
         else if (operation === 'rebalance') {
-          const { AppError } = require('../utils/errors');
-          throw new AppError(
-            'Rebalance operation not yet implemented',
-            501,
-            'NOT_IMPLEMENTED'
-          );
+          results.operations.rebalance = {
+            success: false,
+            error: 'Rebalance operation not yet implemented',
+            code: 'NOT_IMPLEMENTED',
+          };
         }
 
         // Compound operation not yet implemented
         else if (operation === 'compound') {
-          const { AppError } = require('../utils/errors');
-          throw new AppError(
-            'Compound operation not yet implemented',
-            501,
-            'NOT_IMPLEMENTED'
-          );
+          results.operations.compound = {
+            success: false,
+            error: 'Compound operation not yet implemented',
+            code: 'NOT_IMPLEMENTED',
+          };
         }
       }
 

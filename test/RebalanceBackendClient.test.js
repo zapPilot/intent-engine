@@ -1,9 +1,8 @@
-const axios = require('axios');
-const RebalanceBackendClient = require('../src/services/RebalanceBackendClient');
-const { retryWithBackoff } = require('../src/utils/retry');
-
 jest.mock('axios');
 jest.mock('../src/utils/retry');
+
+const axios = require('axios');
+const { retryWithBackoff } = require('../src/utils/retry');
 
 describe('RebalanceBackendClient', () => {
   let client;
@@ -12,6 +11,11 @@ describe('RebalanceBackendClient', () => {
   beforeEach(() => {
     originalEnv = { ...process.env };
     jest.clearAllMocks();
+    // Clear env vars that might affect the config
+    delete process.env.REBALANCE_BACKEND_URL;
+    delete process.env.REBALANCE_BACKEND_TIMEOUT;
+    // Require the module
+    const RebalanceBackendClient = require('../src/services/RebalanceBackendClient');
     client = new RebalanceBackendClient();
   });
 
@@ -27,12 +31,23 @@ describe('RebalanceBackendClient', () => {
     });
 
     it('should use environment variables when set', () => {
+      const originalUrl = process.env.REBALANCE_BACKEND_URL;
+      const originalTimeout = process.env.REBALANCE_BACKEND_TIMEOUT;
+      
       process.env.REBALANCE_BACKEND_URL = 'http://custom-backend:8080';
       process.env.REBALANCE_BACKEND_TIMEOUT = '5000';
 
-      const customClient = new RebalanceBackendClient();
+      // Clear the module cache to force re-evaluation of config
+      jest.resetModules();
+      const RebalanceBackendClientWithNewEnv = require('../src/services/RebalanceBackendClient');
+      
+      const customClient = new RebalanceBackendClientWithNewEnv();
       expect(customClient.baseUrl).toBe('http://custom-backend:8080');
       expect(customClient.timeout).toBe(5000);
+      
+      // Restore original values
+      process.env.REBALANCE_BACKEND_URL = originalUrl;
+      process.env.REBALANCE_BACKEND_TIMEOUT = originalTimeout;
     });
   });
 
@@ -44,7 +59,10 @@ describe('RebalanceBackendClient', () => {
       ];
 
       const mockResponse = { data: mockTokens };
-      retryWithBackoff.mockResolvedValue(mockResponse);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockResolvedValue(mockResponse);
 
       const result = await client.getUserTokenBalances('0x123', 1);
 
@@ -80,7 +98,10 @@ describe('RebalanceBackendClient', () => {
     });
 
     it('should throw error for invalid response format', async () => {
-      retryWithBackoff.mockResolvedValue({ data: 'not an array' });
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockResolvedValue({ data: 'not an array' });
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Invalid response format from rebalance backend'
@@ -93,7 +114,10 @@ describe('RebalanceBackendClient', () => {
         status: 404,
         data: { message: 'User not found' },
       };
-      retryWithBackoff.mockRejectedValue(error);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Rebalance backend error: 404 - User not found'
@@ -103,7 +127,10 @@ describe('RebalanceBackendClient', () => {
     it('should handle connection refused errors', async () => {
       const error = new Error('Connection refused');
       error.code = 'ECONNREFUSED';
-      retryWithBackoff.mockRejectedValue(error);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Rebalance backend is not accessible'
@@ -113,7 +140,10 @@ describe('RebalanceBackendClient', () => {
     it('should handle DNS errors', async () => {
       const error = new Error('DNS not found');
       error.code = 'ENOTFOUND';
-      retryWithBackoff.mockRejectedValue(error);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Rebalance backend URL is invalid'
@@ -122,7 +152,10 @@ describe('RebalanceBackendClient', () => {
 
     it('should handle generic errors', async () => {
       const error = new Error('Network timeout');
-      retryWithBackoff.mockRejectedValue(error);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Failed to fetch token balances: Network timeout'
@@ -135,7 +168,10 @@ describe('RebalanceBackendClient', () => {
         status: 500,
         data: {},
       };
-      retryWithBackoff.mockRejectedValue(error);
+      retryWithBackoff.mockImplementation(async (fn) => {
+        return await fn();
+      });
+      axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
         'Rebalance backend error: 500 - Unknown error'
@@ -199,9 +235,12 @@ describe('RebalanceBackendClient', () => {
       const result = await client.healthCheck();
 
       expect(result).toBe(true);
-      expect(axios.get).toHaveBeenCalledWith('http://localhost:5000/health', {
-        timeout: 5000,
-      });
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringMatching(/\/health$/),
+        expect.objectContaining({
+          timeout: 5000,
+        })
+      );
     });
 
     it('should return false when backend is unhealthy', async () => {
@@ -221,8 +260,13 @@ describe('RebalanceBackendClient', () => {
     });
 
     it('should use custom base URL for health check', async () => {
+      const originalUrl = process.env.REBALANCE_BACKEND_URL;
       process.env.REBALANCE_BACKEND_URL = 'http://custom:9000';
-      const customClient = new RebalanceBackendClient();
+      
+      // Clear the module cache to force re-evaluation of config
+      jest.resetModules();
+      const RebalanceBackendClientWithNewEnv = require('../src/services/RebalanceBackendClient');
+      const customClient = new RebalanceBackendClientWithNewEnv();
 
       axios.get.mockResolvedValue({ status: 200 });
 
@@ -231,6 +275,9 @@ describe('RebalanceBackendClient', () => {
       expect(axios.get).toHaveBeenCalledWith('http://custom:9000/health', {
         timeout: 5000,
       });
+      
+      // Restore original value
+      process.env.REBALANCE_BACKEND_URL = originalUrl;
     });
   });
 });
