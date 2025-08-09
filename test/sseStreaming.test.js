@@ -30,12 +30,9 @@ describe('SSE Streaming Functionality', () => {
   });
 
   afterEach(() => {
-    // Clean up any timers or contexts
-    handler.executionContexts.clear();
-
-    // Clear any intervals to prevent Jest warnings
-    if (handler.cleanupTimer) {
-      clearInterval(handler.cleanupTimer);
+    // Clean up the handler to stop the timer
+    if (handler) {
+      handler.cleanup();
     }
   });
 

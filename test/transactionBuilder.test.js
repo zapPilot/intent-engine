@@ -274,4 +274,350 @@ describe('TransactionBuilder', () => {
       expect(transactions[1].description).toContain('ERC20 transfer');
     });
   });
+
+  describe('clear', () => {
+    it('should clear all transactions', () => {
+      builder
+        .addTransaction({
+          to: '0x1234567890123456789012345678901234567890',
+          value: '1000',
+        })
+        .addTransaction({
+          to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          value: '2000',
+        });
+
+      expect(builder.getTransactionCount()).toBe(2);
+
+      const result = builder.clear();
+
+      expect(builder.getTransactionCount()).toBe(0);
+      expect(builder.getTransactions()).toEqual([]);
+      expect(result).toBe(builder); // Should support chaining
+    });
+  });
+
+  describe('getTransactionCount', () => {
+    it('should return correct transaction count', () => {
+      expect(builder.getTransactionCount()).toBe(0);
+
+      builder.addTransaction({
+        to: '0x1234567890123456789012345678901234567890',
+      });
+
+      expect(builder.getTransactionCount()).toBe(1);
+
+      builder.addTransaction({
+        to: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      });
+
+      expect(builder.getTransactionCount()).toBe(2);
+    });
+  });
+
+  describe('insertTransactionsAtIndices', () => {
+    beforeEach(() => {
+      // Add some initial transactions
+      builder
+        .addTransaction({
+          to: '0x1111111111111111111111111111111111111111',
+          description: 'Transaction 1',
+        })
+        .addTransaction({
+          to: '0x2222222222222222222222222222222222222222',
+          description: 'Transaction 2',
+        })
+        .addTransaction({
+          to: '0x3333333333333333333333333333333333333333',
+          description: 'Transaction 3',
+        });
+    });
+
+    it('should insert transactions at specified indices', () => {
+      const newTransactions = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          value: '100',
+          description: 'Insert A',
+          gasLimit: '21000',
+        },
+        {
+          to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          value: '200',
+          description: 'Insert B',
+          gasLimit: '21000',
+        },
+      ];
+
+      builder.insertTransactionsAtIndices(newTransactions, [1, 3]);
+
+      const transactions = builder.getTransactions();
+      expect(transactions).toHaveLength(5);
+      expect(transactions[1].description).toBe('Insert A');
+      expect(transactions[4].description).toBe('Insert B');
+    });
+
+    it('should throw error if transaction count does not match insertion points', () => {
+      const newTransactions = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          value: '100',
+        },
+      ];
+
+      expect(() =>
+        builder.insertTransactionsAtIndices(newTransactions, [1, 2])
+      ).toThrow('Number of transactions must match number of insertion points');
+    });
+
+    it('should throw error for invalid insertion indices', () => {
+      const newTransactions = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          value: '100',
+        },
+        {
+          to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          value: '200',
+        },
+      ];
+
+      expect(() =>
+        builder.insertTransactionsAtIndices(newTransactions, [-1, 5])
+      ).toThrow('Invalid insertion indices: -1, 5');
+    });
+
+    it('should handle insertion at beginning and end', () => {
+      const newTransactions = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          value: '100',
+          description: 'Insert at start',
+          gasLimit: '21000',
+        },
+        {
+          to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          value: '200',
+          description: 'Insert at end',
+          gasLimit: '21000',
+        },
+      ];
+
+      builder.insertTransactionsAtIndices(newTransactions, [0, 3]);
+
+      const transactions = builder.getTransactions();
+      expect(transactions).toHaveLength(5);
+      expect(transactions[0].description).toBe('Insert at start');
+      expect(transactions[4].description).toBe('Insert at end');
+    });
+
+    it('should support method chaining', () => {
+      const result = builder.insertTransactionsAtIndices(
+        [
+          {
+            to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            value: '100',
+            gasLimit: '21000',
+          },
+        ],
+        [1]
+      );
+
+      expect(result).toBe(builder);
+    });
+  });
+
+  describe('createFeeTransactionObjects', () => {
+    it('should create fee transaction objects from fee data', () => {
+      const feeTransactions = [
+        {
+          recipient: '0x1111111111111111111111111111111111111111',
+          amount: '1000000000000000',
+          description: 'Platform fee',
+        },
+        {
+          recipient: '0x2222222222222222222222222222222222222222',
+          amount: '2000000000000000',
+          // No description provided
+        },
+      ];
+
+      const result = builder.createFeeTransactionObjects(feeTransactions);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        to: '0x1111111111111111111111111111111111111111',
+        value: '1000000000000000',
+        description: 'Platform fee',
+        gasLimit: '21000',
+      });
+      expect(result[1]).toEqual({
+        to: '0x2222222222222222222222222222222222222222',
+        value: '2000000000000000',
+        description: 'Fee payment',
+        gasLimit: '21000',
+      });
+    });
+
+    it('should handle BigInt amounts', () => {
+      const feeTransactions = [
+        {
+          recipient: '0x1111111111111111111111111111111111111111',
+          amount: BigInt('1000000000000000'),
+        },
+      ];
+
+      const result = builder.createFeeTransactionObjects(feeTransactions);
+
+      expect(result[0].value).toBe('1000000000000000');
+    });
+  });
+
+  describe('insertFeeTransactionsRandomly', () => {
+    beforeEach(() => {
+      // Add some initial transactions
+      builder
+        .addTransaction({
+          to: '0x1111111111111111111111111111111111111111',
+          description: 'Transaction 1',
+        })
+        .addTransaction({
+          to: '0x2222222222222222222222222222222222222222',
+          description: 'Transaction 2',
+        });
+    });
+
+    it('should insert fee transactions at specified points', () => {
+      const feeTransactionData = [
+        {
+          recipient: '0xfee1111111111111111111111111111111111111',
+          amount: '1000000000000000',
+          description: 'Fee 1',
+        },
+        {
+          recipient: '0xfee2222222222222222222222222222222222222',
+          amount: '2000000000000000',
+          description: 'Fee 2',
+        },
+      ];
+
+      builder.insertFeeTransactionsRandomly(feeTransactionData, [0, 2]);
+
+      const transactions = builder.getTransactions();
+      expect(transactions).toHaveLength(4);
+      expect(transactions[0].description).toBe('Fee 1');
+      expect(transactions[3].description).toBe('Fee 2');
+    });
+
+    it('should support method chaining', () => {
+      const result = builder.insertFeeTransactionsRandomly(
+        [
+          {
+            recipient: '0xfee1111111111111111111111111111111111111',
+            amount: '1000000000000000',
+          },
+        ],
+        [1]
+      );
+
+      expect(result).toBe(builder);
+    });
+  });
+
+  describe('getTransactionAt', () => {
+    beforeEach(() => {
+      builder
+        .addTransaction({
+          to: '0x1111111111111111111111111111111111111111',
+          value: '1000',
+          description: 'Transaction 1',
+        })
+        .addTransaction({
+          to: '0x2222222222222222222222222222222222222222',
+          value: '2000',
+          description: 'Transaction 2',
+        });
+    });
+
+    it('should return transaction at valid index', () => {
+      const tx = builder.getTransactionAt(0);
+      expect(tx).toEqual({
+        to: '0x1111111111111111111111111111111111111111',
+        value: '1000',
+        description: 'Transaction 1',
+        gasLimit: '21000',
+      });
+    });
+
+    it('should return null for negative index', () => {
+      const tx = builder.getTransactionAt(-1);
+      expect(tx).toBeNull();
+    });
+
+    it('should return null for index out of bounds', () => {
+      const tx = builder.getTransactionAt(5);
+      expect(tx).toBeNull();
+    });
+
+    it('should return a copy of the transaction', () => {
+      const tx = builder.getTransactionAt(0);
+      tx.value = '5000'; // Modify the returned object
+
+      // Original should be unchanged
+      const original = builder.getTransactionAt(0);
+      expect(original.value).toBe('1000');
+    });
+  });
+
+  describe('removeTransactionAt', () => {
+    beforeEach(() => {
+      builder
+        .addTransaction({
+          to: '0x1111111111111111111111111111111111111111',
+          description: 'Transaction 1',
+        })
+        .addTransaction({
+          to: '0x2222222222222222222222222222222222222222',
+          description: 'Transaction 2',
+        })
+        .addTransaction({
+          to: '0x3333333333333333333333333333333333333333',
+          description: 'Transaction 3',
+        });
+    });
+
+    it('should remove transaction at valid index', () => {
+      builder.removeTransactionAt(1);
+
+      const transactions = builder.getTransactions();
+      expect(transactions).toHaveLength(2);
+      expect(transactions[0].description).toBe('Transaction 1');
+      expect(transactions[1].description).toBe('Transaction 3');
+    });
+
+    it('should handle negative index gracefully', () => {
+      builder.removeTransactionAt(-1);
+      expect(builder.getTransactionCount()).toBe(3); // No change
+    });
+
+    it('should handle out of bounds index gracefully', () => {
+      builder.removeTransactionAt(10);
+      expect(builder.getTransactionCount()).toBe(3); // No change
+    });
+
+    it('should support method chaining', () => {
+      const result = builder.removeTransactionAt(1);
+      expect(result).toBe(builder);
+    });
+
+    it('should handle removing all transactions', () => {
+      builder
+        .removeTransactionAt(2)
+        .removeTransactionAt(1)
+        .removeTransactionAt(0);
+
+      expect(builder.getTransactionCount()).toBe(0);
+      expect(builder.getTransactions()).toEqual([]);
+    });
+  });
 });

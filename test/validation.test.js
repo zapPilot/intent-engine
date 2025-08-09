@@ -18,6 +18,7 @@ describe('DustZapIntentHandler Validation', () => {
   });
 
   afterEach(() => {
+    // Clean up the handler to stop the timer
     if (handler) {
       handler.cleanup();
     }
