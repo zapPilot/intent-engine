@@ -59,9 +59,7 @@ describe('RebalanceBackendClient', () => {
       ];
 
       const mockResponse = { data: mockTokens };
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockResolvedValue(mockResponse);
 
       const result = await client.getUserTokenBalances('0x123', 1);
@@ -76,10 +74,7 @@ describe('RebalanceBackendClient', () => {
 
     it('should construct correct URL for different chains', async () => {
       const mockResponse = { data: [] };
-      retryWithBackoff.mockImplementation(async fn => {
-        const result = await fn();
-        return result;
-      });
+      retryWithBackoff.mockImplementation(fn => fn());
 
       axios.get.mockResolvedValue(mockResponse);
 
@@ -98,9 +93,7 @@ describe('RebalanceBackendClient', () => {
     });
 
     it('should throw error for invalid response format', async () => {
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockResolvedValue({ data: 'not an array' });
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
@@ -114,9 +107,7 @@ describe('RebalanceBackendClient', () => {
         status: 404,
         data: { message: 'User not found' },
       };
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
@@ -127,9 +118,7 @@ describe('RebalanceBackendClient', () => {
     it('should handle connection refused errors', async () => {
       const error = new Error('Connection refused');
       error.code = 'ECONNREFUSED';
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
@@ -140,9 +129,7 @@ describe('RebalanceBackendClient', () => {
     it('should handle DNS errors', async () => {
       const error = new Error('DNS not found');
       error.code = 'ENOTFOUND';
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
@@ -152,9 +139,7 @@ describe('RebalanceBackendClient', () => {
 
     it('should handle generic errors', async () => {
       const error = new Error('Network timeout');
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(
@@ -168,9 +153,7 @@ describe('RebalanceBackendClient', () => {
         status: 500,
         data: {},
       };
-      retryWithBackoff.mockImplementation(async (fn) => {
-        return await fn();
-      });
+      retryWithBackoff.mockImplementation((fn) => fn());
       axios.get.mockRejectedValue(error);
 
       await expect(client.getUserTokenBalances('0x123', 1)).rejects.toThrow(

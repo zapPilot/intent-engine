@@ -8,7 +8,6 @@ const app = require('../src/app');
 const intentRoutes = require('../src/routes/intents');
 const {
   TEST_DATA,
-  expectValidResponse,
   expectErrorResponse,
 } = require('./utils/testHelpers');
 
