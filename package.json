@@ -67,8 +67,7 @@
   "lint-staged": {
     "**/*.js": [
       "eslint --fix",
-      "prettier --write",
-      "npm run test:coverage"
+      "prettier --write"
     ],
     "**/*.{json,md}": [
       "prettier --write"
