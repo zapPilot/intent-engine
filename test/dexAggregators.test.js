@@ -13,8 +13,11 @@ describe('DEX Aggregator Services', () => {
   describe('OneInchService', () => {
     let service;
 
+    let http;
     beforeEach(() => {
       process.env.ONE_INCH_API_KEY = 'test-api-key';
+      http = { get: jest.fn() };
+      axios.create = jest.fn(() => http);
       service = new OneInchService();
     });
 
@@ -46,11 +49,11 @@ describe('DEX Aggregator Services', () => {
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        http.get.mockResolvedValueOnce(mockResponse);
 
         const result = await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
+        expect(http.get).toHaveBeenCalledWith(
           'https://api.1inch.dev/swap/v5.2/1/swap',
           expect.objectContaining({
             headers: {
@@ -84,7 +87,7 @@ describe('DEX Aggregator Services', () => {
           slippage: 0.5,
         };
 
-        axios.get.mockResolvedValueOnce({
+        http.get.mockResolvedValueOnce({
           data: {
             toAmount: '1000000000000000000',
             tx: {
@@ -98,7 +101,7 @@ describe('DEX Aggregator Services', () => {
 
         await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
+        expect(http.get).toHaveBeenCalledWith(
           expect.any(String),
           expect.objectContaining({
             params: expect.objectContaining({
@@ -121,7 +124,7 @@ describe('DEX Aggregator Services', () => {
 
         const error = new Error('API Error');
         error.response = { status: 400, data: { error: 'Bad Request' } };
-        axios.get.mockRejectedValueOnce(error);
+        http.get.mockRejectedValueOnce(error);
 
         await expect(service.getSwapData(params)).rejects.toThrow('API Error');
       });
@@ -132,7 +135,11 @@ describe('DEX Aggregator Services', () => {
     let service;
 
     beforeEach(() => {
+      const instance = { get: jest.fn() };
+      axios.create = jest.fn(() => instance);
       service = new ParaSwapService();
+      // expose for tests below
+      service.__http = instance;
     });
 
     describe('getSwapData', () => {
@@ -167,12 +174,12 @@ describe('DEX Aggregator Services', () => {
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        service.__http.get.mockResolvedValueOnce(mockResponse);
 
         const result = await service.getSwapData(params);
 
         // Check API call
-        expect(axios.get).toHaveBeenCalledWith(
+        expect(service.__http.get).toHaveBeenCalledWith(
           'https://api.paraswap.io/swap',
           expect.objectContaining({
             headers: {
@@ -208,7 +215,7 @@ describe('DEX Aggregator Services', () => {
           slippage: 100,
         };
 
-        axios.get.mockRejectedValueOnce(new Error('Price API Error'));
+        service.__http.get.mockRejectedValueOnce(new Error('Price API Error'));
 
         await expect(service.getSwapData(params)).rejects.toThrow(
           'Price API Error'
@@ -222,7 +229,10 @@ describe('DEX Aggregator Services', () => {
 
     beforeEach(() => {
       process.env.ZEROX_API_KEY = 'test-0x-key';
+      const instance = { get: jest.fn() };
+      axios.create = jest.fn(() => instance);
       service = new ZeroXService();
+      service.__http = instance;
     });
 
     describe('getSwapData', () => {
@@ -254,11 +264,11 @@ describe('DEX Aggregator Services', () => {
           },
         };
 
-        axios.get.mockResolvedValueOnce(mockResponse);
+        service.__http.get.mockResolvedValueOnce(mockResponse);
 
         const result = await service.getSwapData(params);
 
-        expect(axios.get).toHaveBeenCalledWith(
+        expect(service.__http.get).toHaveBeenCalledWith(
           'https://api.0x.org/swap/allowance-holder/quote',
           expect.objectContaining({
             headers: {
@@ -292,7 +302,7 @@ describe('DEX Aggregator Services', () => {
 
         const error = new Error('0x API Error');
         error.response = { status: 429, data: { reason: 'Rate limited' } };
-        axios.get.mockRejectedValueOnce(error);
+        service.__http.get.mockRejectedValueOnce(error);
 
         await expect(service.getSwapData(params)).rejects.toThrow(
           '0x API Error'
