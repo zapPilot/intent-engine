@@ -1,4 +1,3 @@
-const axios = require('axios');
 const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
@@ -59,22 +58,26 @@ class OneInchService extends BaseDexAggregator {
         'liquidity-sources': excludedProtocols.join(','),
       },
     };
-    const response = await axios.get(apiUrl, requestConfig);
-    const data = response.data;
+    try {
+      const response = await this.http.get(apiUrl, requestConfig);
+      const data = response.data;
 
-    const gasCostUSD = this.calcGasCostUSDFromTx(data.tx, ethPrice);
+      const gasCostUSD = this.calcGasCostUSDFromTx(data.tx, ethPrice);
 
-    return {
-      approve_to: data.tx.to,
-      to: data.tx.to,
-      toAmount: data.toAmount,
-      minToAmount: this.getMinToAmount(data.toAmount, slippage),
-      data: data.tx.data,
-      gasCostUSD: gasCostUSD,
-      gas: parseInt(data.tx.gasPrice),
-      custom_slippage: slippage,
-      toUsd: this.toUsd(data.toAmount, toTokenPrice, toTokenDecimals),
-    };
+      return {
+        approve_to: data.tx.to,
+        to: data.tx.to,
+        toAmount: data.toAmount,
+        minToAmount: this.getMinToAmount(data.toAmount, slippage),
+        data: data.tx.data,
+        gasCostUSD: gasCostUSD,
+        gas: parseInt(data.tx.gasPrice),
+        custom_slippage: slippage,
+        toUsd: this.toUsd(data.toAmount, toTokenPrice, toTokenDecimals),
+      };
+    } catch (error) {
+      throw this.normalizeError(error, '1inch');
+    }
   }
 }
 

@@ -1,4 +1,3 @@
-const axios = require('axios');
 const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
@@ -47,27 +46,31 @@ class ZeroXService extends BaseDexAggregator {
       },
     };
 
-    const response = await axios.get(this.baseURL, requestConfig);
-    if (response.data.liquidityAvailable === false) {
-      const err = new Error('liquidityAvailable: false');
-      err.liquidityAvailable = false; // Custom property for retry strategy
-      throw err;
+    try {
+      const response = await this.http.get(this.baseURL, requestConfig);
+      if (response.data.liquidityAvailable === false) {
+        const err = new Error('liquidityAvailable: false');
+        err.liquidityAvailable = false; // Custom property for retry strategy
+        throw err;
+      }
+      const data = response.data;
+
+      const gasCostUSD = this.calcGasCostUSDFromTx(data.transaction, ethPrice);
+
+      return {
+        toAmount: data.buyAmount,
+        minToAmount: this.getMinToAmount(data.buyAmount, slippage),
+        data: data.transaction.data,
+        to: data.transaction.to,
+        approve_to: data.transaction.to,
+        gasCostUSD: gasCostUSD,
+        gas: parseInt(data.transaction.gas),
+        custom_slippage: customSlippage,
+        toUsd: this.toUsd(data.buyAmount, toTokenPrice, toTokenDecimals),
+      };
+    } catch (error) {
+      throw this.normalizeError(error, '0x');
     }
-    const data = response.data;
-
-    const gasCostUSD = this.calcGasCostUSDFromTx(data.transaction, ethPrice);
-
-    return {
-      toAmount: data.buyAmount,
-      minToAmount: this.getMinToAmount(data.buyAmount, slippage),
-      data: data.transaction.data,
-      to: data.transaction.to,
-      approve_to: data.transaction.to,
-      gasCostUSD: gasCostUSD,
-      gas: parseInt(data.transaction.gas),
-      custom_slippage: customSlippage,
-      toUsd: this.toUsd(data.buyAmount, toTokenPrice, toTokenDecimals),
-    };
   }
 
   /**

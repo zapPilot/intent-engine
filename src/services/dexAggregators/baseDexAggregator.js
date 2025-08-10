@@ -68,6 +68,64 @@ class BaseDexAggregator {
     }
     return (amt * pr) / Math.pow(10, dec);
   }
+
+  /**
+   * Basic error normalization for HTTP/API errors.
+   * Returns an Error with a normalized message and code property.
+   * @param {any} error - Raw error from axios or other sources
+   * @param {string} provider - Provider name for context
+   * @returns {Error}
+   */
+  normalizeError(error, provider = 'aggregator') {
+    const status = error?.response?.status;
+    const originalMsg = error?.message || String(error);
+
+    let code = 'UNKNOWN_ERROR';
+    if (status === 429 || /rate limit|quota/i.test(originalMsg)) {
+      code = 'RATE_LIMITED';
+    } else if (status && status >= 500) {
+      code = 'UPSTREAM_ERROR';
+    } else if (/liquidity|insufficient/i.test(originalMsg)) {
+      code = 'NO_LIQUIDITY';
+    } else if (/timeout|network|ECONN/i.test(originalMsg)) {
+      code = 'NETWORK_ERROR';
+    } else if (/unsupported|not found|invalid token/i.test(originalMsg)) {
+      code = 'UNSUPPORTED_TOKEN';
+    }
+
+    const err = new Error(originalMsg);
+    err.code = code;
+    err.provider = provider;
+    err.status = status;
+    // Preserve important original fields for compatibility with retry strategies
+    if (error && typeof error === 'object') {
+      if (error.response) {
+        err.response = error.response;
+      }
+      if (Object.prototype.hasOwnProperty.call(error, 'liquidityAvailable')) {
+        err.liquidityAvailable = error.liquidityAvailable;
+      }
+      // keep original as cause-like field for debugging
+      err.original = error;
+    }
+    return err;
+  }
+
+  /**
+   * Shared axios client with sane defaults.
+   * Note: Individual services can still pass custom headers/params per request.
+   */
+  get http() {
+    if (!this._http) {
+      const axios = require('axios');
+      this._http = axios.create({
+        timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
+        maxBodyLength: 2 * 1024 * 1024,
+      });
+    }
+    return this._http;
+  }
 }
 
 module.exports = BaseDexAggregator;

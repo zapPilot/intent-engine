@@ -1,4 +1,3 @@
-const axios = require('axios');
 const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
@@ -60,26 +59,30 @@ class ParaswapService extends BaseDexAggregator {
         excludeDEXS: 'AugustusRFQ',
       },
     };
-    const response = await axios.get(this.baseURL, requestConfig);
-    const data = response.data;
+    try {
+      const response = await this.http.get(this.baseURL, requestConfig);
+      const data = response.data;
 
-    const gasCostUSD = parseFloat(data.priceRoute.gasCostUSD);
+      const gasCostUSD = parseFloat(data.priceRoute.gasCostUSD);
 
-    return {
-      approve_to: this.chainProxyMap[chainId],
-      to: data.txParams.to,
-      toAmount: data.priceRoute.destAmount,
-      minToAmount: this.getMinToAmount(data.priceRoute.destAmount, slippage),
-      data: data.txParams.data,
-      gasCostUSD: gasCostUSD,
-      gas: data.priceRoute.gasCost,
-      custom_slippage: customSlippage,
-      toUsd: this.toUsd(
-        data.priceRoute.destAmount,
-        toTokenPrice,
-        toTokenDecimals
-      ),
-    };
+      return {
+        approve_to: this.chainProxyMap[chainId],
+        to: data.txParams.to,
+        toAmount: data.priceRoute.destAmount,
+        minToAmount: this.getMinToAmount(data.priceRoute.destAmount, slippage),
+        data: data.txParams.data,
+        gasCostUSD: gasCostUSD,
+        gas: data.priceRoute.gasCost,
+        custom_slippage: customSlippage,
+        toUsd: this.toUsd(
+          data.priceRoute.destAmount,
+          toTokenPrice,
+          toTokenDecimals
+        ),
+      };
+    } catch (error) {
+      throw this.normalizeError(error, 'paraswap');
+    }
   }
 }
 
