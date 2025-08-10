@@ -24,12 +24,15 @@ module.exports = {
   // Coverage thresholds - Minimum acceptable coverage levels
   coverageThreshold: {
     global: {
-      branches: 8,
-      functions: 11,
-      lines: 21,
-      statements: 21,
+      branches: 80,
+      functions: 93,
+      lines: 89,
+      statements: 89,
     },
   },
+
+  // Emit summary file for scripts to consume
+  coverageReporters: ['text', 'json-summary', 'lcov'],
 
   // Verbose output for CI environments
   verbose: process.env.CI === 'true',

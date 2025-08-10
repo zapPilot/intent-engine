@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
-    "test:coverage": "NODE_ENV=test jest --coverage --detectOpenHandles --forceExit",
+    "test:coverage": "NODE_ENV=test jest --coverage --detectOpenHandles --forceExit; node scripts/update-coverage-thresholds.js",
     "test:debug": "NODE_ENV=test DEBUG_TESTS=true jest",
     "test:verbose": "NODE_ENV=test jest --verbose",
     "test:silent": "NODE_ENV=test jest --silent",
