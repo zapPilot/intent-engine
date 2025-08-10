@@ -16,6 +16,10 @@ jest.mock('../src/config/swaggerConfig', () => ({
 }));
 
 describe('App', () => {
+  // Clean up timers after each test to prevent Jest from hanging
+  afterEach(() => {
+    jest.clearAllTimers();
+  });
   describe('Health Check Endpoint', () => {
     it('should return healthy status', async () => {
       const response = await request(app).get('/health');

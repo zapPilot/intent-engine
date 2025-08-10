@@ -121,12 +121,21 @@ afterAll(() => {
   // Clear all timers and intervals to prevent Jest from hanging
   jest.clearAllTimers();
 
+  // Clear all module cache to ensure cleanup of any singleton instances
+  Object.keys(require.cache).forEach(key => {
+    if (!key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  });
+
   // Force garbage collection if available (Node.js specific)
   if (global.gc) {
     global.gc();
   }
 
   if (isDebugMode) {
-    originalConsole.info('🧹 Global cleanup: All timers cleared');
+    originalConsole.info(
+      '🧹 Global cleanup: All timers cleared and modules cache cleaned'
+    );
   }
 });

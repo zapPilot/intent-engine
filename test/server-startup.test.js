@@ -11,6 +11,10 @@ describe('Server Startup', () => {
     });
 
     let output = '';
+    const timeoutId = setTimeout(() => {
+      child.kill();
+      done(new Error('Server startup test timed out'));
+    }, 5000);
 
     child.stdout.on('data', data => {
       output += data.toString();
@@ -26,7 +30,8 @@ describe('Server Startup', () => {
         output.includes('Supported DEX providers: 1inch, paraswap, 0x') &&
         output.includes('Supported intents: dustZap')
       ) {
-        // Kill the child process
+        // Clear timeout and kill the child process
+        clearTimeout(timeoutId);
         child.kill();
 
         // Test passed
@@ -39,14 +44,9 @@ describe('Server Startup', () => {
     });
 
     child.on('error', error => {
+      clearTimeout(timeoutId);
       done(error);
     });
-
-    // Timeout after 5 seconds
-    setTimeout(() => {
-      child.kill();
-      done(new Error('Server startup test timed out'));
-    }, 5000);
   });
 
   it('should use default port when PORT env is not set', done => {
@@ -61,13 +61,18 @@ describe('Server Startup', () => {
     });
 
     let output = '';
+    const timeoutId = setTimeout(() => {
+      child.kill();
+      done(new Error('Server startup test timed out'));
+    }, 5000);
 
     child.stdout.on('data', data => {
       output += data.toString();
 
       // Check if server started with default port
       if (output.includes('🚀 Intent Engine Server running on port 3002')) {
-        // Kill the child process
+        // Clear timeout and kill the child process
+        clearTimeout(timeoutId);
         child.kill();
 
         // Test passed
@@ -80,13 +85,8 @@ describe('Server Startup', () => {
     });
 
     child.on('error', error => {
+      clearTimeout(timeoutId);
       done(error);
     });
-
-    // Timeout after 5 seconds
-    setTimeout(() => {
-      child.kill();
-      done(new Error('Server startup test timed out'));
-    }, 5000);
   });
 });

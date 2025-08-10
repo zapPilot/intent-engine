@@ -12,6 +12,9 @@ describe('RebalanceBackendClient', () => {
   beforeEach(() => {
     originalEnv = { ...process.env };
     jest.clearAllMocks();
+    // Ensure external env does not override defaults for tests
+    delete process.env.REBALANCE_BACKEND_URL;
+    delete process.env.REBALANCE_BACKEND_TIMEOUT;
     client = new RebalanceBackendClient();
   });
 
