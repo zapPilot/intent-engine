@@ -308,6 +308,31 @@ describe('DEX Aggregator Services', () => {
           '0x API Error'
         );
       });
+
+      it('should treat liquidityAvailable=false as no-liquidity error', async () => {
+        const params = {
+          chainId: 1,
+          fromTokenAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          toTokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          amount: '1000000000',
+          fromAddress: '0x123...',
+          slippage: 1,
+          ethPrice: 3000,
+          toTokenPrice: 3000,
+          toTokenDecimals: 18,
+        };
+
+        // 0x sometimes returns liquidityAvailable=false to indicate no routes
+        service.__http.get.mockResolvedValueOnce({
+          data: { liquidityAvailable: false },
+        });
+
+        await expect(service.getSwapData(params)).rejects.toMatchObject({
+          provider: '0x',
+          code: 'NO_LIQUIDITY',
+          liquidityAvailable: false,
+        });
+      });
     });
   });
 });

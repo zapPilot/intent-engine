@@ -68,7 +68,7 @@
     "**/*.js": [
       "eslint --fix",
       "prettier --write",
-      "jest --bail --findRelatedTests --coverage"
+      "npm run test:coverage"
     ],
     "**/*.{json,md}": [
       "prettier --write"

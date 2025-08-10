@@ -16,9 +16,37 @@ jest.mock('../src/config/swaggerConfig', () => ({
 }));
 
 describe('App', () => {
+  // Store reference to any intentService instances for cleanup
+  let isolatedIntentService;
+
   // Clean up timers after each test to prevent Jest from hanging
   afterEach(() => {
     jest.clearAllTimers();
+  });
+
+  // Clean up any isolated module instances and main intentService
+  afterAll(() => {
+    // Clean up the isolated intentService instance
+    if (
+      isolatedIntentService &&
+      typeof isolatedIntentService.cleanup === 'function'
+    ) {
+      isolatedIntentService.cleanup();
+    }
+
+    // Clean up the main intentService instance
+    try {
+      const intentRoutes = require('../src/routes/intents');
+      if (
+        intentRoutes.intentService &&
+        typeof intentRoutes.intentService.cleanup === 'function'
+      ) {
+        intentRoutes.intentService.cleanup();
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+      console.error('Error cleaning up intentService:', error);
+    }
   });
   describe('Health Check Endpoint', () => {
     it('should return healthy status', async () => {
@@ -72,6 +100,9 @@ describe('App', () => {
       // Re-require the module to test the condition
       jest.isolateModules(() => {
         require('../src/app');
+        // Capture isolated intentService for cleanup
+        const isolatedIntentRoutes = require('../src/routes/intents');
+        isolatedIntentService = isolatedIntentRoutes.intentService;
       });
 
       expect(mockListen).not.toHaveBeenCalled();
