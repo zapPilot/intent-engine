@@ -1,10 +1,12 @@
 const axios = require('axios');
+const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
  * 1inch DEX Aggregator Service
  */
-class OneInchService {
+class OneInchService extends BaseDexAggregator {
   constructor() {
+    super();
     this.baseURL = 'https://api.1inch.dev/swap';
     this.apiKey = process.env.ONE_INCH_API_KEY;
 
@@ -60,10 +62,7 @@ class OneInchService {
     const response = await axios.get(apiUrl, requestConfig);
     const data = response.data;
 
-    const gasCostUSD =
-      ((parseInt(data.tx.gas) * parseInt(data.tx.gasPrice)) /
-        Math.pow(10, 18)) *
-      ethPrice;
+    const gasCostUSD = this.calcGasCostUSDFromTx(data.tx, ethPrice);
 
     return {
       approve_to: data.tx.to,
@@ -74,22 +73,8 @@ class OneInchService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.tx.gasPrice),
       custom_slippage: slippage,
-      toUsd:
-        (parseInt(data.toAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.toUsd(data.toAmount, toTokenPrice, toTokenDecimals),
     };
-  }
-
-  /**
-   * Calculate minimum amount considering slippage
-   * @param {string} toAmount - Output amount
-   * @param {number} slippage - Slippage percentage
-   * @returns {number} - Minimum amount
-   */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
   }
 }
 

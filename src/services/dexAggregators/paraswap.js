@@ -1,10 +1,12 @@
 const axios = require('axios');
+const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
  * Paraswap DEX Aggregator Service
  */
-class ParaswapService {
+class ParaswapService extends BaseDexAggregator {
   constructor() {
+    super();
     this.baseURL = 'https://api.paraswap.io/swap';
 
     // Chain ID to Paraswap proxy address mapping
@@ -39,7 +41,7 @@ class ParaswapService {
     } = params;
 
     // Convert slippage to basis points (1% = 100 basis points)
-    const customSlippage = parseInt(parseFloat(slippage) * 100);
+    const customSlippage = this.slippageToBps(slippage);
 
     const requestConfig = {
       headers: {
@@ -72,22 +74,12 @@ class ParaswapService {
       gasCostUSD: gasCostUSD,
       gas: data.priceRoute.gasCost,
       custom_slippage: customSlippage,
-      toUsd:
-        (parseInt(data.priceRoute.destAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.toUsd(
+        data.priceRoute.destAmount,
+        toTokenPrice,
+        toTokenDecimals
+      ),
     };
-  }
-
-  /**
-   * Calculate minimum amount considering slippage
-   * @param {string} toAmount - Output amount
-   * @param {number} slippage - Slippage percentage
-   * @returns {number} - Minimum amount
-   */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
   }
 }
 

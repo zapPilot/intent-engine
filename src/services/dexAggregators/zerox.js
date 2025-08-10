@@ -1,10 +1,12 @@
 const axios = require('axios');
+const BaseDexAggregator = require('./baseDexAggregator');
 
 /**
  * 0x Protocol DEX Aggregator Service
  */
-class ZeroXService {
+class ZeroXService extends BaseDexAggregator {
   constructor() {
+    super();
     this.baseURL = 'https://api.0x.org/swap/allowance-holder/quote';
     this.apiKey = process.env.ZEROX_API_KEY;
   }
@@ -28,7 +30,7 @@ class ZeroXService {
     } = params;
 
     // Convert slippage to basis points (1% = 100 basis points)
-    const customSlippage = parseInt(parseFloat(slippage) * 100);
+    const customSlippage = this.slippageToBps(slippage);
 
     const requestConfig = {
       headers: {
@@ -53,10 +55,7 @@ class ZeroXService {
     }
     const data = response.data;
 
-    const gasCostUSD =
-      ((parseInt(data.transaction.gas) * parseInt(data.transaction.gasPrice)) /
-        Math.pow(10, 18)) *
-      ethPrice;
+    const gasCostUSD = this.calcGasCostUSDFromTx(data.transaction, ethPrice);
 
     return {
       toAmount: data.buyAmount,
@@ -67,9 +66,7 @@ class ZeroXService {
       gasCostUSD: gasCostUSD,
       gas: parseInt(data.transaction.gas),
       custom_slippage: customSlippage,
-      toUsd:
-        (parseInt(data.buyAmount) * toTokenPrice) /
-        Math.pow(10, toTokenDecimals),
+      toUsd: this.toUsd(data.buyAmount, toTokenPrice, toTokenDecimals),
     };
   }
 
@@ -79,11 +76,7 @@ class ZeroXService {
    * @param {number} slippage - Slippage percentage
    * @returns {number} - Minimum amount
    */
-  getMinToAmount(toAmount, slippage) {
-    return Math.floor(
-      (parseInt(toAmount) * (100 - parseFloat(slippage))) / 100
-    );
-  }
+  // min amount helper provided by base class
 }
 
 module.exports = ZeroXService;
