@@ -113,7 +113,22 @@ global.setTimeout = (fn, delay) => {
       originalConsole.warn(`⚠️  Long timeout detected: ${delay}ms`);
     }
   }
-  return originalTimeout(fn, delay);
+  const handle = originalTimeout(fn, delay);
+  // Prevent test-created timers from keeping the event loop alive
+  if (handle && typeof handle.unref === 'function') {
+    handle.unref();
+  }
+  return handle;
+};
+
+// Also ensure intervals don’t keep Jest alive
+const originalInterval = setInterval;
+global.setInterval = (fn, delay, ...args) => {
+  const handle = originalInterval(fn, delay, ...args);
+  if (handle && typeof handle.unref === 'function') {
+    handle.unref();
+  }
+  return handle;
 };
 
 // Global cleanup to prevent hanging tests
