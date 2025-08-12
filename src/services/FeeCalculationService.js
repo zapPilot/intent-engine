@@ -7,6 +7,7 @@ const feeConfig = require('../config/feeConfig');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const { TokenConfigService } = require('../config/tokenConfig');
+const FeeCalculationParams = require('../valueObjects/FeeCalculationParams');
 
 /**
  * Service responsible for all fee-related calculations and transaction generation
@@ -78,6 +79,36 @@ class FeeCalculationService {
       hasReferral: Boolean(referralAddress),
       feeTransactionCount: referralAddress ? 2 : 1,
     };
+  }
+
+  /**
+   * Create fee transactions using FeeCalculationParams (recommended approach)
+   * @param {FeeCalculationParams} params - Fee calculation parameters
+   * @returns {Object} - Fee amounts and transaction builder with fee transactions
+   */
+  createFeeTransactionsWithParams(params) {
+    if (!(params instanceof FeeCalculationParams)) {
+      throw new Error('Expected FeeCalculationParams instance');
+    }
+
+    const serviceParams = params.toServiceParams();
+
+    if (params.useWETHPattern) {
+      return this.createFeeTransactions(
+        serviceParams.totalValueUSD,
+        serviceParams.ethPrice,
+        serviceParams.chainId,
+        serviceParams.referralAddress,
+        serviceParams.txBuilder
+      );
+    } else {
+      return this.createETHFeeTransactions(
+        serviceParams.totalValueUSD,
+        serviceParams.ethPrice,
+        serviceParams.referralAddress,
+        serviceParams.txBuilder
+      );
+    }
   }
 
   /**

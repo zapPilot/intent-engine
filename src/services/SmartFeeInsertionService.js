@@ -6,6 +6,7 @@
 
 const crypto = require('crypto');
 const DUST_ZAP_CONFIG = require('../config/dustZapConfig');
+const InsertionStrategyParams = require('../valueObjects/InsertionStrategyParams');
 
 /**
  * Service responsible for calculating optimal fee transaction insertion points
@@ -172,6 +173,33 @@ class SmartFeeInsertionService {
     }
 
     return points;
+  }
+
+  /**
+   * Calculate insertion strategy using InsertionStrategyParams (recommended approach)
+   * @param {InsertionStrategyParams} params - Insertion strategy parameters
+   * @returns {Object} - Complete insertion strategy
+   */
+  calculateInsertionStrategyWithParams(params) {
+    if (!(params instanceof InsertionStrategyParams)) {
+      throw new Error('Expected InsertionStrategyParams instance');
+    }
+
+    const [
+      batches,
+      totalFeeETH,
+      totalTransactionCount,
+      feeTransactionCount,
+      options,
+    ] = params.toMethodParameters();
+
+    return this.calculateInsertionStrategy(
+      batches,
+      totalFeeETH,
+      totalTransactionCount,
+      feeTransactionCount,
+      options
+    );
   }
 
   /**
