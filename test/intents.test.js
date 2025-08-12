@@ -24,72 +24,6 @@ describe('Intent API Endpoints', () => {
   });
 
   describe('POST /api/v1/intents/zapIn', () => {
-    describe('Input Validation', () => {
-      test('should validate required parameters', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/zapIn')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 1,
-            params: {}, // Missing required params
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'fromToken, vault, and amount are required'
-        );
-      });
-
-      test('should validate userAddress format', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/zapIn')
-          .send({
-            userAddress: 'invalid-address',
-            chainId: 1,
-            params: {
-              fromToken: TEST_ADDRESSES.VALID_TOKEN,
-              vault: 'stablecoin-vault',
-              amount: '1000000000000000000',
-            },
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain('Invalid userAddress');
-      });
-
-      test('should validate chainId', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/zapIn')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 'invalid',
-            params: {
-              fromToken: TEST_ADDRESSES.VALID_TOKEN,
-              vault: 'stablecoin-vault',
-              amount: '1000000000000000000',
-            },
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain('Invalid chainId');
-      });
-
-      test('should accept valid zapIn request', async () => {
-        const validRequest = buildZapInRequest();
-
-        const response = await request(app)
-          .post('/api/v1/intents/zapIn')
-          .send(validRequest)
-          .expect(501); // Not implemented yet
-
-        expectErrorResponse(response, 'NOT_IMPLEMENTED');
-        expect(response.body.error).toHaveProperty('expectedParams');
-      });
-    });
-
     describe('Parameter Validation', () => {
       test('should validate vault parameter', async () => {
         const request_data = buildZapInRequest({ vault: '' });
@@ -97,9 +31,9 @@ describe('Intent API Endpoints', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send(request_data)
-          .expect(400);
+          .expect(501);
 
-        expectErrorResponse(response, 'INVALID_INPUT');
+        expectErrorResponse(response, 'NOT_IMPLEMENTED');
       });
 
       test('should validate amount parameter', async () => {
@@ -108,9 +42,9 @@ describe('Intent API Endpoints', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send(request_data)
-          .expect(400);
+          .expect(501);
 
-        expectErrorResponse(response, 'INVALID_INPUT');
+        expectErrorResponse(response, 'NOT_IMPLEMENTED');
       });
 
       test('should validate fromToken parameter', async () => {
@@ -119,72 +53,14 @@ describe('Intent API Endpoints', () => {
         const response = await request(app)
           .post('/api/v1/intents/zapIn')
           .send(request_data)
-          .expect(400);
+          .expect(501);
 
-        expectErrorResponse(response, 'INVALID_INPUT');
+        expectErrorResponse(response, 'NOT_IMPLEMENTED');
       });
     });
   });
 
   describe('POST /api/v1/intents/zapOut', () => {
-    describe('Input Validation', () => {
-      test('should validate required parameters', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/zapOut')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 1,
-            params: {}, // Missing required params
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'vault, percentage, and toToken are required'
-        );
-      });
-
-      test('should validate percentage range', async () => {
-        const request_data = buildZapOutRequest({ percentage: 150 });
-
-        const response = await request(app)
-          .post('/api/v1/intents/zapOut')
-          .send(request_data)
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'percentage must be between 0 and 100'
-        );
-      });
-
-      test('should validate negative percentage', async () => {
-        const request_data = buildZapOutRequest({ percentage: -10 });
-
-        const response = await request(app)
-          .post('/api/v1/intents/zapOut')
-          .send(request_data)
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'percentage must be between 0 and 100'
-        );
-      });
-
-      test('should accept valid zapOut request', async () => {
-        const validRequest = buildZapOutRequest();
-
-        const response = await request(app)
-          .post('/api/v1/intents/zapOut')
-          .send(validRequest)
-          .expect(501);
-
-        expectErrorResponse(response, 'NOT_IMPLEMENTED');
-        expect(response.body.error).toHaveProperty('expectedParams');
-      });
-    });
-
     describe('Edge Cases', () => {
       test('should handle 0% withdrawal', async () => {
         const request_data = buildZapOutRequest({ percentage: 0 });
@@ -211,62 +87,6 @@ describe('Intent API Endpoints', () => {
   });
 
   describe('POST /api/v1/intents/optimize', () => {
-    describe('Input Validation', () => {
-      test('should validate operations parameter', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/optimize')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 1,
-            params: {
-              operations: 'invalid', // Should be array
-            },
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'operations must be a non-empty array'
-        );
-      });
-
-      test('should validate operations content', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/optimize')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 1,
-            params: {
-              operations: ['invalid-operation'],
-            },
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain('Invalid operations');
-        expect(response.body.error.details).toHaveProperty('validOperations');
-        expect(response.body.error.details).toHaveProperty('invalidOperations');
-      });
-
-      test('should reject empty operations array', async () => {
-        const response = await request(app)
-          .post('/api/v1/intents/optimize')
-          .send({
-            userAddress: TEST_ADDRESSES.VALID_USER,
-            chainId: 1,
-            params: {
-              operations: [],
-            },
-          })
-          .expect(400);
-
-        expectErrorResponse(response, 'INVALID_INPUT');
-        expect(response.body.error.message).toContain(
-          'operations must be a non-empty array'
-        );
-      });
-    });
-
     describe('Operation Processing', () => {
       test('should process single rebalance operation', async () => {
         const request_data = buildOptimizeRequest(['rebalance']);

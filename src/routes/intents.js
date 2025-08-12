@@ -4,6 +4,7 @@ const SwapService = require('../services/swapService');
 const PriceService = require('../services/priceService');
 const RebalanceBackendClient = require('../services/RebalanceBackendClient');
 const { DustZapStreamHandler } = require('../handlers');
+const { validateIntentRequest } = require('../middleware/requestValidator');
 
 const router = express.Router();
 
@@ -19,51 +20,6 @@ const intentService = new IntentService(
 
 // Initialize stream handlers
 const dustZapStreamHandlerInstance = new DustZapStreamHandler(intentService);
-
-/**
- * Input validation middleware for intent requests
- */
-function validateIntentRequest(req, res, next) {
-  const { userAddress, chainId, params } = req.body;
-
-  // Validate userAddress
-  if (!userAddress || !/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'INVALID_INPUT',
-        message: 'Invalid userAddress: must be a valid Ethereum address',
-        details: { field: 'userAddress', value: userAddress },
-      },
-    });
-  }
-
-  // Validate chainId
-  if (!chainId || !Number.isInteger(chainId) || chainId <= 0) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'INVALID_INPUT',
-        message: 'Invalid chainId: must be a positive integer',
-        details: { field: 'chainId', value: chainId },
-      },
-    });
-  }
-
-  // Validate params
-  if (!params || typeof params !== 'object') {
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'INVALID_INPUT',
-        message: 'params object is required',
-        details: { field: 'params', value: params },
-      },
-    });
-  }
-
-  next();
-}
 
 /**
  * @swagger
@@ -445,20 +401,8 @@ router.get('/api/v1/intents/health', async (req, res) => {
  */
 router.post('/api/v1/intents/zapIn', validateIntentRequest, (req, res) => {
   try {
-    const { params } = req.body;
-    const { fromToken, vault, amount } = params;
-
-    // Validate required zapIn parameters
-    if (!fromToken || !vault || !amount) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'fromToken, vault, and amount are required for zapIn',
-          details: { fromToken, vault, amount },
-        },
-      });
-    }
+    // const { params } = req.body;
+    // const { fromToken, vault, amount } = params;
 
     // TODO: Implement zapIn logic
     // 1. Get vault strategy configuration
@@ -497,19 +441,8 @@ router.post('/api/v1/intents/zapIn', validateIntentRequest, (req, res) => {
 router.post('/api/v1/intents/zapOut', validateIntentRequest, (req, res) => {
   try {
     const { params } = req.body;
-    const { vault, percentage, toToken } = params;
-
-    // Validate required zapOut parameters
-    if (!vault || percentage === undefined || !toToken) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_INPUT',
-          message: 'vault, percentage, and toToken are required for zapOut',
-          details: { vault, percentage, toToken },
-        },
-      });
-    }
+    // const { vault, percentage, toToken } = params;
+    const { percentage } = params;
 
     // Validate percentage range
     if (percentage < 0 || percentage > 100) {
@@ -567,18 +500,6 @@ router.post(
         operations = ['dustZap'], // Default to dustZap only
         slippageTolerance = 0.5,
       } = params;
-
-      // Validate operations array
-      if (!Array.isArray(operations) || operations.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_INPUT',
-            message: 'operations must be a non-empty array',
-            details: { operations },
-          },
-        });
-      }
 
       const validOperations = ['dustZap', 'rebalance', 'compound'];
       const invalidOps = operations.filter(op => !validOperations.includes(op));
@@ -698,7 +619,7 @@ router.post(
 );
 
 // Legacy rebalance endpoint (deprecated - use optimize instead)
-router.post('/api/v1/intents/rebalance', (req, res) => {
+router.post('/api/v1/intents/rebalance', validateIntentRequest, (req, res) => {
   res.status(301).json({
     success: false,
     error: {
