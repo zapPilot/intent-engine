@@ -132,6 +132,118 @@ class IntentService {
       }
     }
   }
+
+  /**
+   * Process an optimize intent request
+   * @param {Object} request - Optimize intent request object
+   * @returns {Promise<Object>} - Optimize intent response with results of sub-operations
+   */
+  async processOptimizeIntent(request) {
+    this.validateRequest(request);
+
+    const { userAddress, chainId, params } = request;
+    const {
+      operations = ['dustZap'], // Default to dustZap only
+      slippageTolerance = 0.5,
+    } = params;
+
+    const validOperations = ['dustZap', 'rebalance', 'compound'];
+    const invalidOps = operations.filter(op => !validOperations.includes(op));
+    if (invalidOps.length > 0) {
+      throw new Error(`Invalid operations: ${invalidOps.join(', ')}`);
+    }
+
+    console.log(
+      'FIXED VERSION: IntentService.processOptimizeIntent - input chainId:',
+      chainId,
+      'operations:',
+      operations
+    );
+
+    const results = {
+      success: true,
+      userAddress,
+      chainId: chainId, // Use the actual chainId from request
+      operations: {},
+      summary: {
+        totalOperations: operations.length,
+        executedOperations: 0,
+        estimatedGasUSD: 0,
+        transactions: [],
+      },
+    };
+
+    // Process operations in order
+    for (const operation of operations) {
+      if (operation === 'dustZap') {
+        try {
+          const dustZapResult = await this.processIntent('dustZap', {
+            userAddress,
+            chainId,
+            params: {
+              dustThreshold: params.dustThreshold || 5,
+              targetToken: params.targetToken || 'USDC',
+              slippageTolerance,
+            },
+          });
+
+          results.operations.dustZap = {
+            success: true,
+            ...dustZapResult,
+          };
+          results.summary.executedOperations++;
+
+          if (dustZapResult.transactions) {
+            results.summary.transactions.push(...dustZapResult.transactions);
+          }
+          if (dustZapResult.summary?.totalGasUSD) {
+            results.summary.estimatedGasUSD +=
+              dustZapResult.summary.totalGasUSD;
+          }
+        } catch (dustError) {
+          results.operations.dustZap = {
+            success: false,
+            error: dustError.message,
+          };
+        }
+      } else if (operation === 'rebalance') {
+        results.operations.rebalance = {
+          success: false,
+          error: 'Rebalance operation not yet implemented',
+          placeholder: {
+            description:
+              'Will analyze portfolio deviation and rebalance based on vault strategy',
+            expectedLogic: [
+              '1. Get current portfolio weights from rebalance_backend',
+              '2. Compare with target vault strategy weights',
+              '3. Calculate rebalancing actions if deviation > threshold',
+              '4. Execute cross-chain and local rebalancing transactions',
+            ],
+            requiredIntegration: 'rebalance_backend /bundle_portfolio endpoint',
+          },
+        };
+      } else if (operation === 'compound') {
+        results.operations.compound = {
+          success: false,
+          error: 'Compound operation not yet implemented',
+          placeholder: {
+            description:
+              'Will claim and reinvest pending rewards across all vault positions',
+            expectedLogic: [
+              '1. Identify all positions with claimable rewards',
+              '2. Calculate optimal compounding strategy',
+              '3. Claim rewards and swap to optimal vault tokens',
+              '4. Reinvest into highest APR positions within vault strategy',
+            ],
+            requiredIntegration:
+              'rebalance_backend /bundle_portfolio claimable_rewards',
+          },
+        };
+      }
+    }
+
+    return results;
+  }
 }
 
 module.exports = IntentService;

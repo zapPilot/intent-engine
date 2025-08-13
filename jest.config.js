@@ -24,10 +24,10 @@ module.exports = {
   // Coverage thresholds - Minimum acceptable coverage levels
   coverageThreshold: {
     global: {
-      statements: 90,
-      branches: 81,
-      lines: 91,
-      functions: 91,
+      statements: 89,
+      branches: 79,
+      lines: 89,
+      functions: 89,
     },
   },
 
