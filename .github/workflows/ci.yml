@@ -37,6 +37,7 @@ jobs:
       - name: Run tests
         run: npm run test:coverage
 
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 10

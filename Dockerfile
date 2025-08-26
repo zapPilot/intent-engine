@@ -1,27 +1,5 @@
 # Intent Engine API with Swagger Documentation
-# Multi-stage build for optimized production image
-
-# Build stage
-FROM node:18-alpine AS builder
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies (including devDependencies for build)
-RUN npm ci --omit=dev --ignore-scripts
-
-
-# Copy source code
-COPY . .
-
-# Run lint only on src/ (tests should be run in CI/CD pipeline, not in Docker build)
-RUN npx eslint src/ --ext .js
-
-# Production stage
-FROM node:18-alpine AS production
+FROM node:18-alpine
 
 # Create app directory
 WORKDIR /app
@@ -37,10 +15,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts && \
     npm cache clean --force
 
-# Copy application code from builder stage
-COPY --from=builder --chown=intentengine:nodejs /app/src ./src
-COPY --from=builder --chown=intentengine:nodejs /app/server.js ./
-COPY --from=builder --chown=intentengine:nodejs /app/docs ./docs
+# Copy application code
+COPY --chown=intentengine:nodejs . .
 
 # Switch to non-root user
 USER intentengine
