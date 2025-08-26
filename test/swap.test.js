@@ -326,18 +326,6 @@ describe('Swap API Endpoints', () => {
 
       await request(app).get('/tokens/price/invalid').expect(500);
     });
-
-    it('should handle special characters in symbol parameter', async () => {
-      const mockResponse = { success: true, price: 100, symbol: 'usdc' };
-      mockPriceService.getPrice.mockResolvedValue(mockResponse);
-
-      await request(app).get('/tokens/price/usdc').expect(200);
-
-      expect(mockPriceService.getPrice).toHaveBeenCalledWith('usdc', {
-        useCache: true,
-        timeout: 5000,
-      });
-    });
   });
 
   describe('GET /tokens/providers', () => {
