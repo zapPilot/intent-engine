@@ -21,8 +21,11 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
+# Copy package files first for proper dependency resolution
+COPY --chown=intentengine:nodejs package*.json ./
+
 # Copy dependencies from builder stage
-COPY --from=builder /app/node_modules ./
+COPY --from=builder --chown=intentengine:nodejs /app/node_modules ./node_modules
 
 # Copy application code
 COPY --chown=intentengine:nodejs . .
