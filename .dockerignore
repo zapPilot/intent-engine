@@ -18,6 +18,8 @@ yarn-error.log*
 # Documentation (included selectively in Dockerfile)
 *.md
 !README.md
+!AGENTS.md
+!GEMINI.md
 
 # IDE
 .vscode
@@ -77,7 +79,7 @@ tmp
 temp
 
 # Test files (tests should be run in CI/CD, not Docker build)
-test
+test/
 *.test.js
 jest.config.js
 
@@ -86,14 +88,9 @@ nodemon.json
 
 # Uploads and temporary data
 uploads
-*.json
-!package*.json
 
 # Husky
 .husky
 
 # Coverage
 result.json
-
-# Build tools
---version

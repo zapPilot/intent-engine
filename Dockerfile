@@ -1,19 +1,28 @@
 # Intent Engine API with Swagger Documentation
-FROM node:18-alpine
 
-# Create app directory
+# ---- Builder Stage ----
+# This stage installs production dependencies
+FROM node:18-alpine AS builder
+
 WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm cache clean --force
+
+# ---- Final Stage ----
+# This stage creates the final image
+FROM node:18-alpine
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S intentengine -u 1001
 
-# Copy package files
-COPY package*.json ./
+WORKDIR /app
 
-# Install only production dependencies
-RUN npm ci --omit=dev --ignore-scripts && \
-    npm cache clean --force
+# Copy dependencies from builder stage
+COPY --from=builder /app/node_modules ./
 
 # Copy application code
 COPY --chown=intentengine:nodejs . .
@@ -26,9 +35,7 @@ EXPOSE 3002
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3002/health', (res) => { \
-        process.exit(res.statusCode === 200 ? 0 : 1) \
-    }).on('error', () => process.exit(1))"
+  CMD [ "node", "-e", "require(\"http\").get(\"http://localhost:3002/health\", (res) => process.exit(res.statusCode == 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
 
 # Environment variables
 ENV NODE_ENV=production
