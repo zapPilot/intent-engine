@@ -54,7 +54,7 @@ if (require.main === module) {
     console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
     console.log(`Supported DEX providers: 1inch, paraswap, 0x`);
     console.log(
-      `Supported intents: dustZap (zapIn, zapOut, rebalance coming soon)`
+      `Supported intents: dustZap, unifiedZap (zapIn, zapOut, rebalance coming soon)`
     );
   });
 }
