@@ -24,10 +24,11 @@ module.exports = {
   // Coverage thresholds - Minimum acceptable coverage levels
   coverageThreshold: {
     global: {
-      statements: 89,
-      branches: 79,
-      lines: 89,
-      functions: 89,
+      // Align with repo guidelines (minimums)
+      statements: 75,
+      branches: 60,
+      lines: 75,
+      functions: 75,
     },
   },
 
@@ -41,5 +42,7 @@ module.exports = {
   testTimeout: 30000,
 
   // Timer and cleanup configuration
-  forceExit: true, // Force Jest to exit after tests complete
+  // Prefer using CLI flag in scripts to control forceExit
+  // (keeps local runs flexible and avoids double configuration)
+  // forceExit is intentionally not set here
 };

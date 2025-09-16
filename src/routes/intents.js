@@ -526,4 +526,11 @@ router.get(
 );
 
 // Export both router and intentService for cleanup in tests
+// Export both router and intentService for tests to perform cleanup
 module.exports = router;
+try {
+  const IntentController = require('../controllers/IntentController');
+  module.exports.intentService = IntentController.intentService;
+} catch (_err) {
+  // In case of isolated module loading during tests
+}

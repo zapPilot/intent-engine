@@ -34,14 +34,32 @@ module.exports = async () => {
       }
     }
 
-    // Also try direct cleanup from current module
-    const intentRoutes = require('../src/routes/intents');
-    if (
-      intentRoutes.intentService &&
-      typeof intentRoutes.intentService.cleanup === 'function'
-    ) {
-      intentRoutes.intentService.cleanup();
-      cleanupCount++;
+    // Also try direct cleanup via controller export for reliability
+    try {
+      const IntentController = require('../src/controllers/IntentController');
+      if (
+        IntentController.intentService &&
+        typeof IntentController.intentService.cleanup === 'function'
+      ) {
+        IntentController.intentService.cleanup();
+        cleanupCount++;
+      }
+    } catch (_e) {
+      _e;
+    }
+
+    // And via routes export if available
+    try {
+      const intentRoutes = require('../src/routes/intents');
+      if (
+        intentRoutes.intentService &&
+        typeof intentRoutes.intentService.cleanup === 'function'
+      ) {
+        intentRoutes.intentService.cleanup();
+        cleanupCount++;
+      }
+    } catch (_e) {
+      _e;
     }
 
     if (cleanupCount > 0) {
@@ -56,6 +74,9 @@ module.exports = async () => {
     delete require.cache[require.resolve('../src/routes/intents')];
     delete require.cache[require.resolve('../src/app')];
     delete require.cache[require.resolve('../src/intents/IntentService')];
+    delete require.cache[
+      require.resolve('../src/controllers/IntentController')
+    ];
     delete require.cache[
       require.resolve('../src/intents/DustZapIntentHandler')
     ];
