@@ -23,21 +23,27 @@ class ProtocolFactory {
    */
   createProtocol(protocolConfig, chain, chainId) {
     if (!protocolConfig || !protocolConfig.implementation) {
-      throw new Error('Protocol configuration must include implementation name');
+      throw new Error(
+        'Protocol configuration must include implementation name'
+      );
     }
 
     const { implementation } = protocolConfig;
     const ProtocolClass = this.protocolRegistry.get(implementation);
 
     if (!ProtocolClass) {
-      throw new Error(`Unknown protocol implementation: ${implementation}. Available: ${this.getAvailableImplementations().join(', ')}`);
+      throw new Error(
+        `Unknown protocol implementation: ${implementation}. Available: ${this.getAvailableImplementations().join(', ')}`
+      );
     }
 
     try {
       // Create instance with configuration
       return new ProtocolClass(protocolConfig.config, chain, chainId);
     } catch (error) {
-      throw new Error(`Failed to create ${implementation} instance: ${error.message}`);
+      throw new Error(
+        `Failed to create ${implementation} instance: ${error.message}`
+      );
     }
   }
 
@@ -79,10 +85,12 @@ class ProtocolFactory {
           chain: protocolConfig.chain,
           chainId: protocolConfig.chainId,
           instance: protocolInstance,
-          config: protocolConfig
+          config: protocolConfig,
         });
       } catch (error) {
-        console.warn(`Failed to create protocol ${protocolConfig.id}: ${error.message}`);
+        console.warn(
+          `Failed to create protocol ${protocolConfig.id}: ${error.message}`
+        );
         // Continue with other protocols instead of failing entirely
       }
     }
@@ -104,7 +112,9 @@ class ProtocolFactory {
       const strategyConfig = strategiesConfig[strategyId];
 
       if (!strategyConfig) {
-        throw new Error(`Unknown strategy: ${strategyId}. Available: ${Object.keys(strategiesConfig).join(', ')}`);
+        throw new Error(
+          `Unknown strategy: ${strategyId}. Available: ${Object.keys(strategiesConfig).join(', ')}`
+        );
       }
 
       const protocols = this.createProtocolsForStrategy(strategyConfig, chain);
@@ -175,7 +185,15 @@ class ProtocolFactory {
     const warnings = [];
 
     // Required fields
-    const required = ['id', 'name', 'implementation', 'chain', 'chainId', 'weight', 'config'];
+    const required = [
+      'id',
+      'name',
+      'implementation',
+      'chain',
+      'chainId',
+      'weight',
+      'config',
+    ];
     required.forEach(field => {
       if (!protocolConfig[field]) {
         errors.push(`Missing required field: ${field}`);
@@ -183,33 +201,46 @@ class ProtocolFactory {
     });
 
     // Implementation availability
-    if (protocolConfig.implementation && !this.isImplementationAvailable(protocolConfig.implementation)) {
+    if (
+      protocolConfig.implementation &&
+      !this.isImplementationAvailable(protocolConfig.implementation)
+    ) {
       errors.push(`Unknown implementation: ${protocolConfig.implementation}`);
     }
 
     // Weight validation
     if (protocolConfig.weight !== undefined) {
-      if (typeof protocolConfig.weight !== 'number' || protocolConfig.weight < 0 || protocolConfig.weight > 100) {
+      if (
+        typeof protocolConfig.weight !== 'number' ||
+        protocolConfig.weight < 0 ||
+        protocolConfig.weight > 100
+      ) {
         errors.push('Weight must be a number between 0 and 100');
       }
     }
 
     // Chain ID validation
     if (protocolConfig.chainId !== undefined) {
-      if (!Number.isInteger(protocolConfig.chainId) || protocolConfig.chainId <= 0) {
+      if (
+        !Number.isInteger(protocolConfig.chainId) ||
+        protocolConfig.chainId <= 0
+      ) {
         errors.push('Chain ID must be a positive integer');
       }
     }
 
     // Enabled field validation
-    if (protocolConfig.enabled !== undefined && typeof protocolConfig.enabled !== 'boolean') {
+    if (
+      protocolConfig.enabled !== undefined &&
+      typeof protocolConfig.enabled !== 'boolean'
+    ) {
       warnings.push('enabled field should be a boolean');
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -244,7 +275,7 @@ class ProtocolFactory {
     return {
       totalImplementations: this.protocolRegistry.size,
       availableImplementations: this.getAvailableImplementations(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
   }
 
@@ -258,7 +289,11 @@ class ProtocolFactory {
     // Copy all registered protocols
     for (const [name, protocolClass] of this.protocolRegistry.entries()) {
       // Skip default registrations to avoid duplicates
-      if (!['AaveProtocol', 'PendlePTProtocol', 'VelodromeProtocol'].includes(name)) {
+      if (
+        !['AaveProtocol', 'PendlePTProtocol', 'VelodromeProtocol'].includes(
+          name
+        )
+      ) {
         newFactory.registerProtocol(name, protocolClass);
       }
     }
@@ -287,5 +322,5 @@ const protocolFactory = new ProtocolFactory();
 
 module.exports = {
   ProtocolFactory,
-  protocolFactory // Singleton instance for use across the application
+  protocolFactory, // Singleton instance for use across the application
 };

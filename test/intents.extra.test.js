@@ -11,7 +11,13 @@ jest.mock('../src/controllers/IntentController', () => ({
   ), // Provide a default implementation
   getSupportedIntents: jest.fn(),
   getIntentHealth: jest.fn(),
-  processOptimizeIntent: jest.fn(), // Add the missing method
+  processOptimizeIntent: jest.fn(),
+  processUnifiedZapIntent: jest.fn(), // Add missing method
+  handleUnifiedZapStream: jest.fn((req, res) =>
+    res.status(200).send('Mock Unified Stream')
+  ), // Add missing method
+  getStrategies: jest.fn(), // Add missing method
+  getStrategyProtocols: jest.fn(), // Add missing method
 }));
 
 jest.mock('../src/controllers/VaultController', () => ({
@@ -79,6 +85,35 @@ describe('Intents Routes Extra Coverage', () => {
           code: 'NOT_IMPLEMENTED',
           message: 'Optimize intent is not yet implemented',
         },
+      });
+    });
+    // Add mock implementations for the new methods
+    IntentController.processUnifiedZapIntent.mockResolvedValue({
+      success: true,
+      intentType: 'unifiedZap',
+      mode: 'streaming',
+      intentId: 'mockUnifiedZapIntentId',
+      streamUrl: '/mockUnifiedZapStreamUrl',
+    });
+    IntentController.getStrategies.mockImplementation((req, res) => {
+      res.json({
+        success: true,
+        strategies: [{ id: 'mock-strategy', displayName: 'Mock Strategy' }],
+        total: 1,
+        supportedChains: ['1', '137'],
+        lastUpdated: new Date().toISOString(),
+      });
+    });
+    IntentController.getStrategyProtocols.mockImplementation((req, res) => {
+      res.json({
+        success: true,
+        strategyId: req.params.strategyId,
+        strategyName: 'Mock Strategy',
+        chain: req.query.chain || 'all',
+        protocols: [{ id: 'mock-protocol', name: 'Mock Protocol' }],
+        totalProtocols: 1,
+        totalWeight: 100,
+        enabledProtocols: 1,
       });
     });
   });

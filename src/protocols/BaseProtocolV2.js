@@ -30,7 +30,7 @@ class BaseProtocolV2 {
    * @param {BigNumber|string} amount - Amount to approve
    * @returns {Promise<Object>} - Approval transaction object
    */
-  async getApprovalTransaction(userAddress, tokenAddress, spenderAddress, amount) {
+  getApprovalTransaction(userAddress, tokenAddress, spenderAddress, amount) {
     // Convert amount to BigNumber if needed
     const approvalAmount = ethers.BigNumber.isBigNumber(amount)
       ? amount
@@ -40,19 +40,25 @@ class BaseProtocolV2 {
       throw new Error('Approval amount cannot be zero');
     }
 
-    if (!ethers.utils.isAddress(tokenAddress) || !ethers.utils.isAddress(spenderAddress)) {
+    if (
+      !ethers.utils.isAddress(tokenAddress) ||
+      !ethers.utils.isAddress(spenderAddress)
+    ) {
       throw new Error('Invalid token or spender address');
     }
 
     // Standard ERC20 approval
-    const approvalData = this._encodeERC20Approval(spenderAddress, approvalAmount);
+    const approvalData = this._encodeERC20Approval(
+      spenderAddress,
+      approvalAmount
+    );
 
     return {
       to: tokenAddress,
       data: approvalData,
       value: '0',
       gasLimit: null, // Will be estimated by executor
-      description: `Approve ${this._formatAmount(approvalAmount)} tokens for ${this.config.name}`
+      description: `Approve ${this._formatAmount(approvalAmount)} tokens for ${this.config.name}`,
     };
   }
 
@@ -64,8 +70,15 @@ class BaseProtocolV2 {
    * @param {Object} additionalParams - Protocol-specific parameters
    * @returns {Promise<Object>} - Deposit transaction object
    */
-  async getDepositTransaction(userAddress, inputToken, amount, additionalParams = {}) {
-    throw new Error('getDepositTransaction must be implemented by protocol subclass');
+  getDepositTransaction(
+    userAddress,
+    inputToken,
+    amount,
+    _additionalParams = {}
+  ) {
+    throw new Error(
+      'getDepositTransaction must be implemented by protocol subclass'
+    );
   }
 
   /**
@@ -76,7 +89,7 @@ class BaseProtocolV2 {
    * @param {Object} additionalParams - Protocol-specific parameters
    * @returns {Promise<Object>} - Gas estimates
    */
-  async estimateGas(userAddress, inputToken, amount, additionalParams = {}) {
+  estimateGas(userAddress, inputToken, amount, _additionalParams = {}) {
     throw new Error('estimateGas must be implemented by protocol subclass');
   }
 
@@ -87,19 +100,19 @@ class BaseProtocolV2 {
    * @param {string} inputToken - Input token address
    * @returns {Promise<Object>} - Token requirements
    */
-  async getTokenRequirements(inputToken) {
+  getTokenRequirements(inputToken) {
     if (this.mode === 'single') {
       return {
         mode: 'single',
         inputToken: this._getBestInputToken(inputToken),
         outputToken: this.config.zapInOutTokenAddress,
-        requiresSwap: this._requiresSwap(inputToken)
+        requiresSwap: this._requiresSwap(inputToken),
       };
     } else if (this.mode === 'LP') {
       return {
         mode: 'LP',
         lpTokens: this.config.lpTokens,
-        requiresSwap: true // LP always requires token distribution
+        requiresSwap: true, // LP always requires token distribution
       };
     }
 
@@ -118,7 +131,7 @@ class BaseProtocolV2 {
       chainId: this.chainId,
       mode: this.mode,
       targetAsset: this.config.symbolOfBestTokenToZapInOut,
-      enabled: this.config.enabled !== false
+      enabled: this.config.enabled !== false,
     };
   }
 
@@ -135,7 +148,9 @@ class BaseProtocolV2 {
     }
 
     if (!['single', 'LP'].includes(this.config.mode)) {
-      throw new Error(`Invalid mode: ${this.config.mode}. Must be 'single' or 'LP'`);
+      throw new Error(
+        `Invalid mode: ${this.config.mode}. Must be 'single' or 'LP'`
+      );
     }
 
     // Validate single mode requirements
@@ -143,13 +158,19 @@ class BaseProtocolV2 {
       const singleRequired = ['assetAddress', 'protocolAddress'];
       const singleMissing = singleRequired.filter(key => !this.config[key]);
       if (singleMissing.length > 0) {
-        throw new Error(`Missing required config for single mode: ${singleMissing.join(', ')}`);
+        throw new Error(
+          `Missing required config for single mode: ${singleMissing.join(', ')}`
+        );
       }
     }
 
     // Validate LP mode requirements
     if (this.config.mode === 'LP') {
-      if (!this.config.lpTokens || !Array.isArray(this.config.lpTokens) || this.config.lpTokens.length !== 2) {
+      if (
+        !this.config.lpTokens ||
+        !Array.isArray(this.config.lpTokens) ||
+        this.config.lpTokens.length !== 2
+      ) {
         throw new Error('LP mode requires exactly 2 lpTokens');
       }
     }
@@ -174,8 +195,9 @@ class BaseProtocolV2 {
    */
   _requiresSwap(inputToken) {
     const protocolToken = this.config.zapInOutTokenAddress;
-    return protocolToken &&
-           inputToken.toLowerCase() !== protocolToken.toLowerCase();
+    return (
+      protocolToken && inputToken.toLowerCase() !== protocolToken.toLowerCase()
+    );
   }
 
   /**
@@ -187,7 +209,7 @@ class BaseProtocolV2 {
    */
   _encodeERC20Approval(spender, amount) {
     const iface = new ethers.utils.Interface([
-      'function approve(address spender, uint256 amount) returns (bool)'
+      'function approve(address spender, uint256 amount) returns (bool)',
     ]);
 
     return iface.encodeFunctionData('approve', [spender, amount]);

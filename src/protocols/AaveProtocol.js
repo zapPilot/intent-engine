@@ -28,7 +28,12 @@ class AaveProtocol extends BaseProtocolV2 {
    * @param {Object} additionalParams - Additional parameters (unused for Aave)
    * @returns {Promise<Object>} - Deposit transaction object
    */
-  async getDepositTransaction(userAddress, inputToken, amount, additionalParams = {}) {
+  getDepositTransaction(
+    userAddress,
+    inputToken,
+    amount,
+    _additionalParams = {}
+  ) {
     this._validateAddress(userAddress);
     this._validateAddress(inputToken);
 
@@ -42,7 +47,9 @@ class AaveProtocol extends BaseProtocolV2 {
     }
 
     // Ensure input token matches protocol's underlying token
-    if (inputToken.toLowerCase() !== this.underlyingTokenAddress.toLowerCase()) {
+    if (
+      inputToken.toLowerCase() !== this.underlyingTokenAddress.toLowerCase()
+    ) {
       throw new Error(
         `Input token ${inputToken} does not match protocol underlying token ${this.underlyingTokenAddress}`
       );
@@ -60,7 +67,7 @@ class AaveProtocol extends BaseProtocolV2 {
       data: supplyData,
       value: '0',
       gasLimit: null, // Will be estimated
-      description: `Supply ${this._formatAmount(depositAmount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapInOut} to Aave`
+      description: `Supply ${this._formatAmount(depositAmount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapInOut} to Aave`,
     };
   }
 
@@ -71,10 +78,10 @@ class AaveProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
-  async estimateGas(userAddress, inputToken, amount) {
+  estimateGas(userAddress, inputToken, amount) {
     try {
       // Convert amount to BigNumber
-      const processAmount = ethers.BigNumber.isBigNumber(amount)
+      const _processAmount = ethers.BigNumber.isBigNumber(amount)
         ? amount
         : ethers.BigNumber.from(amount.toString());
 
@@ -85,16 +92,16 @@ class AaveProtocol extends BaseProtocolV2 {
       return {
         approval: {
           gasLimit: approvalGas,
-          description: 'Approve token spending'
+          description: 'Approve token spending',
         },
         deposit: {
           gasLimit: supplyGas,
-          description: 'Supply tokens to Aave'
+          description: 'Supply tokens to Aave',
         },
         total: {
           gasLimit: approvalGas.add(supplyGas),
-          description: 'Total estimated gas'
-        }
+          description: 'Total estimated gas',
+        },
       };
     } catch (error) {
       throw new Error(`Failed to estimate gas for Aave: ${error.message}`);
@@ -106,8 +113,8 @@ class AaveProtocol extends BaseProtocolV2 {
    * @param {string} inputToken - Input token address
    * @returns {Promise<Object>} - Token requirements
    */
-  async getTokenRequirements(inputToken) {
-    const baseRequirements = await super.getTokenRequirements(inputToken);
+  getTokenRequirements(inputToken) {
+    const baseRequirements = super.getTokenRequirements(inputToken);
 
     return {
       ...baseRequirements,
@@ -116,8 +123,8 @@ class AaveProtocol extends BaseProtocolV2 {
         aTokenAddress: this.aTokenAddress,
         underlyingToken: this.underlyingTokenAddress,
         interestRateMode: 0, // Variable rate
-        referralCode: 0
-      }
+        referralCode: 0,
+      },
     };
   }
 
@@ -131,7 +138,7 @@ class AaveProtocol extends BaseProtocolV2 {
       'assetAddress',
       'zapInOutTokenAddress',
       'assetDecimals',
-      'symbolOfBestTokenToZapInOut'
+      'symbolOfBestTokenToZapInOut',
     ];
 
     const missing = required.filter(key => !this.config[key]);
@@ -140,7 +147,11 @@ class AaveProtocol extends BaseProtocolV2 {
     }
 
     // Validate addresses
-    const addresses = ['protocolAddress', 'assetAddress', 'zapInOutTokenAddress'];
+    const addresses = [
+      'protocolAddress',
+      'assetAddress',
+      'zapInOutTokenAddress',
+    ];
     addresses.forEach(key => {
       if (!ethers.utils.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
@@ -148,7 +159,10 @@ class AaveProtocol extends BaseProtocolV2 {
     });
 
     // Validate decimals
-    if (!Number.isInteger(this.config.assetDecimals) || this.config.assetDecimals < 0) {
+    if (
+      !Number.isInteger(this.config.assetDecimals) ||
+      this.config.assetDecimals < 0
+    ) {
       throw new Error(`Invalid assetDecimals: ${this.config.assetDecimals}`);
     }
   }
@@ -165,14 +179,14 @@ class AaveProtocol extends BaseProtocolV2 {
   _encodeSupplyCall(asset, amount, onBehalfOf, referralCode = 0) {
     // Aave V3 Pool interface
     const poolInterface = new ethers.utils.Interface([
-      'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)'
+      'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)',
     ]);
 
     return poolInterface.encodeFunctionData('supply', [
       asset,
       amount,
       onBehalfOf,
-      referralCode
+      referralCode,
     ]);
   }
 
@@ -194,8 +208,8 @@ class AaveProtocol extends BaseProtocolV2 {
       addresses: {
         pool: this.poolAddress,
         aToken: this.aTokenAddress,
-        underlying: this.underlyingTokenAddress
-      }
+        underlying: this.underlyingTokenAddress,
+      },
     };
   }
 
@@ -205,7 +219,7 @@ class AaveProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} amount - Amount to withdraw
    * @returns {Promise<Object>} - Withdrawal transaction
    */
-  async getWithdrawalTransaction(userAddress, amount) {
+  getWithdrawalTransaction(userAddress, amount) {
     this._validateAddress(userAddress);
 
     const withdrawAmount = ethers.BigNumber.isBigNumber(amount)
@@ -223,7 +237,7 @@ class AaveProtocol extends BaseProtocolV2 {
       data: withdrawData,
       value: '0',
       gasLimit: null,
-      description: `Withdraw ${this._formatAmount(withdrawAmount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapInOut} from Aave`
+      description: `Withdraw ${this._formatAmount(withdrawAmount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapInOut} from Aave`,
     };
   }
 
@@ -237,7 +251,7 @@ class AaveProtocol extends BaseProtocolV2 {
    */
   _encodeWithdrawCall(asset, amount, to) {
     const poolInterface = new ethers.utils.Interface([
-      'function withdraw(address asset, uint256 amount, address to) returns (uint256)'
+      'function withdraw(address asset, uint256 amount, address to) returns (uint256)',
     ]);
 
     return poolInterface.encodeFunctionData('withdraw', [asset, amount, to]);

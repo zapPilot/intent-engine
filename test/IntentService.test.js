@@ -89,7 +89,7 @@ describe('IntentService', () => {
       await expect(
         service.processIntent('unknownIntent', validRequest)
       ).rejects.toThrow(
-        'Unknown intent type: unknownIntent. Supported types: dustZap'
+        'Unknown intent type: unknownIntent. Supported types: dustZap, unifiedZap'
       );
     });
 
@@ -182,7 +182,7 @@ describe('IntentService', () => {
   describe('getSupportedIntents', () => {
     it('should return array of supported intent types', () => {
       const supported = service.getSupportedIntents();
-      expect(supported).toEqual(['dustZap']);
+      expect(supported).toEqual(['dustZap', 'unifiedZap']);
       expect(Array.isArray(supported)).toBe(true);
     });
   });

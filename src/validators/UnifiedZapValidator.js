@@ -42,7 +42,9 @@ class UnifiedZapValidator {
     }
 
     // Validate supported chain
-    const supportedChainIds = Object.values(config.SUPPORTED_CHAINS).map(chain => chain.chainId);
+    const supportedChainIds = Object.values(config.SUPPORTED_CHAINS).map(
+      chain => chain.chainId
+    );
     if (!supportedChainIds.includes(chainId)) {
       throw new Error(
         `Unsupported chainId: ${chainId}. Supported chains: ${supportedChainIds.join(', ')}`
@@ -62,12 +64,7 @@ class UnifiedZapValidator {
       throw new Error('params object is required');
     }
 
-    const {
-      strategyAllocations,
-      inputToken,
-      inputAmount,
-      slippage
-    } = params;
+    const { strategyAllocations, inputToken, inputAmount, slippage } = params;
 
     // Validate strategy allocations
     this.validateStrategyAllocations(strategyAllocations, config);
@@ -100,7 +97,9 @@ class UnifiedZapValidator {
     }
 
     // Check maximum strategies limit
-    if (strategyAllocations.length > config.VALIDATION.maxStrategiesPerRequest) {
+    if (
+      strategyAllocations.length > config.VALIDATION.maxStrategiesPerRequest
+    ) {
       throw new Error(
         `Too many strategies. Maximum ${config.VALIDATION.maxStrategiesPerRequest} allowed, got ${strategyAllocations.length}`
       );
@@ -146,7 +145,9 @@ class UnifiedZapValidator {
 
     // Validate strategyId
     if (!strategyId || typeof strategyId !== 'string') {
-      throw new Error(`strategyAllocations[${index}].strategyId is required and must be a string`);
+      throw new Error(
+        `strategyAllocations[${index}].strategyId is required and must be a string`
+      );
     }
 
     // Check if strategy exists in configuration
@@ -159,7 +160,9 @@ class UnifiedZapValidator {
 
     // Validate percentage
     if (typeof percentage !== 'number') {
-      throw new Error(`strategyAllocations[${index}].percentage must be a number`);
+      throw new Error(
+        `strategyAllocations[${index}].percentage must be a number`
+      );
     }
 
     if (percentage < config.VALIDATION.minAllocationPercentage) {
@@ -176,7 +179,9 @@ class UnifiedZapValidator {
 
     // Check if strategy has enabled protocols for the current chain request
     const strategyConfig = config.STRATEGY_CATEGORIES[strategyId];
-    const enabledProtocols = strategyConfig.protocols.filter(p => p.enabled !== false);
+    const enabledProtocols = strategyConfig.protocols.filter(
+      p => p.enabled !== false
+    );
 
     if (enabledProtocols.length === 0) {
       throw new Error(`Strategy ${strategyId} has no enabled protocols`);
@@ -213,7 +218,9 @@ class UnifiedZapValidator {
 
     // Check if it's a valid number string
     if (!/^\d+$/.test(inputAmount)) {
-      throw new Error('inputAmount must be a valid positive integer string (no decimals)');
+      throw new Error(
+        'inputAmount must be a valid positive integer string (no decimals)'
+      );
     }
 
     const amount = parseFloat(inputAmount);
@@ -223,7 +230,10 @@ class UnifiedZapValidator {
     }
 
     // Optional: Check minimum amount (if configured)
-    if (config.VALIDATION.minInputAmount && amount < config.VALIDATION.minInputAmount) {
+    if (
+      config.VALIDATION.minInputAmount &&
+      amount < config.VALIDATION.minInputAmount
+    ) {
       throw new Error(
         `inputAmount must be at least ${config.VALIDATION.minInputAmount}, got ${amount}`
       );
@@ -235,7 +245,7 @@ class UnifiedZapValidator {
    * @param {number} slippage - Slippage percentage
    * @param {Object} config - UnifiedZap configuration
    */
-  static validateSlippage(slippage, config) {
+  static validateSlippage(slippage, _config) {
     if (typeof slippage !== 'number') {
       throw new Error('slippage must be a number');
     }
@@ -250,7 +260,9 @@ class UnifiedZapValidator {
 
     // Optional: Check reasonable range
     if (slippage > 5) {
-      console.warn(`High slippage detected: ${slippage}%. Consider using a lower value.`);
+      console.warn(
+        `High slippage detected: ${slippage}%. Consider using a lower value.`
+      );
     }
   }
 
@@ -261,12 +273,20 @@ class UnifiedZapValidator {
    * @param {Object} config - UnifiedZap configuration
    * @returns {boolean} - Whether strategy is available on chain
    */
-  static isStrategyAvailableOnChain(strategyId, chainId, config = UNIFIED_ZAP_CONFIG) {
+  static isStrategyAvailableOnChain(
+    strategyId,
+    chainId,
+    config = UNIFIED_ZAP_CONFIG
+  ) {
     const strategyConfig = config.STRATEGY_CATEGORIES[strategyId];
-    if (!strategyConfig) return false;
+    if (!strategyConfig) {
+      return false;
+    }
 
     const chainName = this.getChainNameById(chainId, config);
-    if (!chainName) return false;
+    if (!chainName) {
+      return false;
+    }
 
     // Check if strategy has protocols on this chain
     const chainProtocols = strategyConfig.protocols.filter(
@@ -283,7 +303,9 @@ class UnifiedZapValidator {
    * @returns {string|null} - Chain name or null if not found
    */
   static getChainNameById(chainId, config = UNIFIED_ZAP_CONFIG) {
-    for (const [chainName, chainConfig] of Object.entries(config.SUPPORTED_CHAINS)) {
+    for (const [chainName, chainConfig] of Object.entries(
+      config.SUPPORTED_CHAINS
+    )) {
       if (chainConfig.chainId === chainId) {
         return chainName;
       }
@@ -308,17 +330,23 @@ class UnifiedZapValidator {
         valid: true,
         chainName,
         totalStrategies: params.strategyAllocations.length,
-        totalPercentage: params.strategyAllocations.reduce((sum, s) => sum + s.percentage, 0),
+        totalPercentage: params.strategyAllocations.reduce(
+          (sum, s) => sum + s.percentage,
+          0
+        ),
         strategiesOnChain: params.strategyAllocations.filter(s =>
           this.isStrategyAvailableOnChain(s.strategyId, request.chainId, config)
         ).length,
-        estimatedComplexity: this.calculateComplexity(params.strategyAllocations, config)
+        estimatedComplexity: this.calculateComplexity(
+          params.strategyAllocations,
+          config
+        ),
       };
     } catch (error) {
       return {
         valid: false,
         error: error.message,
-        errorType: error.constructor.name
+        errorType: error.constructor.name,
       };
     }
   }

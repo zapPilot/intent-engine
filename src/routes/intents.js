@@ -484,7 +484,10 @@ router.get('/api/v1/strategies', IntentController.getStrategies);
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-router.get('/api/v1/strategies/:strategyId/protocols', IntentController.getStrategyProtocols);
+router.get(
+  '/api/v1/strategies/:strategyId/protocols',
+  IntentController.getStrategyProtocols
+);
 
 /**
  * Placeholder endpoints for future intents

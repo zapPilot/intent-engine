@@ -75,7 +75,10 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
         estimatedDuration: this._estimateDetailedDuration(protocolAllocations),
 
         // Strategy breakdown
-        strategyBreakdown: this._getStrategyBreakdown(strategyAllocations, protocolAllocations)
+        strategyBreakdown: this._getStrategyBreakdown(
+          strategyAllocations,
+          protocolAllocations
+        ),
       };
     }
 
@@ -89,7 +92,9 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _getUniqueChains(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return [];
+    if (!Array.isArray(protocolAllocations)) {
+      return [];
+    }
 
     const chainMap = new Map();
 
@@ -98,7 +103,7 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
         chainMap.set(protocol.chain, {
           name: protocol.chain,
           chainId: protocol.chainId,
-          protocolCount: (chainMap.get(protocol.chain)?.protocolCount || 0) + 1
+          protocolCount: (chainMap.get(protocol.chain)?.protocolCount || 0) + 1,
         });
       }
     });
@@ -113,7 +118,9 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _isMultiChain(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return false;
+    if (!Array.isArray(protocolAllocations)) {
+      return false;
+    }
     const chains = new Set(protocolAllocations.map(p => p.chain));
     return chains.size > 1;
   }
@@ -125,7 +132,9 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _analyzeProtocolTypes(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return {};
+    if (!Array.isArray(protocolAllocations)) {
+      return {};
+    }
 
     const typeCount = {};
 
@@ -144,11 +153,13 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _hasLPProtocols(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return false;
+    if (!Array.isArray(protocolAllocations)) {
+      return false;
+    }
 
-    return protocolAllocations.some(protocol =>
-      protocol.instance?.mode === 'LP' ||
-      protocol.config?.mode === 'LP'
+    return protocolAllocations.some(
+      protocol =>
+        protocol.instance?.mode === 'LP' || protocol.config?.mode === 'LP'
     );
   }
 
@@ -159,10 +170,13 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _countRequiredSwaps(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return 0;
+    if (!Array.isArray(protocolAllocations)) {
+      return 0;
+    }
 
-    return protocolAllocations.filter(protocol =>
-      protocol.requiresSwap || protocol.tokenRequirements?.requiresSwap
+    return protocolAllocations.filter(
+      protocol =>
+        protocol.requiresSwap || protocol.tokenRequirements?.requiresSwap
     ).length;
   }
 
@@ -173,7 +187,12 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _calculateComplexityScore(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations) || protocolAllocations.length === 0) return 1;
+    if (
+      !Array.isArray(protocolAllocations) ||
+      protocolAllocations.length === 0
+    ) {
+      return 1;
+    }
 
     let complexity = 1;
 
@@ -205,15 +224,41 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    */
   _getEstimatedPhases(protocolAllocations) {
     const basePhases = [
-      { name: 'strategy_parsing', duration: 2, description: 'Parse strategy allocations' },
-      { name: 'token_analysis', duration: 3, description: 'Analyze token requirements' },
-      { name: 'swap_preparation', duration: 5, description: 'Prepare token swaps' },
-      { name: 'transaction_building', duration: 8, description: 'Build protocol transactions' },
-      { name: 'gas_estimation', duration: 4, description: 'Estimate gas costs' },
-      { name: 'final_assembly', duration: 2, description: 'Assemble final transactions' }
+      {
+        name: 'strategy_parsing',
+        duration: 2,
+        description: 'Parse strategy allocations',
+      },
+      {
+        name: 'token_analysis',
+        duration: 3,
+        description: 'Analyze token requirements',
+      },
+      {
+        name: 'swap_preparation',
+        duration: 5,
+        description: 'Prepare token swaps',
+      },
+      {
+        name: 'transaction_building',
+        duration: 8,
+        description: 'Build protocol transactions',
+      },
+      {
+        name: 'gas_estimation',
+        duration: 4,
+        description: 'Estimate gas costs',
+      },
+      {
+        name: 'final_assembly',
+        duration: 2,
+        description: 'Assemble final transactions',
+      },
     ];
 
-    if (!Array.isArray(protocolAllocations)) return basePhases;
+    if (!Array.isArray(protocolAllocations)) {
+      return basePhases;
+    }
 
     // Adjust durations based on complexity
     const protocolCount = protocolAllocations.length;
@@ -224,23 +269,33 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
       let adjustedDuration = phase.duration;
 
       // Scale with protocol count
-      if (['token_analysis', 'transaction_building', 'gas_estimation'].includes(phase.name)) {
+      if (
+        ['token_analysis', 'transaction_building', 'gas_estimation'].includes(
+          phase.name
+        )
+      ) {
         adjustedDuration *= Math.max(1, protocolCount / 3);
       }
 
       // LP complexity
-      if (hasLP && ['swap_preparation', 'transaction_building'].includes(phase.name)) {
+      if (
+        hasLP &&
+        ['swap_preparation', 'transaction_building'].includes(phase.name)
+      ) {
         adjustedDuration *= 1.3;
       }
 
       // Multi-chain complexity
-      if (isMultiChain && ['token_analysis', 'swap_preparation'].includes(phase.name)) {
+      if (
+        isMultiChain &&
+        ['token_analysis', 'swap_preparation'].includes(phase.name)
+      ) {
         adjustedDuration *= 1.2;
       }
 
       return {
         ...phase,
-        duration: Math.ceil(adjustedDuration)
+        duration: Math.ceil(adjustedDuration),
       };
     });
   }
@@ -259,7 +314,7 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
       totalSeconds,
       phaseBreakdown: phases,
       readableEstimate: this._formatDuration(totalSeconds),
-      confidenceLevel: this._getConfidenceLevel(protocolAllocations)
+      confidenceLevel: this._getConfidenceLevel(protocolAllocations),
     };
   }
 
@@ -272,8 +327,8 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    */
   _getStrategyBreakdown(strategyAllocations = [], protocolAllocations = []) {
     return strategyAllocations.map(strategy => {
-      const strategyProtocols = protocolAllocations.filter(p =>
-        p.strategyId === strategy.strategyId
+      const strategyProtocols = protocolAllocations.filter(
+        p => p.strategyId === strategy.strategyId
       );
 
       return {
@@ -286,8 +341,8 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
           name: p.name,
           chain: p.chain,
           type: p.instance?.mode || 'single',
-          weight: p.weight
-        }))
+          weight: p.weight,
+        })),
       };
     });
   }
@@ -301,7 +356,8 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
   _formatDuration(seconds) {
     if (seconds < 60) {
       return `${Math.ceil(seconds)} seconds`;
-    } else if (seconds < 300) { // 5 minutes
+    } else if (seconds < 300) {
+      // 5 minutes
       const minutes = Math.ceil(seconds / 60);
       return `${minutes} minute${minutes > 1 ? 's' : ''}`;
     } else {
@@ -317,12 +373,18 @@ class UnifiedZapStreamHandler extends BaseStreamHandler {
    * @private
    */
   _getConfidenceLevel(protocolAllocations) {
-    if (!Array.isArray(protocolAllocations)) return 'low';
+    if (!Array.isArray(protocolAllocations)) {
+      return 'low';
+    }
 
     const complexity = this._calculateComplexityScore(protocolAllocations);
 
-    if (complexity <= 3) return 'high';
-    if (complexity <= 6) return 'medium';
+    if (complexity <= 3) {
+      return 'high';
+    }
+    if (complexity <= 6) {
+      return 'medium';
+    }
     return 'low';
   }
 }

@@ -32,7 +32,12 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @param {Object} additionalParams - Slippage and other params
    * @returns {Promise<Object>} - Deposit transaction object
    */
-  async getDepositTransaction(userAddress, inputToken, amount, additionalParams = {}) {
+  getDepositTransaction(
+    userAddress,
+    inputToken,
+    amount,
+    additionalParams = {}
+  ) {
     this._validateAddress(userAddress);
     this._validateAddress(inputToken);
 
@@ -50,12 +55,21 @@ class PendlePTProtocol extends BaseProtocolV2 {
     // For Pendle, we need to mint PT+YT from underlying asset
     // This typically involves swapping to underlying asset first (if needed) then minting
 
-    if (inputToken.toLowerCase() === this.underlyingTokenAddress.toLowerCase()) {
+    if (
+      inputToken.toLowerCase() === this.underlyingTokenAddress.toLowerCase()
+    ) {
       // Direct minting from underlying asset
-      return this._getMintPTTransaction(userAddress, depositAmount, slippage, deadline);
+      return this._getMintPTTransaction(
+        userAddress,
+        depositAmount,
+        slippage,
+        deadline
+      );
     } else {
       // Need to swap first, then mint - this would typically be handled at executor level
-      throw new Error(`Input token ${inputToken} requires swap to ${this.underlyingTokenAddress} before Pendle minting`);
+      throw new Error(
+        `Input token ${inputToken} requires swap to ${this.underlyingTokenAddress} before Pendle minting`
+      );
     }
   }
 
@@ -66,7 +80,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
-  async estimateGas(userAddress, inputToken, amount) {
+  estimateGas(_userAddress, _inputToken, _amount) {
     try {
       // Pendle operations are more gas-intensive due to market interactions
       const approvalGas = ethers.BigNumber.from('50000');
@@ -75,16 +89,16 @@ class PendlePTProtocol extends BaseProtocolV2 {
       return {
         approval: {
           gasLimit: approvalGas,
-          description: 'Approve underlying token'
+          description: 'Approve underlying token',
         },
         deposit: {
           gasLimit: mintPTGas,
-          description: 'Mint PT tokens via Pendle'
+          description: 'Mint PT tokens via Pendle',
         },
         total: {
           gasLimit: approvalGas.add(mintPTGas),
-          description: 'Total estimated gas for Pendle PT'
-        }
+          description: 'Total estimated gas for Pendle PT',
+        },
       };
     } catch (error) {
       throw new Error(`Failed to estimate gas for Pendle: ${error.message}`);
@@ -96,8 +110,8 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @param {string} inputToken - Input token address
    * @returns {Promise<Object>} - Token requirements
    */
-  async getTokenRequirements(inputToken) {
-    const baseRequirements = await super.getTokenRequirements(inputToken);
+  getTokenRequirements(inputToken) {
+    const baseRequirements = super.getTokenRequirements(inputToken);
 
     return {
       ...baseRequirements,
@@ -107,8 +121,8 @@ class PendlePTProtocol extends BaseProtocolV2 {
         ytTokenAddress: this.ytTokenAddress,
         underlyingToken: this.underlyingTokenAddress,
         routerAddress: this.routerAddresses.router,
-        requiresMarketInteraction: true
-      }
+        requiresMarketInteraction: true,
+      },
     };
   }
 
@@ -123,7 +137,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
       'ytAddress',
       'bestTokenAddressToZapOut',
       'assetDecimals',
-      'symbolOfBestTokenToZapOut'
+      'symbolOfBestTokenToZapOut',
     ];
 
     const missing = required.filter(key => !this.config[key]);
@@ -132,7 +146,12 @@ class PendlePTProtocol extends BaseProtocolV2 {
     }
 
     // Validate addresses
-    const addresses = ['marketAddress', 'assetAddress', 'ytAddress', 'bestTokenAddressToZapOut'];
+    const addresses = [
+      'marketAddress',
+      'assetAddress',
+      'ytAddress',
+      'bestTokenAddressToZapOut',
+    ];
     addresses.forEach(key => {
       if (!ethers.utils.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
@@ -167,7 +186,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
       data: mintData,
       value: '0',
       gasLimit: null,
-      description: `Mint PT tokens from ${this._formatAmount(amount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapOut}`
+      description: `Mint PT tokens from ${this._formatAmount(amount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapOut}`,
     };
   }
 
@@ -181,10 +200,10 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @returns {string} - Encoded function data
    * @private
    */
-  _encodeMintPTCall(receiver, market, netTokenIn, minPTOut, deadline) {
+  _encodeMintPTCall(receiver, market, netTokenIn, minPTOut, _deadline) {
     // Simplified Pendle Router interface for PT minting
     const routerInterface = new ethers.utils.Interface([
-      'function mintPyFromToken(address receiver, address market, uint256 minPyOut, (address tokenIn, uint256 netTokenIn, address tokenMintSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netPyOut, uint256 netSyFee)'
+      'function mintPyFromToken(address receiver, address market, uint256 minPyOut, (address tokenIn, uint256 netTokenIn, address tokenMintSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netPyOut, uint256 netSyFee)',
     ]);
 
     // Simplified parameters - in practice this would need more complex swap data
@@ -197,15 +216,15 @@ class PendlePTProtocol extends BaseProtocolV2 {
         swapType: 0,
         extRouter: ethers.constants.AddressZero,
         extCalldata: '0x',
-        needScale: false
-      }
+        needScale: false,
+      },
     };
 
     return routerInterface.encodeFunctionData('mintPyFromToken', [
       receiver,
       market,
       minPTOut,
-      tokenInput
+      tokenInput,
     ]);
   }
 
@@ -216,15 +235,18 @@ class PendlePTProtocol extends BaseProtocolV2 {
    */
   _getPendleRouterAddresses() {
     const addresses = {
-      1: { // Ethereum
-        router: '0x888888888889758F76e7103c6CbF23ABbF58F946'
+      1: {
+        // Ethereum
+        router: '0x888888888889758F76e7103c6CbF23ABbF58F946',
       },
-      42161: { // Arbitrum
-        router: '0x888888888889758F76e7103c6CbF23ABbF58F946'
+      42161: {
+        // Arbitrum
+        router: '0x888888888889758F76e7103c6CbF23ABbF58F946',
       },
-      8453: { // Base
-        router: '0x888888888889758F76e7103c6CbF23ABbF58F946'
-      }
+      8453: {
+        // Base
+        router: '0x888888888889758F76e7103c6CbF23ABbF58F946',
+      },
     };
 
     if (!addresses[this.chainId]) {
@@ -254,8 +276,8 @@ class PendlePTProtocol extends BaseProtocolV2 {
         pt: this.ptTokenAddress,
         yt: this.ytTokenAddress,
         underlying: this.underlyingTokenAddress,
-        router: this.routerAddresses.router
-      }
+        router: this.routerAddresses.router,
+      },
     };
   }
 
@@ -265,7 +287,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} amount - PT amount to redeem
    * @returns {Promise<Object>} - Redemption transaction
    */
-  async getRedemptionTransaction(userAddress, amount) {
+  getRedemptionTransaction(userAddress, amount) {
     this._validateAddress(userAddress);
 
     const redeemAmount = ethers.BigNumber.isBigNumber(amount)
@@ -283,7 +305,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
       data: redeemData,
       value: '0',
       gasLimit: null,
-      description: `Redeem ${this._formatAmount(redeemAmount, this.tokenDecimals)} PT tokens`
+      description: `Redeem ${this._formatAmount(redeemAmount, this.tokenDecimals)} PT tokens`,
     };
   }
 
@@ -297,7 +319,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
    */
   _encodeRedeemPTCall(receiver, market, netPyIn) {
     const routerInterface = new ethers.utils.Interface([
-      'function redeemPyToToken(address receiver, address market, uint256 netPyIn, (address tokenOut, uint256 minTokenOut, address tokenRedeemSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netTokenOut, uint256 netSyFee)'
+      'function redeemPyToToken(address receiver, address market, uint256 netPyIn, (address tokenOut, uint256 minTokenOut, address tokenRedeemSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netTokenOut, uint256 netSyFee)',
     ]);
 
     const tokenOutput = {
@@ -309,15 +331,15 @@ class PendlePTProtocol extends BaseProtocolV2 {
         swapType: 0,
         extRouter: ethers.constants.AddressZero,
         extCalldata: '0x',
-        needScale: false
-      }
+        needScale: false,
+      },
     };
 
     return routerInterface.encodeFunctionData('redeemPyToToken', [
       receiver,
       market,
       netPyIn,
-      tokenOutput
+      tokenOutput,
     ]);
   }
 }

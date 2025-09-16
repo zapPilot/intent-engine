@@ -158,13 +158,6 @@ class IntentService {
       throw new Error(`Invalid operations: ${invalidOps.join(', ')}`);
     }
 
-    console.log(
-      'FIXED VERSION: IntentService.processOptimizeIntent - input chainId:',
-      chainId,
-      'operations:',
-      operations
-    );
-
     const results = {
       success: true,
       userAddress,

@@ -39,7 +39,8 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
 
     try {
       // 1. Prepare execution context with strategy allocations
-      const executionContext = await this.executor.prepareExecutionContext(request);
+      const executionContext =
+        await this.executor.prepareExecutionContext(request);
 
       // 2. Return SSE streaming response immediately
       return this.buildSSEResponse(executionContext);
@@ -55,7 +56,8 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
    * @returns {Object} - SSE streaming response
    */
   buildSSEResponse(executionContext) {
-    const { strategyAllocations, protocolAllocations, userAddress } = executionContext;
+    const { strategyAllocations, protocolAllocations, userAddress } =
+      executionContext;
     const intentId = IntentIdGenerator.generate('unifiedZap', userAddress);
 
     // Store execution context for SSE processing
@@ -71,9 +73,11 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
         totalStrategies: strategyAllocations.length,
         totalProtocols: protocolAllocations.length,
         chains: this._getUniqueChains(protocolAllocations),
-        estimatedDuration: this.executor.estimateProcessingDuration(protocolAllocations.length),
-        streamingEnabled: true
-      }
+        estimatedDuration: this.executor.estimateProcessingDuration(
+          protocolAllocations.length
+        ),
+        streamingEnabled: true,
+      },
     };
   }
 
@@ -91,9 +95,10 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
         data: {
           phase: 'strategy_parsing',
           progress: 0,
-          message: 'Parsing strategy allocations into protocol-level allocations',
-          strategyCount: executionContext.strategyAllocations.length
-        }
+          message:
+            'Parsing strategy allocations into protocol-level allocations',
+          strategyCount: executionContext.strategyAllocations.length,
+        },
       });
 
       // Phase 2: Token Requirements Analysis
@@ -103,8 +108,8 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           phase: 'token_analysis',
           progress: 20,
           message: 'Analyzing token requirements for each protocol',
-          protocolCount: executionContext.protocolAllocations.length
-        }
+          protocolCount: executionContext.protocolAllocations.length,
+        },
       });
 
       // Phase 3: Swap Preparation
@@ -114,8 +119,10 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           phase: 'swap_preparation',
           progress: 40,
           message: 'Preparing token swaps for multi-protocol deposits',
-          swapCount: this._countRequiredSwaps(executionContext.protocolAllocations)
-        }
+          swapCount: this._countRequiredSwaps(
+            executionContext.protocolAllocations
+          ),
+        },
       });
 
       // Phase 4: Transaction Building
@@ -125,12 +132,15 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           phase: 'transaction_building',
           progress: 60,
           message: 'Building approval and deposit transactions',
-          transactionTypes: ['approvals', 'deposits', 'stakes']
-        }
+          transactionTypes: ['approvals', 'deposits', 'stakes'],
+        },
       });
 
       // Execute transaction generation
-      const transactions = await this.executor.generateTransactions(executionContext, streamWriter);
+      const transactions = await this.executor.generateTransactions(
+        executionContext,
+        streamWriter
+      );
 
       // Phase 5: Gas Estimation
       streamWriter({
@@ -139,11 +149,14 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           phase: 'gas_estimation',
           progress: 80,
           message: 'Estimating gas costs for transaction batch',
-          transactionCount: transactions.length
-        }
+          transactionCount: transactions.length,
+        },
       });
 
-      const gasEstimates = await this.executor.estimateGas(executionContext, transactions);
+      const gasEstimates = await this.executor.estimateGas(
+        executionContext,
+        transactions
+      );
 
       // Phase 6: Final Assembly
       streamWriter({
@@ -152,8 +165,8 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           phase: 'final_assembly',
           progress: 90,
           message: 'Assembling final transaction array with fee insertion',
-          finalizing: true
-        }
+          finalizing: true,
+        },
       });
 
       const finalTransactions = await this.executor.assembleFinalTransactions(
@@ -174,9 +187,11 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
             estimatedGas: gasEstimates.total,
             strategiesAllocated: executionContext.strategyAllocations.length,
             protocolsUsed: executionContext.protocolAllocations.length,
-            chainsInvolved: this._getUniqueChains(executionContext.protocolAllocations).length
-          }
-        }
+            chainsInvolved: this._getUniqueChains(
+              executionContext.protocolAllocations
+            ).length,
+          },
+        },
       });
 
       return {
@@ -187,10 +202,9 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           strategiesProcessed: executionContext.strategyAllocations.length,
           protocolsUsed: executionContext.protocolAllocations.length,
           totalTransactions: finalTransactions.length,
-          estimatedGas: gasEstimates.total
-        }
+          estimatedGas: gasEstimates.total,
+        },
       };
-
     } catch (error) {
       streamWriter({
         event: 'execution_error',
@@ -200,9 +214,9 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
           message: `Error during processing: ${error.message}`,
           error: {
             type: error.constructor.name,
-            message: error.message
-          }
-        }
+            message: error.message,
+          },
+        },
       });
 
       throw error;
@@ -234,7 +248,6 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
   removeExecutionContext(intentId) {
     this.contextManager.removeExecutionContext(intentId);
   }
-
 
   /**
    * Get unique chains from protocol allocations
@@ -269,7 +282,10 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
         this.rebalanceClient
       );
     } catch (error) {
-      console.warn('UnifiedZapExecutor not yet available, will be initialized later:', error.message);
+      console.warn(
+        'UnifiedZapExecutor not yet available, will be initialized later:',
+        error.message
+      );
     }
   }
 
@@ -282,7 +298,7 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
       contextManager: this.contextManager.getStatus(),
       executor: this.executor ? 'initialized' : 'pending',
       supportedStrategies: Object.keys(UNIFIED_ZAP_CONFIG.STRATEGY_CATEGORIES),
-      activeContexts: this.contextManager.executionContexts.size
+      activeContexts: this.contextManager.executionContexts.size,
     };
   }
 

@@ -26,6 +26,6 @@ module.exports = {
   protocols: {
     AaveProtocol,
     PendlePTProtocol,
-    VelodromeProtocol
-  }
+    VelodromeProtocol,
+  },
 };

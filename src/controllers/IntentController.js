@@ -56,7 +56,9 @@ class IntentController {
 
     // Last resort: extract from implementation (e.g., "AaveProtocol" -> "aave")
     if (protocol.implementation) {
-      const impl = protocol.implementation.replace(/Protocol$/, '').toLowerCase();
+      const impl = protocol.implementation
+        .replace(/Protocol$/, '')
+        .toLowerCase();
       return impl;
     }
 

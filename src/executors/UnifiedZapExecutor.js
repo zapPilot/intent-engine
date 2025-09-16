@@ -26,7 +26,7 @@ class UnifiedZapExecutor {
       strategyAllocations,
       inputToken,
       inputAmount,
-      slippage = UNIFIED_ZAP_CONFIG.DEFAULT_SLIPPAGE
+      slippage = UNIFIED_ZAP_CONFIG.DEFAULT_SLIPPAGE,
     } = params;
 
     // Convert input amount to BigNumber
@@ -40,7 +40,10 @@ class UnifiedZapExecutor {
     );
 
     // Phase 2: Get current prices for calculations
-    const tokenPrices = await this._getTokenPrices(inputToken, protocolAllocations);
+    const tokenPrices = await this._getTokenPrices(
+      inputToken,
+      protocolAllocations
+    );
 
     // Phase 3: Calculate token requirements for each protocol
     const protocolsWithRequirements = await this._analyzeTokenRequirements(
@@ -58,7 +61,7 @@ class UnifiedZapExecutor {
       strategyAllocations,
       protocolAllocations: protocolsWithRequirements,
       tokenPrices,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -74,7 +77,7 @@ class UnifiedZapExecutor {
       inputToken,
       protocolAllocations,
       slippage,
-      tokenPrices
+      tokenPrices,
     } = executionContext;
 
     let allTransactions = [];
@@ -92,8 +95,8 @@ class UnifiedZapExecutor {
               progress: 60 + (processedCount / protocolAllocations.length) * 20,
               message: `Processing ${protocolAllocation.name}`,
               protocol: protocolAllocation.name,
-              chain: protocolAllocation.chain
-            }
+              chain: protocolAllocation.chain,
+            },
           });
         }
 
@@ -116,9 +119,11 @@ class UnifiedZapExecutor {
 
         allTransactions = allTransactions.concat(protocolTransactions);
         processedCount++;
-
       } catch (error) {
-        console.error(`Error processing protocol ${protocolAllocation.id}:`, error);
+        console.error(
+          `Error processing protocol ${protocolAllocation.id}:`,
+          error
+        );
 
         if (streamWriter) {
           streamWriter({
@@ -127,8 +132,8 @@ class UnifiedZapExecutor {
               phase: 'transaction_building',
               message: `Error processing ${protocolAllocation.name}: ${error.message}`,
               protocol: protocolAllocation.name,
-              error: error.message
-            }
+              error: error.message,
+            },
           });
         }
 
@@ -157,7 +162,9 @@ class UnifiedZapExecutor {
 
     for (const [protocolId, protocolTxs] of Object.entries(txsByProtocol)) {
       try {
-        const protocolAllocation = protocolAllocations.find(p => p.id === protocolId);
+        const protocolAllocation = protocolAllocations.find(
+          p => p.id === protocolId
+        );
 
         if (protocolAllocation && protocolAllocation.instance) {
           const gasEstimate = await protocolAllocation.instance.estimateGas(
@@ -170,13 +177,18 @@ class UnifiedZapExecutor {
           totalGas = totalGas.add(gasEstimate.total.gasLimit);
         }
       } catch (error) {
-        console.warn(`Failed to estimate gas for protocol ${protocolId}:`, error);
+        console.warn(
+          `Failed to estimate gas for protocol ${protocolId}:`,
+          error
+        );
 
         // Fallback estimation based on transaction count
-        const fallbackGas = ethers.BigNumber.from(150000).mul(protocolTxs.length);
+        const fallbackGas = ethers.BigNumber.from(150000).mul(
+          protocolTxs.length
+        );
         protocolGasEstimates[protocolId] = {
           total: { gasLimit: fallbackGas },
-          estimated: true
+          estimated: true,
         };
         totalGas = totalGas.add(fallbackGas);
       }
@@ -186,7 +198,7 @@ class UnifiedZapExecutor {
       total: totalGas,
       byProtocol: protocolGasEstimates,
       transactionCount: transactions.length,
-      estimatedAt: new Date().toISOString()
+      estimatedAt: new Date().toISOString(),
     };
   }
 
@@ -197,7 +209,7 @@ class UnifiedZapExecutor {
    * @param {Object} executionContext - Execution context
    * @returns {Promise<Array>} - Final transaction array
    */
-  async assembleFinalTransactions(transactions, gasEstimates, executionContext) {
+  assembleFinalTransactions(transactions, gasEstimates, _executionContext) {
     // For now, return transactions as-is
     // In a full implementation, this would:
     // 1. Insert fee transactions between protocol groups
@@ -208,7 +220,7 @@ class UnifiedZapExecutor {
       ...tx,
       transactionIndex: index,
       estimatedGas: this._getTransactionGasEstimate(tx, gasEstimates),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }));
   }
 
@@ -222,7 +234,7 @@ class UnifiedZapExecutor {
     const baseTime = 3; // 3 seconds base time
     const timePerProtocol = 2; // 2 seconds per protocol
 
-    const minSeconds = baseTime + (protocolCount * timePerProtocol);
+    const minSeconds = baseTime + protocolCount * timePerProtocol;
     const maxSeconds = minSeconds * 1.5; // Add 50% buffer
 
     if (maxSeconds < 60) {
@@ -242,7 +254,7 @@ class UnifiedZapExecutor {
    * @returns {Promise<Array>} - Protocol allocations
    * @private
    */
-  async _parseStrategyAllocations(strategyAllocations, totalAmount, chainId) {
+  _parseStrategyAllocations(strategyAllocations, totalAmount, chainId) {
     const protocolAllocations = [];
 
     for (const allocation of strategyAllocations) {
@@ -254,7 +266,9 @@ class UnifiedZapExecutor {
       }
 
       // Calculate strategy amount
-      const strategyAmount = totalAmount.mul(Math.floor(percentage * 100)).div(10000);
+      const strategyAmount = totalAmount
+        .mul(Math.floor(percentage * 100))
+        .div(10000);
 
       // Get protocols for this strategy
       const strategyProtocols = this.protocolFactory.createProtocolsForStrategy(
@@ -263,21 +277,28 @@ class UnifiedZapExecutor {
       );
 
       if (strategyProtocols.length === 0) {
-        throw new Error(`No enabled protocols found for strategy ${strategyId} on chain ${chainId}`);
+        throw new Error(
+          `No enabled protocols found for strategy ${strategyId} on chain ${chainId}`
+        );
       }
 
       // Calculate protocol-level allocations based on weights
-      const totalWeight = strategyProtocols.reduce((sum, p) => sum + p.weight, 0);
+      const totalWeight = strategyProtocols.reduce(
+        (sum, p) => sum + p.weight,
+        0
+      );
 
       for (const protocol of strategyProtocols) {
-        const protocolAmount = strategyAmount.mul(protocol.weight).div(totalWeight);
+        const protocolAmount = strategyAmount
+          .mul(protocol.weight)
+          .div(totalWeight);
 
         protocolAllocations.push({
           ...protocol,
           strategyId,
           strategyName: strategyConfig.displayName,
           amount: protocolAmount,
-          percentage: (protocol.weight / totalWeight) * percentage
+          percentage: (protocol.weight / totalWeight) * percentage,
         });
       }
     }
@@ -316,7 +337,7 @@ class UnifiedZapExecutor {
 
     // Fetch prices for all tokens
     const prices = {};
-    const pricePromises = Array.from(tokenSymbols).map(async (symbol) => {
+    const pricePromises = Array.from(tokenSymbols).map(async symbol => {
       try {
         const priceObj = await this.priceService.getPrice(symbol);
         prices[symbol] = priceObj.price;
@@ -338,25 +359,33 @@ class UnifiedZapExecutor {
    * @returns {Promise<Array>} - Protocols with token requirements
    * @private
    */
-  async _analyzeTokenRequirements(protocolAllocations, inputToken, tokenPrices) {
+  async _analyzeTokenRequirements(
+    protocolAllocations,
+    inputToken,
+    _tokenPrices
+  ) {
     const protocolsWithRequirements = [];
 
     for (const protocol of protocolAllocations) {
       try {
-        const requirements = await protocol.instance.getTokenRequirements(inputToken);
+        const requirements =
+          await protocol.instance.getTokenRequirements(inputToken);
 
         protocolsWithRequirements.push({
           ...protocol,
           tokenRequirements: requirements,
-          requiresSwap: requirements.requiresSwap
+          requiresSwap: requirements.requiresSwap,
         });
       } catch (error) {
-        console.error(`Failed to analyze requirements for protocol ${protocol.id}:`, error);
+        console.error(
+          `Failed to analyze requirements for protocol ${protocol.id}:`,
+          error
+        );
         // Add with fallback requirements
         protocolsWithRequirements.push({
           ...protocol,
           tokenRequirements: { mode: 'single', requiresSwap: true },
-          requiresSwap: true
+          requiresSwap: true,
         });
       }
     }
@@ -374,15 +403,22 @@ class UnifiedZapExecutor {
    * @returns {Promise<Array>} - Protocol transactions
    * @private
    */
-  async _generateProtocolTransactions(protocolAllocation, userAddress, inputToken, slippage, tokenPrices) {
+  async _generateProtocolTransactions(
+    protocolAllocation,
+    userAddress,
+    inputToken,
+    slippage,
+    _tokenPrices
+  ) {
     const { instance, amount, tokenRequirements } = protocolAllocation;
     const transactions = [];
 
     try {
       // For single token protocols
       if (tokenRequirements.mode === 'single') {
-        const protocolToken = tokenRequirements.protocolSpecific?.underlyingToken ||
-                             tokenRequirements.outputToken;
+        const protocolToken =
+          tokenRequirements.protocolSpecific?.underlyingToken ||
+          tokenRequirements.outputToken;
 
         // Generate approval transaction
         if (protocolToken && tokenRequirements.requiresSwap) {
@@ -390,7 +426,7 @@ class UnifiedZapExecutor {
             userAddress,
             protocolToken,
             tokenRequirements.protocolSpecific?.protocolAddress ||
-            tokenRequirements.protocolSpecific?.poolAddress,
+              tokenRequirements.protocolSpecific?.poolAddress,
             amount
           );
           transactions.push(approvalTx);
@@ -408,9 +444,14 @@ class UnifiedZapExecutor {
 
       // For LP protocols
       else if (tokenRequirements.mode === 'LP') {
-        const lpTokens = tokenRequirements.protocolSpecific?.token0 && tokenRequirements.protocolSpecific?.token1
-          ? [tokenRequirements.protocolSpecific.token0, tokenRequirements.protocolSpecific.token1]
-          : [];
+        const lpTokens =
+          tokenRequirements.protocolSpecific?.token0 &&
+          tokenRequirements.protocolSpecific?.token1
+            ? [
+                tokenRequirements.protocolSpecific.token0,
+                tokenRequirements.protocolSpecific.token1,
+              ]
+            : [];
 
         if (lpTokens.length === 2) {
           // Calculate token amounts for LP (50/50 split for simplicity)
@@ -435,16 +476,20 @@ class UnifiedZapExecutor {
             {
               token0Amount: halfAmount,
               token1Amount: halfAmount,
-              slippage
+              slippage,
             }
           );
           transactions.push(depositTx);
         }
       }
-
     } catch (error) {
-      console.error(`Error generating transactions for ${protocolAllocation.id}:`, error);
-      throw new Error(`Failed to generate transactions for ${protocolAllocation.name}: ${error.message}`);
+      console.error(
+        `Error generating transactions for ${protocolAllocation.id}:`,
+        error
+      );
+      throw new Error(
+        `Failed to generate transactions for ${protocolAllocation.name}: ${error.message}`
+      );
     }
 
     return transactions;
@@ -485,7 +530,10 @@ class UnifiedZapExecutor {
     }
 
     // Fallback estimate based on transaction type
-    if (transaction.description && transaction.description.toLowerCase().includes('approve')) {
+    if (
+      transaction.description &&
+      transaction.description.toLowerCase().includes('approve')
+    ) {
       return ethers.BigNumber.from('50000');
     } else {
       return ethers.BigNumber.from('200000');
@@ -503,7 +551,7 @@ class UnifiedZapExecutor {
       1: 'ethereum',
       42161: 'arbitrum',
       8453: 'base',
-      10: 'optimism'
+      10: 'optimism',
     };
 
     return chainMapping[chainId] || 'unknown';

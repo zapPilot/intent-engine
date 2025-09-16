@@ -26,12 +26,12 @@ class VelodromeProtocol extends BaseProtocolV2 {
     this.token0 = {
       symbol: this.lpTokens[0][0],
       address: this.lpTokens[0][1],
-      decimals: this.lpTokens[0][2]
+      decimals: this.lpTokens[0][2],
     };
     this.token1 = {
       symbol: this.lpTokens[1][0],
       address: this.lpTokens[1][1],
-      decimals: this.lpTokens[1][2]
+      decimals: this.lpTokens[1][2],
     };
   }
 
@@ -43,13 +43,20 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @param {Object} additionalParams - Token amounts and slippage
    * @returns {Promise<Object>} - Deposit transaction object
    */
-  async getDepositTransaction(userAddress, inputToken, amount, additionalParams = {}) {
+  getDepositTransaction(
+    userAddress,
+    inputToken,
+    amount,
+    additionalParams = {}
+  ) {
     this._validateAddress(userAddress);
 
     const { token0Amount, token1Amount, slippage = 0.5 } = additionalParams;
 
     if (!token0Amount || !token1Amount) {
-      throw new Error('LP provision requires both token0Amount and token1Amount');
+      throw new Error(
+        'LP provision requires both token0Amount and token1Amount'
+      );
     }
 
     const amount0 = ethers.BigNumber.isBigNumber(token0Amount)
@@ -70,11 +77,21 @@ class VelodromeProtocol extends BaseProtocolV2 {
     const deadline = this._getDeadline();
 
     // Check if tokens are sorted correctly for Velodrome
-    const [sortedToken0, sortedToken1, sortedAmount0, sortedAmount1, sortedMin0, sortedMin1] =
-      this._sortTokens(
-        this.token0.address, this.token1.address,
-        amount0, amount1, minAmount0, minAmount1
-      );
+    const [
+      sortedToken0,
+      sortedToken1,
+      sortedAmount0,
+      sortedAmount1,
+      sortedMin0,
+      sortedMin1,
+    ] = this._sortTokens(
+      this.token0.address,
+      this.token1.address,
+      amount0,
+      amount1,
+      minAmount0,
+      minAmount1
+    );
 
     // Generate add liquidity transaction
     const addLiquidityData = this._encodeAddLiquidityCall(
@@ -94,7 +111,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
       data: addLiquidityData,
       value: '0',
       gasLimit: null,
-      description: `Add liquidity to ${this.token0.symbol}/${this.token1.symbol} pool`
+      description: `Add liquidity to ${this.token0.symbol}/${this.token1.symbol} pool`,
     };
   }
 
@@ -104,7 +121,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} lpAmount - LP token amount to stake
    * @returns {Promise<Object>} - Staking transaction
    */
-  async getStakingTransaction(userAddress, lpAmount) {
+  getStakingTransaction(userAddress, lpAmount) {
     this._validateAddress(userAddress);
 
     const stakeAmount = ethers.BigNumber.isBigNumber(lpAmount)
@@ -122,7 +139,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
       data: stakeData,
       value: '0',
       gasLimit: null,
-      description: `Stake ${this._formatAmount(stakeAmount, 18)} LP tokens in gauge`
+      description: `Stake ${this._formatAmount(stakeAmount, 18)} LP tokens in gauge`,
     };
   }
 
@@ -133,7 +150,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @param {BigNumber|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
-  async estimateGas(userAddress, inputToken, amount) {
+  estimateGas(_userAddress, _inputToken, _amount) {
     try {
       // LP operations require multiple approvals and higher gas
       const token0ApprovalGas = ethers.BigNumber.from('50000');
@@ -144,20 +161,23 @@ class VelodromeProtocol extends BaseProtocolV2 {
       return {
         approvals: {
           gasLimit: token0ApprovalGas.add(token1ApprovalGas),
-          description: 'Approve both LP tokens'
+          description: 'Approve both LP tokens',
         },
         addLiquidity: {
           gasLimit: addLiquidityGas,
-          description: 'Add liquidity to pool'
+          description: 'Add liquidity to pool',
         },
         stake: {
           gasLimit: stakeGas,
-          description: 'Stake LP tokens in gauge'
+          description: 'Stake LP tokens in gauge',
         },
         total: {
-          gasLimit: token0ApprovalGas.add(token1ApprovalGas).add(addLiquidityGas).add(stakeGas),
-          description: 'Total estimated gas for LP + staking'
-        }
+          gasLimit: token0ApprovalGas
+            .add(token1ApprovalGas)
+            .add(addLiquidityGas)
+            .add(stakeGas),
+          description: 'Total estimated gas for LP + staking',
+        },
       };
     } catch (error) {
       throw new Error(`Failed to estimate gas for Velodrome: ${error.message}`);
@@ -169,8 +189,8 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @param {string} inputToken - Input token address
    * @returns {Promise<Object>} - Token requirements
    */
-  async getTokenRequirements(inputToken) {
-    const baseRequirements = await super.getTokenRequirements(inputToken);
+  getTokenRequirements(inputToken) {
+    const baseRequirements = super.getTokenRequirements(inputToken);
 
     return {
       ...baseRequirements,
@@ -182,8 +202,8 @@ class VelodromeProtocol extends BaseProtocolV2 {
         token1: this.token1,
         isStablePool: this._isStablePool(),
         requiresBothTokens: true,
-        rewards: this.rewards
-      }
+        rewards: this.rewards,
+      },
     };
   }
 
@@ -196,23 +216,30 @@ class VelodromeProtocol extends BaseProtocolV2 {
       'routerAddress',
       'guageAddress', // Note: using config spelling
       'assetAddress',
-      'lpTokens'
+      'lpTokens',
     ];
 
     const missing = required.filter(key => !this.config[key]);
     if (missing.length > 0) {
-      throw new Error(`Missing required Velodrome config: ${missing.join(', ')}`);
+      throw new Error(
+        `Missing required Velodrome config: ${missing.join(', ')}`
+      );
     }
 
     // Validate LP tokens array
-    if (!Array.isArray(this.config.lpTokens) || this.config.lpTokens.length !== 2) {
+    if (
+      !Array.isArray(this.config.lpTokens) ||
+      this.config.lpTokens.length !== 2
+    ) {
       throw new Error('lpTokens must be an array of exactly 2 tokens');
     }
 
     // Validate each LP token format
     this.config.lpTokens.forEach((token, index) => {
       if (!Array.isArray(token) || token.length !== 3) {
-        throw new Error(`lpTokens[${index}] must be [symbol, address, decimals]`);
+        throw new Error(
+          `lpTokens[${index}] must be [symbol, address, decimals]`
+        );
       }
 
       const [symbol, address, decimals] = token;
@@ -246,11 +273,21 @@ class VelodromeProtocol extends BaseProtocolV2 {
   _isStablePool() {
     // Usually stable pools are marked in configuration or can be inferred from tokens
     // For now, assume correlated assets (stablecoins) use stable pools
-    const stableTokens = ['usdc', 'usdt', 'dai', 'susd', 'eurc', 'usdx', 'susdx'];
+    const stableTokens = [
+      'usdc',
+      'usdt',
+      'dai',
+      'susd',
+      'eurc',
+      'usdx',
+      'susdx',
+    ];
     const token0Symbol = this.token0.symbol.toLowerCase();
     const token1Symbol = this.token1.symbol.toLowerCase();
 
-    return stableTokens.includes(token0Symbol) && stableTokens.includes(token1Symbol);
+    return (
+      stableTokens.includes(token0Symbol) && stableTokens.includes(token1Symbol)
+    );
   }
 
   /**
@@ -288,9 +325,19 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @returns {string} - Encoded function data
    * @private
    */
-  _encodeAddLiquidityCall(tokenA, tokenB, stable, amountADesired, amountBDesired, amountAMin, amountBMin, to, deadline) {
+  _encodeAddLiquidityCall(
+    tokenA,
+    tokenB,
+    stable,
+    amountADesired,
+    amountBDesired,
+    amountAMin,
+    amountBMin,
+    to,
+    deadline
+  ) {
     const routerInterface = new ethers.utils.Interface([
-      'function addLiquidity(address tokenA, address tokenB, bool stable, uint256 amountADesired, uint256 amountBDesired, uint256 amountAMin, uint256 amountBMin, address to, uint256 deadline) returns (uint256 amountA, uint256 amountB, uint256 liquidity)'
+      'function addLiquidity(address tokenA, address tokenB, bool stable, uint256 amountADesired, uint256 amountBDesired, uint256 amountAMin, uint256 amountBMin, address to, uint256 deadline) returns (uint256 amountA, uint256 amountB, uint256 liquidity)',
     ]);
 
     return routerInterface.encodeFunctionData('addLiquidity', [
@@ -302,7 +349,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
       amountAMin,
       amountBMin,
       to,
-      deadline
+      deadline,
     ]);
   }
 
@@ -314,7 +361,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
    */
   _encodeStakeCall(amount) {
     const gaugeInterface = new ethers.utils.Interface([
-      'function deposit(uint256 amount)'
+      'function deposit(uint256 amount)',
     ]);
 
     return gaugeInterface.encodeFunctionData('deposit', [amount]);
@@ -338,8 +385,8 @@ class VelodromeProtocol extends BaseProtocolV2 {
       addresses: {
         router: this.routerAddress,
         gauge: this.gaugeAddress,
-        lpToken: this.lpTokenAddress
-      }
+        lpToken: this.lpTokenAddress,
+      },
     };
   }
 
@@ -355,22 +402,26 @@ class VelodromeProtocol extends BaseProtocolV2 {
 
     // Approve token0
     if (!amount0.isZero()) {
-      approvals.push(await this.getApprovalTransaction(
-        userAddress,
-        this.token0.address,
-        this.routerAddress,
-        amount0
-      ));
+      approvals.push(
+        await this.getApprovalTransaction(
+          userAddress,
+          this.token0.address,
+          this.routerAddress,
+          amount0
+        )
+      );
     }
 
     // Approve token1
     if (!amount1.isZero()) {
-      approvals.push(await this.getApprovalTransaction(
-        userAddress,
-        this.token1.address,
-        this.routerAddress,
-        amount1
-      ));
+      approvals.push(
+        await this.getApprovalTransaction(
+          userAddress,
+          this.token1.address,
+          this.routerAddress,
+          amount1
+        )
+      );
     }
 
     return approvals;
@@ -387,25 +438,27 @@ class VelodromeProtocol extends BaseProtocolV2 {
     const token1Price = tokenPrices[this.token1.symbol.toLowerCase()];
 
     if (!token0Price || !token1Price) {
-      throw new Error(`Missing price data for ${this.token0.symbol} or ${this.token1.symbol}`);
+      throw new Error(
+        `Missing price data for ${this.token0.symbol} or ${this.token1.symbol}`
+      );
     }
 
     // Simple 50/50 split for LP provision
     const halfValue = totalValue.div(2);
 
-    const token0Amount = halfValue.mul(ethers.utils.parseUnits('1', this.token0.decimals)).div(
-      ethers.utils.parseUnits(token0Price.toString(), 18)
-    );
+    const token0Amount = halfValue
+      .mul(ethers.utils.parseUnits('1', this.token0.decimals))
+      .div(ethers.utils.parseUnits(token0Price.toString(), 18));
 
-    const token1Amount = halfValue.mul(ethers.utils.parseUnits('1', this.token1.decimals)).div(
-      ethers.utils.parseUnits(token1Price.toString(), 18)
-    );
+    const token1Amount = halfValue
+      .mul(ethers.utils.parseUnits('1', this.token1.decimals))
+      .div(ethers.utils.parseUnits(token1Price.toString(), 18));
 
     return {
       token0Amount,
       token1Amount,
       token0Value: halfValue,
-      token1Value: halfValue
+      token1Value: halfValue,
     };
   }
 }

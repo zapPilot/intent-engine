@@ -57,7 +57,9 @@ describe('GET /api/v1/strategies', () => {
     it('should return lastUpdated timestamp', () => {
       expect(response.body).toHaveProperty('lastUpdated');
       expect(new Date(response.body.lastUpdated)).toBeInstanceOf(Date);
-      expect(Date.now() - new Date(response.body.lastUpdated).getTime()).toBeLessThan(5000); // Within 5 seconds
+      expect(
+        Date.now() - new Date(response.body.lastUpdated).getTime()
+      ).toBeLessThan(5000); // Within 5 seconds
     });
 
     it('should have at least one strategy', () => {
@@ -244,14 +246,17 @@ describe('GET /api/v1/strategies', () => {
 
     it('should support both symbolOfBestTokenToZapInOut and symbolOfBestTokenToZapOut', () => {
       const UNIFIED_ZAP_CONFIG = require('../src/config/unifiedZapConfig');
-      const allProtocols = Object.values(UNIFIED_ZAP_CONFIG.STRATEGY_CATEGORIES)
-        .flatMap(strategy => strategy.protocols);
+      const allProtocols = Object.values(
+        UNIFIED_ZAP_CONFIG.STRATEGY_CATEGORIES
+      ).flatMap(strategy => strategy.protocols);
 
       // Find protocols with either field to ensure the extraction logic works
-      const protocolsWithInOut = allProtocols.filter(p =>
-        p.config?.symbolOfBestTokenToZapInOut);
-      const protocolsWithOut = allProtocols.filter(p =>
-        p.config?.symbolOfBestTokenToZapOut);
+      const protocolsWithInOut = allProtocols.filter(
+        p => p.config?.symbolOfBestTokenToZapInOut
+      );
+      const protocolsWithOut = allProtocols.filter(
+        p => p.config?.symbolOfBestTokenToZapOut
+      );
 
       if (protocolsWithInOut.length > 0) {
         protocolsWithInOut.forEach(protocol => {
@@ -301,11 +306,13 @@ describe('GET /api/v1/strategies', () => {
         enabled: true,
         config: {
           mode: 'single',
-          symbolOfBestTokenToZapInOut: 'USDC'
-        }
+          symbolOfBestTokenToZapInOut: 'USDC',
+        },
       };
 
-      const formatted = IntentController._formatProtocolDetails(mockProtocolWithSuffix);
+      const formatted = IntentController._formatProtocolDetails(
+        mockProtocolWithSuffix
+      );
 
       expect(formatted.name).toBe('Test Protocol'); // Chain suffix removed
       expect(formatted.targetTokens).toEqual(['USDC']);
@@ -326,8 +333,8 @@ describe('GET /api/v1/strategies', () => {
         enabled: false,
         config: {
           mode: 'single',
-          symbolOfBestTokenToZapOut: 'WETH'
-        }
+          symbolOfBestTokenToZapOut: 'WETH',
+        },
       };
 
       const formatted = IntentController._formatProtocolDetails(mockProtocol);
@@ -350,9 +357,9 @@ describe('GET /api/v1/strategies', () => {
           mode: 'LP',
           lpTokens: [
             ['USDC', '0x123...', 6],
-            ['WETH', '0x456...', 18]
-          ]
-        }
+            ['WETH', '0x456...', 18],
+          ],
+        },
       };
 
       const formatted = IntentController._formatProtocolDetails(mockLPProtocol);
@@ -372,11 +379,12 @@ describe('GET /api/v1/strategies', () => {
         implementation: 'MinimalProtocol',
         chain: 'ethereum',
         chainId: 1,
-        weight: 10
+        weight: 10,
         // No config or enabled field
       };
 
-      const formatted = IntentController._formatProtocolDetails(mockMinimalProtocol);
+      const formatted =
+        IntentController._formatProtocolDetails(mockMinimalProtocol);
 
       expect(formatted.targetTokens).toEqual([]); // Empty when no tokens specified
       expect(formatted.enabled).toBe(true); // Default enabled
@@ -431,7 +439,7 @@ describe('GET /api/v1/strategies', () => {
       const mockReq = {};
       const mockRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn()
+        json: jest.fn(),
       };
 
       // Save original config
@@ -448,8 +456,8 @@ describe('GET /api/v1/strategies', () => {
           success: false,
           error: {
             code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to get available strategies'
-          }
+            message: 'Failed to get available strategies',
+          },
         });
       } finally {
         // Restore original config
@@ -473,7 +481,7 @@ describe('GET /api/v1/strategies', () => {
         'velodrome-bold-usdc-base': 'velodrome',
         'velodrome-usdc-susd-optimism': 'velodrome',
         'lido-steth-ethereum': 'lido',
-        'rocketpool-reth-ethereum': 'rocketpool'
+        'rocketpool-reth-ethereum': 'rocketpool',
       };
 
       protocols.forEach(protocol => {
@@ -521,7 +529,9 @@ describe('GET /api/v1/strategies', () => {
 
     it('should match protocol names with implementations', () => {
       protocols.forEach(protocol => {
-        const implLower = protocol.implementation.replace(/Protocol$/, '').toLowerCase();
+        const implLower = protocol.implementation
+          .replace(/Protocol$/, '')
+          .toLowerCase();
 
         // For most cases, protocol name should match implementation prefix
         if (!['pendlept', 'rocketpool'].includes(implLower)) {
@@ -539,18 +549,25 @@ describe('GET /api/v1/strategies', () => {
         { id: 'aave-usdc-base', expected: 'aave' },
         { id: 'pendle-pt-gusdc-arbitrum', expected: 'pendle' },
         { id: 'velodrome-bold-usdc-base', expected: 'velodrome' },
-        { id: 'compound-eth-mainnet', expected: 'compound' }
+        { id: 'compound-eth-mainnet', expected: 'compound' },
       ];
 
       testCases.forEach(({ id, expected }) => {
-        const protocol = { id, name: 'Test Protocol', implementation: 'TestProtocol' };
+        const protocol = {
+          id,
+          name: 'Test Protocol',
+          implementation: 'TestProtocol',
+        };
         const result = IntentController._extractProtocolName(protocol);
         expect(result).toBe(expected);
       });
     });
 
     it('should fallback to name extraction when id is missing', () => {
-      const protocol = { name: 'Uniswap V3 Pool', implementation: 'UniswapProtocol' };
+      const protocol = {
+        name: 'Uniswap V3 Pool',
+        implementation: 'UniswapProtocol',
+      };
       const result = IntentController._extractProtocolName(protocol);
       expect(result).toBe('uniswap');
     });
@@ -571,7 +588,7 @@ describe('GET /api/v1/strategies', () => {
       const testCases = [
         { implementation: 'PendlePTProtocol', expected: 'pendlept' },
         { implementation: 'RocketPoolProtocol', expected: 'rocketpool' },
-        { implementation: 'CompoundV2Protocol', expected: 'compoundv2' }
+        { implementation: 'CompoundV2Protocol', expected: 'compoundv2' },
       ];
 
       testCases.forEach(({ implementation, expected }) => {
@@ -663,9 +680,9 @@ describe('GET /api/v1/strategies', () => {
     });
 
     it('should handle concurrent requests properly', async () => {
-      const requests = Array(5).fill().map(() =>
-        request(app).get('/api/v1/strategies')
-      );
+      const requests = Array(5)
+        .fill()
+        .map(() => request(app).get('/api/v1/strategies'));
 
       const responses = await Promise.all(requests);
 
@@ -678,7 +695,9 @@ describe('GET /api/v1/strategies', () => {
       // All responses should be identical (deterministic)
       const firstResponse = responses[0].body;
       responses.slice(1).forEach(response => {
-        expect(response.body.strategies.length).toBe(firstResponse.strategies.length);
+        expect(response.body.strategies.length).toBe(
+          firstResponse.strategies.length
+        );
         expect(response.body.total).toBe(firstResponse.total);
       });
     });
@@ -687,9 +706,13 @@ describe('GET /api/v1/strategies', () => {
       const response1 = await request(app).get('/api/v1/strategies');
       const response2 = await request(app).get('/api/v1/strategies');
 
-      expect(response1.body.strategies.length).toBe(response2.body.strategies.length);
+      expect(response1.body.strategies.length).toBe(
+        response2.body.strategies.length
+      );
       expect(response1.body.total).toBe(response2.body.total);
-      expect(response1.body.supportedChains.length).toBe(response2.body.supportedChains.length);
+      expect(response1.body.supportedChains.length).toBe(
+        response2.body.supportedChains.length
+      );
 
       // Strategy IDs should be the same
       const ids1 = response1.body.strategies.map(s => s.id).sort();
