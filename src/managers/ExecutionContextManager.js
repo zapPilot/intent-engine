@@ -51,6 +51,12 @@ class ExecutionContextManager {
     this.cleanupTimer = setInterval(() => {
       this.cleanupExpiredContexts();
     }, this.config.SSE_STREAMING.CLEANUP_INTERVAL);
+
+    // Ensure this interval does not keep the event loop alive
+    // so Jest can exit cleanly when tests finish.
+    if (typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
   }
 
   /**

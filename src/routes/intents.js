@@ -285,6 +285,211 @@ router.get('/api/v1/intents', IntentController.getSupportedIntents);
 router.get('/api/v1/intents/health', IntentController.getIntentHealth);
 
 /**
+ * UnifiedZap Intent Endpoints - Multi-strategy allocation
+ */
+
+/**
+ * @swagger
+ * /api/v1/intents/unifiedZap:
+ *   post:
+ *     tags:
+ *       - Intents
+ *     summary: Execute UnifiedZap intent (multi-strategy allocation)
+ *     description: Allocates funds across multiple DeFi strategies in a single transaction flow, with real-time SSE streaming
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/IntentRequest'
+ *               - type: object
+ *                 properties:
+ *                   params:
+ *                     $ref: '#/components/schemas/UnifiedZapParams'
+ *           examples:
+ *             unifiedZapRequest:
+ *               summary: Multi-strategy allocation request
+ *               value:
+ *                 userAddress: "0x2eCBC6f229feD06044CDb0dD772437a30190CD50"
+ *                 chainId: 8453
+ *                 params:
+ *                   strategyAllocations:
+ *                     - strategyId: "stablecoin"
+ *                       percentage: 70
+ *                     - strategyId: "eth"
+ *                       percentage: 30
+ *                   inputToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+ *                   inputAmount: "1000000000"
+ *                   slippage: 0.5
+ *     responses:
+ *       200:
+ *         description: UnifiedZap intent initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UnifiedZapResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+router.post(
+  '/api/v1/intents/unifiedZap',
+  validateIntentRequest,
+  IntentController.processUnifiedZapIntent
+);
+
+/**
+ * @swagger
+ * /api/unifiedzap/{intentId}/stream:
+ *   get:
+ *     tags:
+ *       - Intents
+ *     summary: Stream UnifiedZap execution progress
+ *     description: SSE endpoint for real-time multi-strategy allocation progress
+ *     parameters:
+ *       - in: path
+ *         name: intentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^unifiedZap_\d+_[a-fA-F0-9]{6}_[a-fA-F0-9]{16}$'
+ *         description: Intent ID returned from UnifiedZap intent initiation
+ *     responses:
+ *       200:
+ *         description: SSE stream with real-time processing updates
+ *         headers:
+ *           Content-Type:
+ *             schema:
+ *               type: string
+ *               example: "text/event-stream"
+ *       400:
+ *         description: Invalid intent ID format
+ *       404:
+ *         description: Intent execution context not found
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+router.get(
+  '/api/unifiedzap/:intentId/stream',
+  IntentController.handleUnifiedZapStream
+);
+
+/**
+ * @swagger
+ * /api/v1/strategies:
+ *   get:
+ *     tags:
+ *       - Strategies
+ *     summary: Get available strategy categories
+ *     description: Returns all available DeFi strategy categories for multi-strategy allocation
+ *     responses:
+ *       200:
+ *         description: Strategy categories retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 strategies:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "stablecoin"
+ *                       displayName:
+ *                         type: string
+ *                         example: "Stablecoins"
+ *                       description:
+ *                         type: string
+ *                       targetAssets:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       chains:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       protocolCount:
+ *                         type: integer
+ *                 total:
+ *                   type: integer
+ *                 supportedChains:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+router.get('/api/v1/strategies', IntentController.getStrategies);
+
+/**
+ * @swagger
+ * /api/v1/strategies/{strategyId}/protocols:
+ *   get:
+ *     tags:
+ *       - Strategies
+ *     summary: Get protocol breakdown for a strategy
+ *     description: Returns detailed protocol information for a specific strategy
+ *     parameters:
+ *       - in: path
+ *         name: strategyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "stablecoin"
+ *         description: Strategy ID to get protocols for
+ *       - in: query
+ *         name: chain
+ *         required: false
+ *         schema:
+ *           type: string
+ *           example: "base"
+ *         description: Optional chain filter
+ *     responses:
+ *       200:
+ *         description: Strategy protocol details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 strategyId:
+ *                   type: string
+ *                 protocols:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       chain:
+ *                         type: string
+ *                       weight:
+ *                         type: number
+ *                       enabled:
+ *                         type: boolean
+ *       404:
+ *         description: Strategy not found
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+router.get(
+  '/api/v1/strategies/:strategyId/protocols',
+  IntentController.getStrategyProtocols
+);
+
+/**
  * Placeholder endpoints for future intents
  */
 
@@ -321,4 +526,11 @@ router.get(
 );
 
 // Export both router and intentService for cleanup in tests
+// Export both router and intentService for tests to perform cleanup
 module.exports = router;
+try {
+  const IntentController = require('../controllers/IntentController');
+  module.exports.intentService = IntentController.intentService;
+} catch (_err) {
+  // In case of isolated module loading during tests
+}

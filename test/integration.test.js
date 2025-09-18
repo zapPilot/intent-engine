@@ -19,6 +19,10 @@ jest.mock('../src/controllers/IntentController', () => ({
   getSupportedIntents: jest.fn(),
   getIntentHealth: jest.fn(),
   processOptimizeIntent: jest.fn(),
+  processUnifiedZapIntent: jest.fn(),
+  handleUnifiedZapStream: jest.fn(),
+  getStrategies: jest.fn(),
+  getStrategyProtocols: jest.fn(),
 }));
 
 jest.mock('../src/controllers/VaultController', () => ({
@@ -136,6 +140,44 @@ describe('Integration Tests', () => {
           rebalanceBackend: true,
         },
         timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Add mock implementations for the new methods
+    IntentController.processUnifiedZapIntent.mockImplementation((req, res) => {
+      res.json({
+        success: true,
+        intentType: 'unifiedZap',
+        mode: 'streaming',
+        intentId: 'mockUnifiedZapIntentId',
+        streamUrl: '/mockUnifiedZapStreamUrl',
+      });
+    });
+
+    IntentController.handleUnifiedZapStream.mockImplementation((req, res) => {
+      res.status(200).send('Mock Unified Stream');
+    });
+
+    IntentController.getStrategies.mockImplementation((req, res) => {
+      res.json({
+        success: true,
+        strategies: [{ id: 'mock-strategy', displayName: 'Mock Strategy' }],
+        total: 1,
+        supportedChains: ['1', '137'],
+        lastUpdated: new Date().toISOString(),
+      });
+    });
+
+    IntentController.getStrategyProtocols.mockImplementation((req, res) => {
+      res.json({
+        success: true,
+        strategyId: req.params.strategyId,
+        strategyName: 'Mock Strategy',
+        chain: req.query.chain || 'all',
+        protocols: [{ id: 'mock-protocol', name: 'Mock Protocol' }],
+        totalProtocols: 1,
+        totalWeight: 100,
+        enabledProtocols: 1,
       });
     });
   });

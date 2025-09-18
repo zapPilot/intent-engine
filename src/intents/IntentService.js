@@ -1,4 +1,5 @@
 const DustZapIntentHandler = require('./DustZapIntentHandler');
+const UnifiedZapIntentHandler = require('./UnifiedZapIntentHandler');
 
 /**
  * Intent Service - Orchestrates different intent handlers
@@ -11,6 +12,10 @@ class IntentService {
     this.handlers.set(
       'dustZap',
       new DustZapIntentHandler(swapService, priceService, rebalanceClient)
+    );
+    this.handlers.set(
+      'unifiedZap',
+      new UnifiedZapIntentHandler(swapService, priceService, rebalanceClient)
     );
     // Future handlers can be added here:
     // this.handlers.set('zapIn', new ZapInIntentHandler(...));
@@ -152,13 +157,6 @@ class IntentService {
     if (invalidOps.length > 0) {
       throw new Error(`Invalid operations: ${invalidOps.join(', ')}`);
     }
-
-    console.log(
-      'FIXED VERSION: IntentService.processOptimizeIntent - input chainId:',
-      chainId,
-      'operations:',
-      operations
-    );
 
     const results = {
       success: true,
