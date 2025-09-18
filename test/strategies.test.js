@@ -390,6 +390,231 @@ describe('GET /api/v1/strategies', () => {
       expect(formatted.enabled).toBe(true); // Default enabled
       expect(formatted.mode).toBe('single'); // Default mode
     });
+
+    // Enhanced edge cases for _formatProtocolDetails
+    it('should handle null protocol object', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      expect(() => {
+        IntentController._formatProtocolDetails(null);
+      }).toThrow();
+    });
+
+    it('should handle undefined protocol object', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      expect(() => {
+        IntentController._formatProtocolDetails(undefined);
+      }).toThrow();
+    });
+
+    it('should handle protocol with null config', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const mockProtocol = {
+        id: 'null-config-protocol',
+        name: 'Null Config Protocol',
+        implementation: 'NullProtocol',
+        chain: 'arbitrum',
+        chainId: 42161,
+        weight: 50,
+        enabled: true,
+        config: null,
+      };
+
+      const formatted = IntentController._formatProtocolDetails(mockProtocol);
+
+      expect(formatted.mode).toBe('single'); // Default mode
+      expect(formatted.targetTokens).toEqual([]); // Empty for null config
+      expect(formatted.enabled).toBe(true);
+    });
+
+    it('should handle protocol with undefined config', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const mockProtocol = {
+        id: 'undefined-config-protocol',
+        name: 'Undefined Config Protocol',
+        implementation: 'UndefinedProtocol',
+        chain: 'base',
+        chainId: 8453,
+        weight: 50,
+        // config: undefined (implicit)
+      };
+
+      const formatted = IntentController._formatProtocolDetails(mockProtocol);
+
+      expect(formatted.mode).toBe('single');
+      expect(formatted.targetTokens).toEqual([]);
+      expect(formatted.enabled).toBe(true); // Default when not specified
+    });
+
+    it('should handle protocol with empty lpTokens array', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const mockProtocol = {
+        id: 'empty-lp-protocol',
+        name: 'Empty LP Protocol',
+        implementation: 'EmptyLPProtocol',
+        chain: 'ethereum',
+        chainId: 1,
+        weight: 25,
+        config: {
+          mode: 'LP',
+          lpTokens: [], // Empty array
+        },
+      };
+
+      const formatted = IntentController._formatProtocolDetails(mockProtocol);
+
+      expect(formatted.mode).toBe('LP');
+      expect(formatted.targetTokens).toEqual([]); // Empty for empty lpTokens
+    });
+
+    it('should handle protocol with malformed lpTokens', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const mockProtocol = {
+        id: 'malformed-lp-protocol',
+        name: 'Malformed LP Protocol',
+        implementation: 'MalformedProtocol',
+        chain: 'ethereum',
+        chainId: 1,
+        weight: 25,
+        config: {
+          mode: 'LP',
+          lpTokens: [
+            'invalid_format', // Not an array
+            ['USDC'], // Missing elements
+            ['WETH', '0x456', 18], // Valid format
+          ],
+        },
+      };
+
+      const formatted = IntentController._formatProtocolDetails(mockProtocol);
+
+      expect(formatted.mode).toBe('LP');
+      // Should handle malformed entries gracefully
+      expect(Array.isArray(formatted.targetTokens)).toBe(true);
+    });
+
+    it('should handle protocol with both symbolOfBestTokenToZapInOut and symbolOfBestTokenToZapOut', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const mockProtocol = {
+        id: 'dual-token-protocol',
+        name: 'Dual Token Protocol',
+        implementation: 'DualProtocol',
+        chain: 'optimism',
+        chainId: 10,
+        weight: 50,
+        config: {
+          mode: 'single',
+          symbolOfBestTokenToZapInOut: 'USDC',
+          symbolOfBestTokenToZapOut: 'WETH', // Both present
+        },
+      };
+
+      const formatted = IntentController._formatProtocolDetails(mockProtocol);
+
+      // Should prioritize symbolOfBestTokenToZapInOut
+      expect(formatted.targetTokens).toEqual(['USDC']);
+    });
+
+    it('should handle protocol with complex chain suffix patterns', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const testCases = [
+        { name: 'Protocol (Arbitrum One)', expected: 'Protocol' },
+        { name: 'Protocol (Base Mainnet)', expected: 'Protocol' },
+        { name: 'Protocol (Optimism Goerli)', expected: 'Protocol' },
+        { name: 'Protocol (L2)', expected: 'Protocol' },
+        { name: 'Protocol (Test Network)', expected: 'Protocol' },
+        { name: 'Protocol V2 (Mainnet)', expected: 'Protocol V2' },
+        { name: 'Protocol (No Suffix', expected: 'Protocol (No Suffix' }, // Malformed
+      ];
+
+      testCases.forEach(({ name, expected }) => {
+        const mockProtocol = {
+          id: 'test-protocol',
+          name,
+          implementation: 'TestProtocol',
+          chain: 'arbitrum',
+          chainId: 42161,
+          weight: 50,
+        };
+
+        const formatted = IntentController._formatProtocolDetails(mockProtocol);
+        expect(formatted.name).toBe(expected);
+      });
+    });
+
+    it('should handle protocol with enabled field as different types', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const testCases = [
+        { enabled: true, expected: true },
+        { enabled: false, expected: false },
+        { enabled: 'true', expected: true }, // Truthy string
+        { enabled: 'false', expected: true }, // Truthy string (not false)
+        { enabled: 1, expected: true }, // Truthy number
+        { enabled: 0, expected: true }, // 0 !== false, so true
+        { enabled: null, expected: true }, // null !== false, so true
+        { enabled: undefined, expected: true }, // Default when undefined
+      ];
+
+      testCases.forEach(({ enabled, expected }, index) => {
+        const mockProtocol = {
+          id: `test-protocol-${index}`,
+          name: 'Test Protocol',
+          implementation: 'TestProtocol',
+          chain: 'ethereum',
+          chainId: 1,
+          weight: 50,
+          enabled,
+        };
+
+        // Handle undefined case by not including the field
+        if (enabled === undefined) {
+          delete mockProtocol.enabled;
+        }
+
+        const formatted = IntentController._formatProtocolDetails(mockProtocol);
+        expect(formatted.enabled).toBe(expected);
+      });
+    });
+
+    it('should handle protocol with unusual weight values', () => {
+      const IntentController = require('../src/controllers/IntentController');
+
+      const testCases = [
+        { weight: 0, valid: true },
+        { weight: 100, valid: true },
+        { weight: 0.5, valid: true },
+        { weight: 999.99, valid: true },
+        { weight: -10, valid: true }, // Negative weights should still work
+        { weight: '50', valid: true }, // String numbers
+        { weight: null, valid: true }, // Should preserve null
+        { weight: undefined, valid: true }, // Should preserve undefined
+      ];
+
+      testCases.forEach(({ weight, valid }) => {
+        const mockProtocol = {
+          id: 'test-protocol',
+          name: 'Test Protocol',
+          implementation: 'TestProtocol',
+          chain: 'ethereum',
+          chainId: 1,
+          weight,
+        };
+
+        if (valid) {
+          const formatted =
+            IntentController._formatProtocolDetails(mockProtocol);
+          expect(formatted.weight).toBe(weight);
+        }
+      });
+    });
   });
 
   describe('Configuration consistency', () => {
@@ -593,6 +818,145 @@ describe('GET /api/v1/strategies', () => {
 
       testCases.forEach(({ implementation, expected }) => {
         const protocol = { implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    // Enhanced edge cases for better coverage
+    it('should handle null and undefined protocol objects', () => {
+      // These should throw errors since the method doesn't handle null/undefined gracefully
+      expect(() => IntentController._extractProtocolName(null)).toThrow();
+      expect(() => IntentController._extractProtocolName(undefined)).toThrow();
+    });
+
+    it('should handle empty string values', () => {
+      const testCases = [
+        { id: '', name: 'Test', implementation: 'Test', expected: 'test' },
+        { id: 'test', name: '', implementation: 'Test', expected: 'test' },
+        { id: 'test', name: 'Test', implementation: '', expected: 'test' },
+        { id: '', name: '', implementation: '', expected: 'unknown' },
+      ];
+
+      testCases.forEach(({ id, name, implementation, expected }) => {
+        const protocol = { id, name, implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle whitespace-only values', () => {
+      const testCases = [
+        { id: '   ', name: 'Test', implementation: 'Test', expected: '   ' }, // Method returns first part of split
+        { id: 'test', name: '   ', implementation: 'Test', expected: 'test' },
+        { id: 'test', name: 'Test', implementation: '   ', expected: 'test' },
+        { id: '\t\n', name: '\t\n', implementation: '\t\n', expected: '\t\n' },
+      ];
+
+      testCases.forEach(({ id, name, implementation, expected }) => {
+        const protocol = { id, name, implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle special characters in protocol names', () => {
+      const testCases = [
+        { id: 'test@protocol-v2', expected: 'test@protocol' }, // Splits on '-', takes first part
+        { id: 'protocol_v3.1-beta', expected: 'protocol_v3.1' }, // Splits on '-', takes first part
+        {
+          name: 'Test Protocol (v2)',
+          implementation: 'Test',
+          expected: 'test',
+        }, // Splits on space, takes first part
+        {
+          name: 'Protocol-X.Y.Z',
+          implementation: 'Test',
+          expected: 'protocol-x.y.z',
+        }, // No space split, takes whole thing
+        { implementation: 'Test@Protocol#1', expected: 'test@protocol#1' }, // Removes 'Protocol' suffix from end only
+      ];
+
+      testCases.forEach(({ id, name, implementation, expected }) => {
+        const protocol = { id, name, implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle Unicode and international characters', () => {
+      const testCases = [
+        { id: 'aavé-protocol', expected: 'aavé' },
+        { name: 'Uniswap 中文', implementation: 'Test', expected: 'uniswap' },
+        { implementation: 'ProtocolΩ', expected: 'protocolω' },
+        { id: 'протокол-test', expected: 'протокол' },
+      ];
+
+      testCases.forEach(({ id, name, implementation, expected }) => {
+        const protocol = { id, name, implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle very long protocol names', () => {
+      const longId = `${'a'.repeat(1000)}-test-protocol`;
+      const protocol = { id: longId };
+      const result = IntentController._extractProtocolName(protocol);
+      expect(result).toBe('a'.repeat(1000));
+      expect(result.length).toBe(1000);
+    });
+
+    it('should handle protocol names with numbers', () => {
+      const testCases = [
+        { id: 'v3-uniswap-protocol', expected: 'v3' },
+        { id: '1inch-v4-router', expected: '1inch' },
+        { name: 'Protocol V2.1', implementation: 'Test', expected: 'protocol' },
+        { implementation: 'V3Protocol2022', expected: 'v3protocol2022' },
+      ];
+
+      testCases.forEach(({ id, name, implementation, expected }) => {
+        const protocol = { id, name, implementation };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle protocols with multiple hyphens in id', () => {
+      const testCases = [
+        { id: 'aave-v2-lending-pool-arbitrum', expected: 'aave' },
+        { id: 'compound-v3-usdc-base-mainnet', expected: 'compound' },
+        { id: 'uniswap-v3-swap-router-optimism', expected: 'uniswap' },
+        { id: 'curve-3pool-metapool-ethereum', expected: 'curve' },
+      ];
+
+      testCases.forEach(({ id, expected }) => {
+        const protocol = { id, name: 'Test', implementation: 'Test' };
+        const result = IntentController._extractProtocolName(protocol);
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should handle protocols with underscores and dots', () => {
+      const testCases = [
+        {
+          name: 'Test_Protocol.v2',
+          implementation: 'Test',
+          expected: 'test_protocol.v2',
+        }, // Splits on space, takes first part
+        {
+          name: 'Protocol.io V3',
+          implementation: 'Test',
+          expected: 'protocol.io',
+        }, // Splits on space, takes first part
+        {
+          implementation: 'Test_Protocol_V2.sol',
+          expected: 'test_protocol_v2.sol',
+        }, // Removes 'Protocol' suffix
+      ];
+
+      testCases.forEach(({ name, implementation, expected }) => {
+        const protocol = { name, implementation };
         const result = IntentController._extractProtocolName(protocol);
         expect(result).toBe(expected);
       });

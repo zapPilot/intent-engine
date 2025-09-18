@@ -130,3 +130,4 @@ docs/swagger.json
 .serena/cache
 
 gitdiff
+coverage-html/
