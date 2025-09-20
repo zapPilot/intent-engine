@@ -51,6 +51,7 @@ const TOKEN_REGISTRY = {
       name: 'Ethereum',
       decimals: 18,
       wrappedVersion: 'WETH',
+      zapEnabled: true,
     },
     WETH: {
       type: 'wrapped',
@@ -60,6 +61,7 @@ const TOKEN_REGISTRY = {
       decimals: 18,
       hasDeposit: true,
       nativeVersion: 'ETH',
+      zapEnabled: true,
     },
     USDC: {
       type: 'erc20',
@@ -67,6 +69,7 @@ const TOKEN_REGISTRY = {
       name: 'USD Coin',
       address: '0xA0b86a33E6441a8C8C5d56Aa14E4e66E8e6B9E2',
       decimals: 6,
+      zapEnabled: true,
     },
     USDT: {
       type: 'erc20',
@@ -74,6 +77,7 @@ const TOKEN_REGISTRY = {
       name: 'Tether USD',
       address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
       decimals: 6,
+      zapEnabled: true,
     },
   },
 
@@ -85,6 +89,7 @@ const TOKEN_REGISTRY = {
       name: 'Ethereum',
       decimals: 18,
       wrappedVersion: 'WETH',
+      zapEnabled: true,
     },
     WETH: {
       type: 'wrapped',
@@ -94,6 +99,7 @@ const TOKEN_REGISTRY = {
       decimals: 18,
       hasDeposit: true,
       nativeVersion: 'ETH',
+      zapEnabled: true,
     },
     USDC: {
       type: 'erc20',
@@ -101,6 +107,7 @@ const TOKEN_REGISTRY = {
       name: 'USD Coin',
       address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
       decimals: 6,
+      zapEnabled: true,
     },
     USDT: {
       type: 'erc20',
@@ -108,6 +115,7 @@ const TOKEN_REGISTRY = {
       name: 'Tether USD',
       address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
       decimals: 6,
+      zapEnabled: true,
     },
   },
 
@@ -119,6 +127,7 @@ const TOKEN_REGISTRY = {
       name: 'Ethereum',
       decimals: 18,
       wrappedVersion: 'WETH',
+      zapEnabled: true,
     },
     WETH: {
       type: 'wrapped',
@@ -128,6 +137,7 @@ const TOKEN_REGISTRY = {
       decimals: 18,
       hasDeposit: true,
       nativeVersion: 'ETH',
+      zapEnabled: true,
     },
     USDC: {
       type: 'erc20',
@@ -135,74 +145,7 @@ const TOKEN_REGISTRY = {
       name: 'USD Coin',
       address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       decimals: 6,
-    },
-  },
-
-  // Polygon (Chain ID: 137)
-  137: {
-    MATIC: {
-      type: 'native',
-      symbol: 'MATIC',
-      name: 'Polygon',
-      decimals: 18,
-      wrappedVersion: 'WMATIC',
-    },
-    WMATIC: {
-      type: 'wrapped',
-      symbol: 'WMATIC',
-      name: 'Wrapped Matic',
-      address: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
-      decimals: 18,
-      hasDeposit: true,
-      nativeVersion: 'MATIC',
-    },
-    USDC: {
-      type: 'erc20',
-      symbol: 'USDC',
-      name: 'USD Coin',
-      address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-      decimals: 6,
-    },
-    WETH: {
-      type: 'erc20',
-      symbol: 'WETH',
-      name: 'Wrapped Ethereum',
-      address: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
-      decimals: 18,
-    },
-  },
-
-  // BSC (Chain ID: 56)
-  56: {
-    BNB: {
-      type: 'native',
-      symbol: 'BNB',
-      name: 'BNB',
-      decimals: 18,
-      wrappedVersion: 'WBNB',
-    },
-    WBNB: {
-      type: 'wrapped',
-      symbol: 'WBNB',
-      name: 'Wrapped BNB',
-      address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
-      decimals: 18,
-      hasDeposit: true,
-      nativeVersion: 'BNB',
-    },
-    USDC: {
-      type: 'erc20',
-      symbol: 'USDC',
-      name: 'USD Coin',
-      address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-      decimals: 18,
-    },
-    USDT: {
-      type: 'erc20',
-      symbol: 'USDT',
-      name: 'Tether USD',
-      address: '0x55d398326f99059fF775485246999027B3197955',
-      decimals: 18,
+      zapEnabled: true,
     },
   },
 };
@@ -214,8 +157,6 @@ const CHAIN_METADATA = {
   1: { name: 'Ethereum', nativeToken: 'ETH' },
   42161: { name: 'Arbitrum', nativeToken: 'ETH' },
   8453: { name: 'Base', nativeToken: 'ETH' },
-  137: { name: 'Polygon', nativeToken: 'MATIC' },
-  56: { name: 'BSC', nativeToken: 'BNB' },
 };
 
 /**
@@ -326,6 +267,41 @@ class TokenConfigService {
     }
 
     return this.getToken(chainId, nativeToken.wrappedVersion);
+  }
+
+  /**
+   * Get zap-enabled tokens for a specific chain
+   * @param {number} chainId - Chain ID
+   * @returns {Object} - Formatted response with chain info and zap-enabled tokens
+   */
+  static getZapTokens(chainId) {
+    const chainTokens = TOKEN_REGISTRY[chainId];
+    const chainMetadata = CHAIN_METADATA[chainId];
+
+    if (!chainTokens || !chainMetadata) {
+      return null;
+    }
+
+    // Filter only zap-enabled tokens and format for API response
+    const zapTokens = Object.values(chainTokens)
+      .filter(token => token.zapEnabled)
+      .map(token => ({
+        symbol: token.symbol,
+        name: token.name,
+        address: token.address || 'native',
+        decimals: token.decimals,
+        type: token.type,
+        ...(token.wrappedVersion && { wrappedVersion: token.wrappedVersion }),
+        ...(token.nativeVersion && { nativeVersion: token.nativeVersion }),
+        ...(token.hasDeposit && { hasDeposit: token.hasDeposit }),
+      }));
+
+    return {
+      chainId,
+      chainName: chainMetadata.name.toLowerCase(),
+      nativeToken: chainMetadata.nativeToken,
+      tokens: zapTokens,
+    };
   }
 }
 
