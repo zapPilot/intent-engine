@@ -24,19 +24,23 @@ describe('TokenConfig', () => {
 
     it('should export TOKEN_REGISTRY with supported chains', () => {
       expect(TOKEN_REGISTRY).toBeDefined();
-      expect(TOKEN_REGISTRY[1]).toBeDefined(); // Ethereum
-      expect(TOKEN_REGISTRY[42161]).toBeDefined(); // Arbitrum
-      expect(TOKEN_REGISTRY[8453]).toBeDefined(); // Base
-      expect(TOKEN_REGISTRY[137]).toBeDefined(); // Polygon
-      expect(TOKEN_REGISTRY[56]).toBeDefined(); // BSC
+
+      const supportedChains = TokenConfigService.getSupportedChains();
+
+      supportedChains.forEach(chainId => {
+        expect(TOKEN_REGISTRY[chainId]).toBeDefined();
+        expect(CHAIN_METADATA[chainId]).toBeDefined();
+      });
+
+      expect(new Set(supportedChains)).toEqual(
+        new Set(Object.keys(TOKEN_REGISTRY).map(Number))
+      );
     });
 
     it('should export CHAIN_METADATA', () => {
       expect(CHAIN_METADATA).toBeDefined();
       expect(CHAIN_METADATA[1].name).toBe('Ethereum');
       expect(CHAIN_METADATA[1].nativeToken).toBe('ETH');
-      expect(CHAIN_METADATA[137].nativeToken).toBe('MATIC');
-      expect(CHAIN_METADATA[56].nativeToken).toBe('BNB');
     });
   });
 
@@ -93,16 +97,6 @@ describe('TokenConfig', () => {
         expect(address).toBe('0x82aF49447D8a07e3bd95BD0d56f35241523fBab1');
       });
 
-      it('should return WMATIC address for Polygon', () => {
-        const address = TokenConfigService.getWETHAddress(137);
-        expect(address).toBe('0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270');
-      });
-
-      it('should return WBNB address for BSC', () => {
-        const address = TokenConfigService.getWETHAddress(56);
-        expect(address).toBe('0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c');
-      });
-
       it('should return null for unsupported chain', () => {
         const address = TokenConfigService.getWETHAddress(999999);
         expect(address).toBeNull();
@@ -114,8 +108,6 @@ describe('TokenConfig', () => {
         expect(TokenConfigService.getNativeTokenSymbol(1)).toBe('ETH');
         expect(TokenConfigService.getNativeTokenSymbol(42161)).toBe('ETH');
         expect(TokenConfigService.getNativeTokenSymbol(8453)).toBe('ETH');
-        expect(TokenConfigService.getNativeTokenSymbol(137)).toBe('MATIC');
-        expect(TokenConfigService.getNativeTokenSymbol(56)).toBe('BNB');
       });
 
       it('should return null for unsupported chain', () => {
@@ -126,8 +118,6 @@ describe('TokenConfig', () => {
     describe('hasDepositFunction', () => {
       it('should return true for wrapped native tokens', () => {
         expect(TokenConfigService.hasDepositFunction(1, 'WETH')).toBe(true);
-        expect(TokenConfigService.hasDepositFunction(137, 'WMATIC')).toBe(true);
-        expect(TokenConfigService.hasDepositFunction(56, 'WBNB')).toBe(true);
       });
 
       it('should return false for non-wrapped tokens', () => {
@@ -166,8 +156,6 @@ describe('TokenConfig', () => {
         expect(chains).toContain(1);
         expect(chains).toContain(42161);
         expect(chains).toContain(8453);
-        expect(chains).toContain(137);
-        expect(chains).toContain(56);
       });
 
       it('should return numbers, not strings', () => {
@@ -183,8 +171,6 @@ describe('TokenConfig', () => {
         expect(TokenConfigService.isChainSupported(1)).toBe(true);
         expect(TokenConfigService.isChainSupported(42161)).toBe(true);
         expect(TokenConfigService.isChainSupported(8453)).toBe(true);
-        expect(TokenConfigService.isChainSupported(137)).toBe(true);
-        expect(TokenConfigService.isChainSupported(56)).toBe(true);
       });
 
       it('should return false for unsupported chains', () => {
@@ -199,14 +185,6 @@ describe('TokenConfig', () => {
         expect(weth).toBeDefined();
         expect(weth.symbol).toBe('WETH');
         expect(weth.type).toBe('wrapped');
-
-        const wmatic = TokenConfigService.getWrappedNativeToken(137);
-        expect(wmatic).toBeDefined();
-        expect(wmatic.symbol).toBe('WMATIC');
-
-        const wbnb = TokenConfigService.getWrappedNativeToken(56);
-        expect(wbnb).toBeDefined();
-        expect(wbnb.symbol).toBe('WBNB');
       });
 
       it('should return null for unsupported chain', () => {

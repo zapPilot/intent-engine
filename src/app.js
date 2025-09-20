@@ -6,6 +6,7 @@ const corsMiddleware = require('./middleware/cors');
 const errorHandler = require('./middleware/errorHandler');
 const swapRoutes = require('./routes/swap');
 const intentRoutes = require('./routes/intents');
+const tokenRoutes = require('./routes/tokens');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -41,6 +42,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/', swapRoutes);
 app.use('/', intentRoutes);
+app.use('/tokens', tokenRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -56,6 +58,7 @@ if (require.main === module) {
     console.log(
       `Supported intents: dustZap, unifiedZap (zapIn, zapOut, rebalance coming soon)`
     );
+    console.log(`🪙  Token endpoints: /tokens/zap/{chainId}, /tokens/chains`);
   });
 }
 
