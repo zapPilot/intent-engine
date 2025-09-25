@@ -27,23 +27,19 @@ class BaseProtocolV2 {
    * @param {string} userAddress - User wallet address
    * @param {string} tokenAddress - Token contract address
    * @param {string} spenderAddress - Spender contract address
-   * @param {BigNumber|string} amount - Amount to approve
+   * @param {BigInt|string} amount - Amount to approve
    * @returns {Promise<Object>} - Approval transaction object
    */
   getApprovalTransaction(userAddress, tokenAddress, spenderAddress, amount) {
-    // Convert amount to BigNumber if needed
-    const approvalAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    // Convert amount to BigInt if needed
+    const approvalAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
-    if (approvalAmount.isZero()) {
+    if (approvalAmount === 0n) {
       throw new Error('Approval amount cannot be zero');
     }
 
-    if (
-      !ethers.utils.isAddress(tokenAddress) ||
-      !ethers.utils.isAddress(spenderAddress)
-    ) {
+    if (!ethers.isAddress(tokenAddress) || !ethers.isAddress(spenderAddress)) {
       throw new Error('Invalid token or spender address');
     }
 
@@ -66,7 +62,7 @@ class BaseProtocolV2 {
    * Generate deposit transaction for protocol
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to deposit
+   * @param {BigInt|string} amount - Amount to deposit
    * @param {Object} additionalParams - Protocol-specific parameters
    * @returns {Promise<Object>} - Deposit transaction object
    */
@@ -85,7 +81,7 @@ class BaseProtocolV2 {
    * Estimate gas for all protocol operations
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to process
+   * @param {BigInt|string} amount - Amount to process
    * @param {Object} additionalParams - Protocol-specific parameters
    * @returns {Promise<Object>} - Gas estimates
    */
@@ -203,12 +199,12 @@ class BaseProtocolV2 {
   /**
    * Encode ERC20 approval transaction data
    * @param {string} spender - Spender address
-   * @param {BigNumber} amount - Approval amount
+   * @param {BigInt} amount - Approval amount
    * @returns {string} - Encoded transaction data
    * @private
    */
   _encodeERC20Approval(spender, amount) {
-    const iface = new ethers.utils.Interface([
+    const iface = new ethers.Interface([
       'function approve(address spender, uint256 amount) returns (bool)',
     ]);
 
@@ -217,14 +213,14 @@ class BaseProtocolV2 {
 
   /**
    * Format amount for display
-   * @param {BigNumber} amount - Amount to format
+   * @param {BigInt} amount - Amount to format
    * @param {number} decimals - Token decimals
    * @returns {string} - Formatted amount
    * @private
    */
   _formatAmount(amount, decimals = 18) {
     try {
-      return ethers.utils.formatUnits(amount, decimals);
+      return ethers.formatUnits(amount, decimals);
     } catch {
       return amount.toString();
     }
@@ -241,15 +237,15 @@ class BaseProtocolV2 {
 
   /**
    * Apply slippage to amount
-   * @param {BigNumber} amount - Original amount
+   * @param {BigInt} amount - Original amount
    * @param {number} slippage - Slippage percentage (0.5 for 0.5%)
-   * @returns {BigNumber} - Amount with slippage applied
+   * @returns {BigInt} - Amount with slippage applied
    * @protected
    */
   _applySlippage(amount, slippage) {
     const slippageBasisPoints = Math.floor(slippage * 100);
-    const multiplier = ethers.BigNumber.from(10000 - slippageBasisPoints);
-    return amount.mul(multiplier).div(10000);
+    const multiplier = BigInt(10000 - slippageBasisPoints);
+    return (amount * multiplier) / 10000n;
   }
 
   /**
@@ -259,7 +255,7 @@ class BaseProtocolV2 {
    * @protected
    */
   _validateAddress(address) {
-    if (!address || !ethers.utils.isAddress(address)) {
+    if (!address || !ethers.isAddress(address)) {
       throw new Error(`Invalid address: ${address}`);
     }
   }

@@ -5,7 +5,6 @@
 
 const { protocolFactory } = require('../protocols');
 const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
-const { ethers } = require('ethers');
 
 class UnifiedZapExecutor {
   constructor(swapService, priceService, rebalanceClient) {
@@ -29,8 +28,8 @@ class UnifiedZapExecutor {
       slippage = UNIFIED_ZAP_CONFIG.DEFAULT_SLIPPAGE,
     } = params;
 
-    // Convert input amount to BigNumber
-    const totalAmount = ethers.BigNumber.from(inputAmount);
+    // Convert input amount to BigInt
+    const totalAmount = BigInt(inputAmount);
 
     // Phase 1: Parse strategies into protocol allocations
     const protocolAllocations = await this._parseStrategyAllocations(
@@ -154,7 +153,7 @@ class UnifiedZapExecutor {
   async estimateGas(executionContext, transactions) {
     const { userAddress, protocolAllocations } = executionContext;
 
-    let totalGas = ethers.BigNumber.from(0);
+    let totalGas = 0n;
     const protocolGasEstimates = {};
 
     // Group transactions by protocol for estimation
@@ -174,7 +173,7 @@ class UnifiedZapExecutor {
           );
 
           protocolGasEstimates[protocolId] = gasEstimate;
-          totalGas = totalGas.add(gasEstimate.total.gasLimit);
+          totalGas = totalGas + BigInt(gasEstimate.total.gasLimit);
         }
       } catch (error) {
         console.warn(
@@ -183,14 +182,12 @@ class UnifiedZapExecutor {
         );
 
         // Fallback estimation based on transaction count
-        const fallbackGas = ethers.BigNumber.from(150000).mul(
-          protocolTxs.length
-        );
+        const fallbackGas = BigInt(150000) * BigInt(protocolTxs.length);
         protocolGasEstimates[protocolId] = {
           total: { gasLimit: fallbackGas },
           estimated: true,
         };
-        totalGas = totalGas.add(fallbackGas);
+        totalGas = totalGas + fallbackGas;
       }
     }
 
@@ -249,7 +246,7 @@ class UnifiedZapExecutor {
   /**
    * Parse strategy allocations into protocol-level allocations
    * @param {Array} strategyAllocations - Strategy allocations from request
-   * @param {BigNumber} totalAmount - Total amount to allocate
+   * @param {BigInt} totalAmount - Total amount to allocate
    * @param {number} chainId - Chain ID for filtering protocols
    * @returns {Promise<Array>} - Protocol allocations
    * @private
@@ -266,9 +263,8 @@ class UnifiedZapExecutor {
       }
 
       // Calculate strategy amount
-      const strategyAmount = totalAmount
-        .mul(Math.floor(percentage * 100))
-        .div(10000);
+      const strategyAmount =
+        (totalAmount * BigInt(Math.floor(percentage * 100))) / 10000n;
 
       // Get protocols for this strategy
       const strategyProtocols = this.protocolFactory.createProtocolsForStrategy(
@@ -289,9 +285,8 @@ class UnifiedZapExecutor {
       );
 
       for (const protocol of strategyProtocols) {
-        const protocolAmount = strategyAmount
-          .mul(protocol.weight)
-          .div(totalWeight);
+        const protocolAmount =
+          (strategyAmount * BigInt(protocol.weight)) / BigInt(totalWeight);
 
         protocolAllocations.push({
           ...protocol,
@@ -455,7 +450,7 @@ class UnifiedZapExecutor {
 
         if (lpTokens.length === 2) {
           // Calculate token amounts for LP (50/50 split for simplicity)
-          const halfAmount = amount.div(2);
+          const halfAmount = amount / 2n;
 
           // Generate approvals for both tokens
           for (const token of lpTokens) {
@@ -519,7 +514,7 @@ class UnifiedZapExecutor {
    * Get gas estimate for specific transaction
    * @param {Object} transaction - Transaction object
    * @param {Object} gasEstimates - Overall gas estimates
-   * @returns {BigNumber} - Gas estimate for transaction
+   * @returns {BigInt} - Gas estimate for transaction
    * @private
    */
   _getTransactionGasEstimate(transaction, gasEstimates) {
@@ -534,9 +529,9 @@ class UnifiedZapExecutor {
       transaction.description &&
       transaction.description.toLowerCase().includes('approve')
     ) {
-      return ethers.BigNumber.from('50000');
+      return BigInt(50000);
     } else {
-      return ethers.BigNumber.from('200000');
+      return BigInt(200000);
     }
   }
 

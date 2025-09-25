@@ -28,7 +28,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * Generate deposit transaction for Pendle PT minting
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to deposit
+   * @param {BigInt|string} amount - Amount to deposit
    * @param {Object} additionalParams - Slippage and other params
    * @returns {Promise<Object>} - Deposit transaction object
    */
@@ -41,11 +41,10 @@ class PendlePTProtocol extends BaseProtocolV2 {
     this._validateAddress(userAddress);
     this._validateAddress(inputToken);
 
-    const depositAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    const depositAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
-    if (depositAmount.isZero()) {
+    if (depositAmount === 0n) {
       throw new Error('Deposit amount cannot be zero');
     }
 
@@ -77,14 +76,14 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * Estimate gas for Pendle operations
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to process
+   * @param {BigInt|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
   estimateGas(_userAddress, _inputToken, _amount) {
     try {
       // Pendle operations are more gas-intensive due to market interactions
-      const approvalGas = ethers.BigNumber.from('50000');
-      const mintPTGas = ethers.BigNumber.from('400000'); // PT minting is complex
+      const approvalGas = BigInt(50000);
+      const mintPTGas = BigInt(400000); // PT minting is complex
 
       return {
         approval: {
@@ -96,7 +95,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
           description: 'Mint PT tokens via Pendle',
         },
         total: {
-          gasLimit: approvalGas.add(mintPTGas),
+          gasLimit: approvalGas + mintPTGas,
           description: 'Total estimated gas for Pendle PT',
         },
       };
@@ -153,7 +152,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
       'bestTokenAddressToZapOut',
     ];
     addresses.forEach(key => {
-      if (!ethers.utils.isAddress(this.config[key])) {
+      if (!ethers.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
       }
     });
@@ -162,7 +161,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
   /**
    * Get PT minting transaction
    * @param {string} userAddress - User address
-   * @param {BigNumber} amount - Amount to mint
+   * @param {BigInt} amount - Amount to mint
    * @param {number} slippage - Slippage tolerance
    * @param {number} deadline - Transaction deadline
    * @returns {Object} - Mint transaction
@@ -194,15 +193,15 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * Encode Pendle PT minting call
    * @param {string} receiver - Address to receive PT+YT
    * @param {string} market - Market address
-   * @param {BigNumber} netTokenIn - Amount of underlying token
-   * @param {BigNumber} minPTOut - Minimum PT tokens to receive
+   * @param {BigInt} netTokenIn - Amount of underlying token
+   * @param {BigInt} minPTOut - Minimum PT tokens to receive
    * @param {number} deadline - Transaction deadline
    * @returns {string} - Encoded function data
    * @private
    */
   _encodeMintPTCall(receiver, market, netTokenIn, minPTOut, _deadline) {
     // Simplified Pendle Router interface for PT minting
-    const routerInterface = new ethers.utils.Interface([
+    const routerInterface = new ethers.Interface([
       'function mintPyFromToken(address receiver, address market, uint256 minPyOut, (address tokenIn, uint256 netTokenIn, address tokenMintSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netPyOut, uint256 netSyFee)',
     ]);
 
@@ -284,15 +283,14 @@ class PendlePTProtocol extends BaseProtocolV2 {
   /**
    * Get redemption transaction (for matured PT)
    * @param {string} userAddress - User wallet address
-   * @param {BigNumber|string} amount - PT amount to redeem
+   * @param {BigInt|string} amount - PT amount to redeem
    * @returns {Promise<Object>} - Redemption transaction
    */
   getRedemptionTransaction(userAddress, amount) {
     this._validateAddress(userAddress);
 
-    const redeemAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    const redeemAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
     const redeemData = this._encodeRedeemPTCall(
       userAddress,
@@ -313,18 +311,18 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * Encode PT redemption call
    * @param {string} receiver - Address to receive underlying tokens
    * @param {string} market - Market address
-   * @param {BigNumber} netPyIn - Amount of PT to redeem
+   * @param {BigInt} netPyIn - Amount of PT to redeem
    * @returns {string} - Encoded function data
    * @private
    */
   _encodeRedeemPTCall(receiver, market, netPyIn) {
-    const routerInterface = new ethers.utils.Interface([
+    const routerInterface = new ethers.Interface([
       'function redeemPyToToken(address receiver, address market, uint256 netPyIn, (address tokenOut, uint256 minTokenOut, address tokenRedeemSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netTokenOut, uint256 netSyFee)',
     ]);
 
     const tokenOutput = {
       tokenOut: this.underlyingTokenAddress,
-      minTokenOut: ethers.BigNumber.from(0), // Would calculate based on slippage
+      minTokenOut: 0n, // Would calculate based on slippage
       tokenRedeemSy: this.underlyingTokenAddress,
       pendleSwap: ethers.constants.AddressZero,
       swapData: {

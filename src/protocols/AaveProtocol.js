@@ -24,7 +24,7 @@ class AaveProtocol extends BaseProtocolV2 {
    * Generate deposit transaction for Aave lending
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address (should match underlying)
-   * @param {BigNumber|string} amount - Amount to deposit
+   * @param {BigInt|string} amount - Amount to deposit
    * @param {Object} additionalParams - Additional parameters (unused for Aave)
    * @returns {Promise<Object>} - Deposit transaction object
    */
@@ -37,12 +37,11 @@ class AaveProtocol extends BaseProtocolV2 {
     this._validateAddress(userAddress);
     this._validateAddress(inputToken);
 
-    // Convert amount to BigNumber if needed
-    const depositAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    // Convert amount to BigInt if needed
+    const depositAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
-    if (depositAmount.isZero()) {
+    if (depositAmount === 0n) {
       throw new Error('Deposit amount cannot be zero');
     }
 
@@ -75,19 +74,18 @@ class AaveProtocol extends BaseProtocolV2 {
    * Estimate gas for Aave operations
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to process
+   * @param {BigInt|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
   estimateGas(userAddress, inputToken, amount) {
     try {
-      // Convert amount to BigNumber
-      const _processAmount = ethers.BigNumber.isBigNumber(amount)
-        ? amount
-        : ethers.BigNumber.from(amount.toString());
+      // Convert amount to BigInt
+      const _processAmount =
+        typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
       // Base estimates for Aave operations
-      const approvalGas = ethers.BigNumber.from('50000'); // ~50k gas for approval
-      const supplyGas = ethers.BigNumber.from('200000'); // ~200k gas for supply
+      const approvalGas = BigInt(50000); // ~50k gas for approval
+      const supplyGas = BigInt(200000); // ~200k gas for supply
 
       return {
         approval: {
@@ -99,7 +97,7 @@ class AaveProtocol extends BaseProtocolV2 {
           description: 'Supply tokens to Aave',
         },
         total: {
-          gasLimit: approvalGas.add(supplyGas),
+          gasLimit: approvalGas + supplyGas,
           description: 'Total estimated gas',
         },
       };
@@ -153,7 +151,7 @@ class AaveProtocol extends BaseProtocolV2 {
       'zapInOutTokenAddress',
     ];
     addresses.forEach(key => {
-      if (!ethers.utils.isAddress(this.config[key])) {
+      if (!ethers.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
       }
     });
@@ -170,7 +168,7 @@ class AaveProtocol extends BaseProtocolV2 {
   /**
    * Encode Aave supply function call
    * @param {string} asset - Asset address to supply
-   * @param {BigNumber} amount - Amount to supply
+   * @param {BigInt} amount - Amount to supply
    * @param {string} onBehalfOf - Address to receive aTokens
    * @param {number} referralCode - Referral code (default 0)
    * @returns {string} - Encoded function data
@@ -178,7 +176,7 @@ class AaveProtocol extends BaseProtocolV2 {
    */
   _encodeSupplyCall(asset, amount, onBehalfOf, referralCode = 0) {
     // Aave V3 Pool interface
-    const poolInterface = new ethers.utils.Interface([
+    const poolInterface = new ethers.Interface([
       'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)',
     ]);
 
@@ -216,15 +214,14 @@ class AaveProtocol extends BaseProtocolV2 {
   /**
    * Get withdrawal transaction (for future use)
    * @param {string} userAddress - User wallet address
-   * @param {BigNumber|string} amount - Amount to withdraw
+   * @param {BigInt|string} amount - Amount to withdraw
    * @returns {Promise<Object>} - Withdrawal transaction
    */
   getWithdrawalTransaction(userAddress, amount) {
     this._validateAddress(userAddress);
 
-    const withdrawAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    const withdrawAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
 
     const withdrawData = this._encodeWithdrawCall(
       this.underlyingTokenAddress,
@@ -244,13 +241,13 @@ class AaveProtocol extends BaseProtocolV2 {
   /**
    * Encode Aave withdraw function call
    * @param {string} asset - Asset address to withdraw
-   * @param {BigNumber} amount - Amount to withdraw (use ethers.constants.MaxUint256 for max)
+   * @param {BigInt} amount - Amount to withdraw (use ethers.MaxUint256 for max)
    * @param {string} to - Address to receive tokens
    * @returns {string} - Encoded function data
    * @private
    */
   _encodeWithdrawCall(asset, amount, to) {
-    const poolInterface = new ethers.utils.Interface([
+    const poolInterface = new ethers.Interface([
       'function withdraw(address asset, uint256 amount, address to) returns (uint256)',
     ]);
 
