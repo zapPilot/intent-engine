@@ -5,6 +5,7 @@
 
 const { protocolFactory } = require('../protocols');
 const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
+const SSEEventFactory = require('../services/SSEEventFactory');
 
 class UnifiedZapExecutor {
   constructor(swapService, priceService, rebalanceClient) {
@@ -81,22 +82,36 @@ class UnifiedZapExecutor {
 
     let allTransactions = [];
     let processedCount = 0;
+    const progressBase = 60;
+    const progressSpan = 20;
 
     // Process each protocol allocation
     for (const protocolAllocation of protocolAllocations) {
       try {
         // Update progress
         if (streamWriter) {
-          streamWriter({
-            event: 'protocol_processing',
-            data: {
-              phase: 'transaction_building',
-              progress: 60 + (processedCount / protocolAllocations.length) * 20,
-              message: `Processing ${protocolAllocation.name}`,
-              protocol: protocolAllocation.name,
-              chain: protocolAllocation.chain,
-            },
-          });
+          const progressPercent =
+            progressBase +
+            Math.floor(
+              (processedCount / Math.max(protocolAllocations.length, 1)) *
+                progressSpan
+            );
+
+          streamWriter(
+            SSEEventFactory.createProgressEvent({
+              processedTokens: progressPercent,
+              totalTokens: 100,
+              currentOperation: 'transaction_building',
+              additionalInfo: {
+                phase: 'transaction_building',
+                progressPercent,
+                protocol: protocolAllocation.name,
+                chain: protocolAllocation.chain,
+                protocolIndex: processedCount,
+                totalProtocols: protocolAllocations.length,
+              },
+            })
+          );
         }
 
         // Generate protocol-specific transactions
@@ -125,15 +140,16 @@ class UnifiedZapExecutor {
         );
 
         if (streamWriter) {
-          streamWriter({
-            event: 'protocol_error',
-            data: {
-              phase: 'transaction_building',
-              message: `Error processing ${protocolAllocation.name}: ${error.message}`,
-              protocol: protocolAllocation.name,
-              error: error.message,
-            },
-          });
+          streamWriter(
+            SSEEventFactory.createErrorEvent(
+              `Error processing ${protocolAllocation.name}: ${error.message}`,
+              {
+                phase: 'transaction_building',
+                protocol: protocolAllocation.name,
+                chain: protocolAllocation.chain,
+              }
+            )
+          );
         }
 
         // For now, continue with other protocols instead of failing entirely
@@ -216,7 +232,9 @@ class UnifiedZapExecutor {
     return transactions.map((tx, index) => ({
       ...tx,
       transactionIndex: index,
-      estimatedGas: this._getTransactionGasEstimate(tx, gasEstimates),
+      estimatedGas: this._serializeBigInt(
+        this._getTransactionGasEstimate(tx, gasEstimates)
+      ),
       timestamp: Date.now(),
     }));
   }
@@ -533,6 +551,20 @@ class UnifiedZapExecutor {
     } else {
       return BigInt(200000);
     }
+  }
+
+  /**
+   * Convert BigInt values to string for safe JSON serialization
+   * @param {BigInt|number|string|null} value - Value to serialize
+   * @returns {string|number|null} - Serializable value
+   * @private
+   */
+  _serializeBigInt(value) {
+    if (typeof value === 'bigint') {
+      return value.toString();
+    }
+
+    return value;
   }
 
   /**

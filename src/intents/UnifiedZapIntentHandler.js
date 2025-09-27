@@ -8,6 +8,7 @@ const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
 const UnifiedZapValidator = require('../validators/UnifiedZapValidator');
 const IntentIdGenerator = require('../utils/intentIdGenerator');
 const ExecutionContextManager = require('../managers/ExecutionContextManager');
+const SSEEventFactory = require('../services/SSEEventFactory');
 
 class UnifiedZapIntentHandler extends BaseIntentHandler {
   constructor(swapService, priceService, rebalanceClient) {
@@ -88,52 +89,47 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
    * @returns {Promise<Object>} - Final processing results
    */
   async processWithSSEStreaming(executionContext, streamWriter) {
+    const totalProgressUnits = 100;
+    const emitPhaseProgress = (phase, progressPercent, additionalInfo = {}) => {
+      streamWriter(
+        SSEEventFactory.createProgressEvent({
+          processedTokens: progressPercent,
+          totalTokens: totalProgressUnits,
+          currentOperation: phase,
+          additionalInfo: {
+            phase,
+            progressPercent,
+            ...additionalInfo,
+          },
+        })
+      );
+    };
+
     try {
       // Phase 1: Strategy Parsing
-      streamWriter({
-        event: 'strategy_parsing_started',
-        data: {
-          phase: 'strategy_parsing',
-          progress: 0,
-          message:
-            'Parsing strategy allocations into protocol-level allocations',
-          strategyCount: executionContext.strategyAllocations.length,
-        },
+      emitPhaseProgress('strategy_parsing', 0, {
+        message: 'Parsing strategy allocations into protocol-level allocations',
+        strategyCount: executionContext.strategyAllocations.length,
       });
 
       // Phase 2: Token Requirements Analysis
-      streamWriter({
-        event: 'token_analysis_started',
-        data: {
-          phase: 'token_analysis',
-          progress: 20,
-          message: 'Analyzing token requirements for each protocol',
-          protocolCount: executionContext.protocolAllocations.length,
-        },
+      emitPhaseProgress('token_analysis', 20, {
+        message: 'Analyzing token requirements for each protocol',
+        protocolCount: executionContext.protocolAllocations.length,
       });
 
       // Phase 3: Swap Preparation
-      streamWriter({
-        event: 'swap_preparation_started',
-        data: {
-          phase: 'swap_preparation',
-          progress: 40,
-          message: 'Preparing token swaps for multi-protocol deposits',
-          swapCount: this._countRequiredSwaps(
-            executionContext.protocolAllocations
-          ),
-        },
+      emitPhaseProgress('swap_preparation', 40, {
+        message: 'Preparing token swaps for multi-protocol deposits',
+        swapCount: this._countRequiredSwaps(
+          executionContext.protocolAllocations
+        ),
       });
 
       // Phase 4: Transaction Building
-      streamWriter({
-        event: 'transaction_building_started',
-        data: {
-          phase: 'transaction_building',
-          progress: 60,
-          message: 'Building approval and deposit transactions',
-          transactionTypes: ['approvals', 'deposits', 'stakes'],
-        },
+      emitPhaseProgress('transaction_building', 60, {
+        message: 'Building approval and deposit transactions',
+        transactionTypes: ['approvals', 'deposits', 'stakes'],
       });
 
       // Execute transaction generation
@@ -143,14 +139,9 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
       );
 
       // Phase 5: Gas Estimation
-      streamWriter({
-        event: 'gas_estimation_started',
-        data: {
-          phase: 'gas_estimation',
-          progress: 80,
-          message: 'Estimating gas costs for transaction batch',
-          transactionCount: transactions.length,
-        },
+      emitPhaseProgress('gas_estimation', 80, {
+        message: 'Estimating gas costs for transaction batch',
+        transactionCount: transactions.length,
       });
 
       const gasEstimates = await this.executor.estimateGas(
@@ -159,14 +150,9 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
       );
 
       // Phase 6: Final Assembly
-      streamWriter({
-        event: 'final_assembly_started',
-        data: {
-          phase: 'final_assembly',
-          progress: 90,
-          message: 'Assembling final transaction array with fee insertion',
-          finalizing: true,
-        },
+      emitPhaseProgress('final_assembly', 90, {
+        message: 'Assembling final transaction array with fee insertion',
+        finalizing: true,
       });
 
       const finalTransactions = await this.executor.assembleFinalTransactions(
@@ -175,24 +161,32 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
         executionContext
       );
 
+      const estimatedGasTotal =
+        typeof gasEstimates.total === 'bigint'
+          ? gasEstimates.total.toString()
+          : gasEstimates.total;
+
       // Completion
-      streamWriter({
-        event: 'execution_completed',
-        data: {
-          phase: 'completed',
-          progress: 100,
-          message: 'Multi-strategy allocation ready for execution',
-          summary: {
-            totalTransactions: finalTransactions.length,
-            estimatedGas: gasEstimates.total,
+      streamWriter(
+        SSEEventFactory.createCompletionEvent({
+          transactions: finalTransactions,
+          metadata: {
             strategiesAllocated: executionContext.strategyAllocations.length,
             protocolsUsed: executionContext.protocolAllocations.length,
+            chains: this._getUniqueChains(executionContext.protocolAllocations),
             chainsInvolved: this._getUniqueChains(
               executionContext.protocolAllocations
             ).length,
+            transactionCount: finalTransactions.length,
+            estimatedGas: estimatedGasTotal,
           },
-        },
-      });
+          processedTokens: totalProgressUnits,
+          totalTokens: totalProgressUnits,
+          additionalData: {
+            message: 'Multi-strategy allocation ready for execution',
+          },
+        })
+      );
 
       return {
         success: true,
@@ -206,18 +200,13 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
         },
       };
     } catch (error) {
-      streamWriter({
-        event: 'execution_error',
-        data: {
-          phase: 'error',
-          progress: -1,
+      streamWriter(
+        SSEEventFactory.createErrorEvent(error, {
+          phase: 'execution_error',
+          progressPercent: -1,
           message: `Error during processing: ${error.message}`,
-          error: {
-            type: error.constructor.name,
-            message: error.message,
-          },
-        },
-      });
+        })
+      );
 
       throw error;
     }
