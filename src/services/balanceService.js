@@ -374,7 +374,7 @@ class BalanceService {
     );
 
     return {
-      address,
+      address: 'native',
       chainId: String(chainId),
       balance: data.balance,
       balanceFormatted: this._formatBalance(data.balance, 18), // Most native tokens use 18 decimals
