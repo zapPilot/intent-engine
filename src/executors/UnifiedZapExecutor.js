@@ -5,6 +5,7 @@
 
 const { protocolFactory } = require('../protocols');
 const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
+const { TokenConfigService, CHAIN_METADATA } = require('../config/tokenConfig');
 const SSEEventFactory = require('../services/SSEEventFactory');
 
 class UnifiedZapExecutor {
@@ -29,8 +30,8 @@ class UnifiedZapExecutor {
       slippage = UNIFIED_ZAP_CONFIG.DEFAULT_SLIPPAGE,
     } = params;
 
-    // Convert input amount to BigInt
-    const totalAmount = BigInt(inputAmount);
+    const { amount: totalAmount, decimals: inputTokenDecimals } =
+      this._normalizeInputAmount(inputAmount, inputToken, chainId);
 
     // Phase 1: Parse strategies into protocol allocations
     const protocolAllocations = await this._parseStrategyAllocations(
@@ -57,6 +58,8 @@ class UnifiedZapExecutor {
       chainId,
       inputToken,
       inputAmount: totalAmount,
+      inputAmountRaw: inputAmount,
+      inputTokenDecimals,
       slippage,
       strategyAllocations,
       protocolAllocations: protocolsWithRequirements,
@@ -237,6 +240,146 @@ class UnifiedZapExecutor {
       ),
       timestamp: Date.now(),
     }));
+  }
+
+  /**
+   * Normalize input amount string to token units
+   * @param {string} amountStr - Human-readable amount
+   * @param {string} inputToken - Input token address or native sentinel
+   * @param {number} chainId - Chain ID
+   * @returns {{amount: bigint, decimals: number}} - Normalized amount and decimals used
+   * @private
+   */
+  _normalizeInputAmount(amountStr, inputToken, chainId) {
+    if (typeof amountStr !== 'string') {
+      throw new Error('inputAmount must be provided as a string');
+    }
+
+    const decimals = this._resolveTokenDecimals(chainId, inputToken);
+    const amount = this._parseAmountToUnits(amountStr, decimals);
+
+    return { amount, decimals };
+  }
+
+  /**
+   * Resolve token decimals from configuration
+   * @param {number} chainId - Chain ID
+   * @param {string} tokenAddress - Token address or native sentinel
+   * @returns {number} - Token decimals (defaults to 18)
+   * @private
+   */
+  _resolveTokenDecimals(chainId, tokenAddress) {
+    if (!tokenAddress) {
+      return 18;
+    }
+
+    const normalized = tokenAddress.toLowerCase();
+
+    if (this._isNativeTokenAddress(normalized)) {
+      const nativeSymbol = CHAIN_METADATA[chainId]?.nativeToken;
+      const nativeMeta =
+        nativeSymbol && TokenConfigService.getToken(chainId, nativeSymbol);
+      return nativeMeta?.decimals ?? 18;
+    }
+
+    const tokenMeta = TokenConfigService.getTokenByAddress(
+      chainId,
+      tokenAddress
+    );
+
+    if (tokenMeta?.decimals !== undefined) {
+      return tokenMeta.decimals;
+    }
+
+    return 18;
+  }
+
+  /**
+   * Convert decimal string to token units BigInt
+   * @param {string} amountStr - Human-readable amount (e.g., "2.5")
+   * @param {number} decimals - Token decimals
+   * @returns {bigint} - Amount in smallest units
+   * @private
+   */
+  _parseAmountToUnits(amountStr, decimals) {
+    const normalized = amountStr.trim();
+
+    if (!normalized) {
+      throw new Error('inputAmount must be a valid positive number string');
+    }
+
+    const parts = normalized.split('.');
+    if (parts.length > 2) {
+      throw new Error('inputAmount must be a valid positive number string');
+    }
+
+    const [wholeRaw, fractionRaw = ''] = parts;
+
+    if (!this._isDigitsOnly(wholeRaw)) {
+      throw new Error('inputAmount must contain only numeric characters');
+    }
+
+    if (fractionRaw && !this._isDigitsOnly(fractionRaw)) {
+      throw new Error('inputAmount must contain only numeric characters');
+    }
+
+    const wholePart = wholeRaw.replace(/^0+(?=\d)/, '') || '0';
+    const fractionPart = fractionRaw.replace(/0+$/, '');
+
+    if (fractionPart.length > decimals) {
+      throw new Error(
+        `inputAmount has more than ${decimals} decimal places for the selected token`
+      );
+    }
+
+    const paddedFraction =
+      fractionPart + '0'.repeat(Math.max(decimals - fractionPart.length, 0));
+
+    const unitsString = `${wholePart}${paddedFraction.slice(0, decimals)}`;
+    const sanitized = unitsString.replace(/^0+(?=\d)/, '') || '0';
+
+    return BigInt(sanitized);
+  }
+
+  /**
+   * Determine if address represents native token sentinel
+   * @param {string} address - Token address or sentinel
+   * @returns {boolean} - True if native token sentinel
+   * @private
+   */
+  _isNativeTokenAddress(address) {
+    if (!address) {
+      return true;
+    }
+
+    const normalized = address.toLowerCase();
+
+    return (
+      normalized === 'native' ||
+      normalized === '0x0000000000000000000000000000000000000000' ||
+      normalized === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    );
+  }
+
+  /**
+   * Check if string contains only digit characters
+   * @param {string} value - String to validate
+   * @returns {boolean} - True if all characters are digits
+   * @private
+   */
+  _isDigitsOnly(value) {
+    if (value.length === 0) {
+      return false;
+    }
+
+    for (let i = 0; i < value.length; i += 1) {
+      const code = value.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -426,6 +569,10 @@ class UnifiedZapExecutor {
     const { instance, amount, tokenRequirements } = protocolAllocation;
     const transactions = [];
 
+    if (amount === 0n) {
+      return transactions;
+    }
+
     try {
       // For single token protocols
       if (tokenRequirements.mode === 'single') {
@@ -433,13 +580,23 @@ class UnifiedZapExecutor {
           tokenRequirements.protocolSpecific?.underlyingToken ||
           tokenRequirements.outputToken;
 
-        // Generate approval transaction
-        if (protocolToken && tokenRequirements.requiresSwap) {
+        const approvalSpender =
+          tokenRequirements.protocolSpecific?.protocolAddress ||
+          tokenRequirements.protocolSpecific?.poolAddress ||
+          tokenRequirements.protocolSpecific?.routerAddress ||
+          tokenRequirements.protocolSpecific?.spenderAddress;
+
+        const approvalToken = protocolToken || inputToken;
+
+        if (
+          approvalSpender &&
+          approvalToken &&
+          !this._isNativeTokenAddress(approvalToken)
+        ) {
           const approvalTx = await instance.getApprovalTransaction(
             userAddress,
-            protocolToken,
-            tokenRequirements.protocolSpecific?.protocolAddress ||
-              tokenRequirements.protocolSpecific?.poolAddress,
+            approvalToken,
+            approvalSpender,
             amount
           );
           transactions.push(approvalTx);

@@ -73,7 +73,7 @@ class UnifiedZapValidator {
     this.validateInputToken(inputToken);
 
     // Validate input amount
-    this.validateInputAmount(inputAmount, config);
+    this.validateInputAmount(inputAmount);
 
     // Validate slippage (optional)
     if (slippage !== undefined) {
@@ -207,7 +207,7 @@ class UnifiedZapValidator {
    * @param {string} inputAmount - Input amount as string
    * @param {Object} config - UnifiedZap configuration
    */
-  static validateInputAmount(inputAmount, config) {
+  static validateInputAmount(inputAmount) {
     if (!inputAmount) {
       throw new Error('inputAmount is required');
     }
@@ -216,28 +216,77 @@ class UnifiedZapValidator {
       throw new Error('inputAmount must be a string');
     }
 
-    // Check if it's a valid number string
-    if (!/^\d+$/.test(inputAmount)) {
-      throw new Error(
-        'inputAmount must be a valid positive integer string (no decimals)'
-      );
+    const normalizedAmount = inputAmount.trim();
+    if (!this._isValidPositiveNumberString(normalizedAmount)) {
+      throw new Error('inputAmount must be a valid positive number string');
     }
 
-    const amount = parseFloat(inputAmount);
+    const amount = parseFloat(normalizedAmount);
 
     if (amount <= 0) {
       throw new Error('inputAmount must be greater than 0');
     }
 
     // Optional: Check minimum amount (if configured)
-    if (
-      config.VALIDATION.minInputAmount &&
-      amount < config.VALIDATION.minInputAmount
-    ) {
-      throw new Error(
-        `inputAmount must be at least ${config.VALIDATION.minInputAmount}, got ${amount}`
-      );
+    // we should use USD value as min threshold, since we can zapIn with eth/btc as well so use amount as threshold is not correct
+    // if (
+    //   config.VALIDATION.minInputAmount &&
+    //   amount < config.VALIDATION.minInputAmount
+    // ) {
+    //   throw new Error(
+    //     `inputAmount must be at least ${config.VALIDATION.minInputAmount}, got ${amount}`
+    //   );
+    // }
+  }
+
+  /**
+   * Determine if value is a positive number string (digits with optional decimal part)
+   * @param {string} value - Value to validate
+   * @returns {boolean} - True if value is a valid number string
+   * @private
+   */
+  static _isValidPositiveNumberString(value) {
+    if (!value) {
+      return false;
     }
+
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      return false;
+    }
+
+    const [whole, fraction = ''] = parts;
+
+    if (!this._isDigitsOnly(whole)) {
+      return false;
+    }
+
+    if (fraction && !this._isDigitsOnly(fraction)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if string contains only digit characters
+   * @param {string} value - String to test
+   * @returns {boolean} - True if string is non-empty and numeric
+   * @private
+   */
+  static _isDigitsOnly(value) {
+    if (!value) {
+      return false;
+    }
+
+    for (let i = 0; i < value.length; i += 1) {
+      const code = value.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**

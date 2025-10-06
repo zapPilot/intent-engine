@@ -179,6 +179,37 @@ class TokenConfigService {
   }
 
   /**
+   * Get token metadata by address for a specific chain
+   * @param {number} chainId - Chain ID
+   * @param {string} address - Token contract address
+   * @returns {Object|null} - Token metadata or null if not found
+   */
+  static getTokenByAddress(chainId, address) {
+    if (!address || typeof address !== 'string') {
+      return null;
+    }
+
+    const chain = TOKEN_REGISTRY[chainId];
+    if (!chain) {
+      return null;
+    }
+
+    const normalizedAddress = address.toLowerCase();
+
+    for (const token of Object.values(chain)) {
+      if (
+        token?.address &&
+        typeof token.address === 'string' &&
+        token.address.toLowerCase() === normalizedAddress
+      ) {
+        return token;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Get WETH address for a specific chain
    * @param {number} chainId - Chain ID
    * @returns {string|null} - WETH contract address or null if not supported
