@@ -7,6 +7,7 @@ const errorHandler = require('./middleware/errorHandler');
 const swapRoutes = require('./routes/swap');
 const intentRoutes = require('./routes/intents');
 const tokenRoutes = require('./routes/tokens');
+const balanceRoutes = require('./routes/balanceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -43,6 +44,7 @@ app.get('/health', (req, res) => {
 app.use('/', swapRoutes);
 app.use('/', intentRoutes);
 app.use('/tokens', tokenRoutes);
+app.use('/', balanceRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -59,6 +61,7 @@ if (require.main === module) {
       `Supported intents: dustZap, unifiedZap (zapIn, zapOut, rebalance coming soon)`
     );
     console.log(`🪙  Token endpoints: /tokens/zap/{chainId}, /tokens/chains`);
+    console.log(`💰 Balance endpoint: /api/v1/balances/{chainId}/{address}`);
   });
 }
 

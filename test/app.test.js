@@ -1,4 +1,9 @@
 const request = require('supertest');
+
+if (!process.env.MORALIS_API_KEY) {
+  process.env.MORALIS_API_KEY = 'test-api-key';
+}
+
 const app = require('../src/app');
 
 // Mock the modules
