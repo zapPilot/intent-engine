@@ -43,7 +43,7 @@ describe('PhasedExecutionStore', () => {
       if (jest.isMockFunction(global.clearInterval)) {
         global.clearInterval.mockRestore();
       }
-    } catch (e) {
+    } catch (_e) {
       // Mocks already restored or not needed
     }
   });
@@ -71,7 +71,10 @@ describe('PhasedExecutionStore', () => {
       expect(store.cleanupInterval).not.toBeNull();
       // Check that setInterval has been called
       expect(setInterval).toHaveBeenCalledTimes(1);
-      expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 5 * 60 * 1000);
+      expect(setInterval).toHaveBeenCalledWith(
+        expect.any(Function),
+        5 * 60 * 1000
+      );
     });
   });
 
@@ -84,7 +87,9 @@ describe('PhasedExecutionStore', () => {
       expect(retrievedState.phase).toBe(MOCK_STATE.phase);
       expect(retrievedState.executionId).toBe(EXECUTION_ID);
       expect(retrievedState.createdAt).toBeDefined();
-      expect(retrievedState.expiresAt).toBe(retrievedState.createdAt + 60 * 1000);
+      expect(retrievedState.expiresAt).toBe(
+        retrievedState.createdAt + 60 * 1000
+      );
     });
 
     it('should return null for a non-existent execution ID', () => {

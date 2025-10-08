@@ -188,17 +188,17 @@ class PriceCache {
   logHealthReport() {
     const stats = this.getStats();
 
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  Price Cache Health Report');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`  Cache Size:        ${stats.size} tokens`);
-    console.log(`  Hit Rate:          ${stats.hitRate}`);
-    console.log(`  Avg Cache Age:     ${stats.avgCacheAge}`);
-    console.log(`  Stale Hit Rate:    ${stats.staleHitRate}`);
-    console.log(`  Total Hits:        ${stats.hits}`);
-    console.log(`  Total Misses:      ${stats.misses}`);
-    console.log(`  Total Sets:        ${stats.sets}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.warn('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.warn('  Price Cache Health Report');
+    console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.warn(`  Cache Size:        ${stats.size} tokens`);
+    console.warn(`  Hit Rate:          ${stats.hitRate}`);
+    console.warn(`  Avg Cache Age:     ${stats.avgCacheAge}`);
+    console.warn(`  Stale Hit Rate:    ${stats.staleHitRate}`);
+    console.warn(`  Total Hits:        ${stats.hits}`);
+    console.warn(`  Total Misses:      ${stats.misses}`);
+    console.warn(`  Total Sets:        ${stats.sets}`);
+    console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   }
 }
 

@@ -16,6 +16,23 @@ const mockRebalanceClient = {
   getSwapRoute: jest.fn(),
 };
 
+// Mock protocol instance with mocked transaction methods
+const mockProtocolInstance = {
+  getApprovalTransaction: jest.fn(),
+  getDepositTransaction: jest.fn(),
+  getTokenRequirements: jest.fn(),
+  config: {
+    mode: 'single',
+    symbolOfBestTokenToZapInOut: 'USDC',
+  },
+};
+
+// Mock ProtocolFactory
+const mockProtocolFactory = {
+  createProtocol: jest.fn(),
+  createProtocolsForStrategy: jest.fn(),
+};
+
 // Mock the services BEFORE importing anything else
 jest.mock('../../src/services/swapService', () => {
   return jest.fn().mockImplementation(() => mockSwapService);
@@ -31,6 +48,12 @@ jest.mock('../../src/services/balanceService', () => {
 
 jest.mock('../../src/services/RebalanceBackendClient', () => {
   return jest.fn().mockImplementation(() => mockRebalanceClient);
+});
+
+jest.mock('../../src/protocols', () => {
+  return {
+    protocolFactory: mockProtocolFactory,
+  };
 });
 
 const request = require('supertest');
@@ -64,6 +87,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
     jest.clearAllMocks();
     executor.phasedStore.clear();
 
+    // Replace executor's protocolFactory with our mock
+    executor.protocolFactory = mockProtocolFactory;
+
     // Default successful mock implementations
     // CRITICAL: TransactionBuilder.addSwap() expects to, data, value at TOP LEVEL
     mockSwapService.getSecondBestSwapQuote.mockResolvedValue({
@@ -95,6 +121,67 @@ describe('Phased Zap Execution - Integration Tests', () => {
         },
       ],
     });
+
+    // Mock protocol instance methods
+    mockProtocolInstance.getApprovalTransaction.mockResolvedValue({
+      to: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      data: '0xapprovaldata',
+      value: '0',
+      gasLimit: null,
+      description: 'Approve USDC for protocol',
+    });
+
+    mockProtocolInstance.getDepositTransaction.mockResolvedValue({
+      to: '0xProtocolAddress',
+      data: '0xdepositdata',
+      value: '0',
+      gasLimit: null,
+      description: 'Deposit to protocol',
+    });
+
+    mockProtocolInstance.getTokenRequirements.mockReturnValue({
+      mode: 'single',
+      inputToken: MOCK_USDC_ADDRESS,
+      outputToken: MOCK_USDC_ADDRESS,
+      requiresSwap: true,
+      protocolSpecific: {
+        underlyingToken: MOCK_USDC_ADDRESS,
+        protocolAddress: '0xProtocolAddress',
+        poolAddress: '0xPoolAddress',
+      },
+    });
+
+    // Mock protocol factory to return mock protocol instance
+    mockProtocolFactory.createProtocol.mockReturnValue(mockProtocolInstance);
+
+    mockProtocolFactory.createProtocolsForStrategy.mockReturnValue([
+      {
+        id: 'aave-usdc-base',
+        name: 'Aave USDC',
+        weight: 50,
+        chain: 'base',
+        chainId: MOCK_CHAIN_ID,
+        instance: mockProtocolInstance,
+        config: {
+          id: 'aave-usdc-base',
+          implementation: 'AaveProtocol',
+          config: mockProtocolInstance.config,
+        },
+      },
+      {
+        id: 'velodrome-usdc-bold-base',
+        name: 'Velodrome USDC/BOLD',
+        weight: 50,
+        chain: 'base',
+        chainId: MOCK_CHAIN_ID,
+        instance: mockProtocolInstance,
+        config: {
+          id: 'velodrome-usdc-bold-base',
+          implementation: 'VelodromeProtocol',
+          config: mockProtocolInstance.config,
+        },
+      },
+    ]);
   });
 
   afterAll(() => {
@@ -111,7 +198,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           userAddress: MOCK_USER_ADDRESS,
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000000000', // 1000 USDC
             slippage: 0.5,
@@ -120,7 +209,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
 
       // If init fails, show the actual error
       if (initResponse.status !== 200) {
-        throw new Error(`Init failed with status ${initResponse.status}: ${JSON.stringify(initResponse.body)}`);
+        throw new Error(
+          `Init failed with status ${initResponse.status}: ${JSON.stringify(initResponse.body)}`
+        );
       }
 
       // Assert Phase 1 response
@@ -140,12 +231,15 @@ describe('Phased Zap Execution - Integration Tests', () => {
       expect(phase1State.swapTokenAddresses.length).toBeGreaterThan(0);
 
       // --- Phase 2: Continue ---
-      const continueResponse = await request(app)
-        .post(`/api/v1/intents/unified-zap/phased/continue/${executionId}`);
+      const continueResponse = await request(app).post(
+        `/api/v1/intents/unified-zap/phased/continue/${executionId}`
+      );
 
       // Check for failures and provide detailed error
       if (continueResponse.status !== 200) {
-        throw new Error(`Phase 2 failed: ${JSON.stringify(continueResponse.body, null, 2)}`);
+        throw new Error(
+          `Phase 2 failed: ${JSON.stringify(continueResponse.body, null, 2)}`
+        );
       }
 
       // Assert Phase 2 response
@@ -159,7 +253,6 @@ describe('Phased Zap Execution - Integration Tests', () => {
       expect(mockBalanceService.getBalances).toHaveBeenCalledWith(
         MOCK_USER_ADDRESS,
         expect.objectContaining({
-          chainId: MOCK_CHAIN_ID,
           skipCache: true,
         })
       );
@@ -177,7 +270,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           userAddress: MOCK_USER_ADDRESS,
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000000000',
           },
@@ -223,9 +318,7 @@ describe('Phased Zap Execution - Integration Tests', () => {
     it('should handle errors from the balance service gracefully', async () => {
       // Mock balance service to throw an error
       const errorMessage = 'Moralis API is down';
-      mockBalanceService.getBalances.mockRejectedValue(
-        new Error(errorMessage)
-      );
+      mockBalanceService.getBalances.mockRejectedValue(new Error(errorMessage));
 
       const res = await request(app)
         .post(`/api/v1/intents/unified-zap/phased/continue/${executionId}`)
@@ -242,7 +335,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           // Missing userAddress
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000',
           },
@@ -254,7 +349,7 @@ describe('Phased Zap Execution - Integration Tests', () => {
     });
 
     it('should return 400 for missing executionId in continue', async () => {
-      const res = await request(app)
+      const _res = await request(app)
         .post('/api/v1/intents/unified-zap/phased/continue/')
         .expect(404); // Express returns 404 for missing route param
 
@@ -278,7 +373,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           userAddress: MOCK_USER_ADDRESS,
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000000000',
           },
@@ -307,7 +404,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           userAddress: MOCK_USER_ADDRESS,
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000000000',
           },
@@ -323,7 +422,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
       expect(statusResponse.body.phase).toBe(1);
       expect(statusResponse.body.status).toBe('pending');
       expect(statusResponse.body.metadata.userAddress).toBe(MOCK_USER_ADDRESS);
-      expect(statusResponse.body.metadata.chainId).toBe(MOCK_CHAIN_ID.toString());
+      expect(statusResponse.body.metadata.chainId).toBe(
+        MOCK_CHAIN_ID.toString()
+      );
       expect(statusResponse.body.metadata.createdAt).toBeDefined();
       expect(statusResponse.body.metadata.expiresAt).toBeDefined();
     });
@@ -345,7 +446,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
           userAddress: MOCK_USER_ADDRESS,
           chainId: MOCK_CHAIN_ID,
           params: {
-            strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+            strategyAllocations: [
+              { strategyId: 'stablecoin', percentage: 100 },
+            ],
             inputToken: MOCK_INPUT_TOKEN,
             inputAmount: '1000000000',
           },
@@ -377,7 +480,9 @@ describe('Phased Zap Execution - Integration Tests', () => {
             userAddress: MOCK_USER_ADDRESS,
             chainId: MOCK_CHAIN_ID,
             params: {
-              strategyAllocations: [{ strategyId: 'stablecoin', percentage: 100 }],
+              strategyAllocations: [
+                { strategyId: 'stablecoin', percentage: 100 },
+              ],
               inputToken: MOCK_INPUT_TOKEN,
               inputAmount: String(1000000000 * (i + 1)),
             },

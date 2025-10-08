@@ -141,7 +141,7 @@ class PhasedExecutionStore {
     }
 
     if (removed > 0) {
-      console.log(
+      console.warn(
         `[PhasedExecutionStore] Cleaned up ${removed} expired execution(s)`
       );
     }
@@ -156,9 +156,12 @@ class PhasedExecutionStore {
    */
   _startCleanupInterval() {
     // Run cleanup every 5 minutes
-    const interval = setInterval(() => {
-      this._cleanup();
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        this._cleanup();
+      },
+      5 * 60 * 1000
+    );
 
     // Allow process to exit even if interval is running
     if (interval.unref) {
@@ -179,7 +182,7 @@ class PhasedExecutionStore {
     }
 
     this.store.clear();
-    console.log('[PhasedExecutionStore] Destroyed and cleared');
+    console.warn('[PhasedExecutionStore] Destroyed and cleared');
   }
 
   /**

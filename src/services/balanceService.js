@@ -269,7 +269,7 @@ class BalanceService {
         console.warn('[BalanceService] Rate limit hit, retrying...');
         return true;
       }
-      console.log(`[BalanceService] Not retrying HTTP ${error.status}`);
+      console.warn(`[BalanceService] Not retrying HTTP ${error.status}`);
       return false;
     }
 

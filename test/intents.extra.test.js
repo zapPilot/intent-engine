@@ -26,6 +26,11 @@ jest.mock('../src/controllers/VaultController', () => ({
 }));
 
 describe('Intents Routes Extra Coverage', () => {
+  // Ensure module isolation to prevent test pollution from other test files
+  beforeAll(() => {
+    jest.resetModules();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules(); // Clears the module cache

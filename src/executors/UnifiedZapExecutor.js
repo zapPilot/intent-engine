@@ -11,7 +11,12 @@ const TransactionBuilder = require('../transactions/TransactionBuilder');
 const PhasedExecutionStore = require('./PhasedExecutionStore');
 
 class UnifiedZapExecutor {
-  constructor(swapService, priceService, rebalanceClient, balanceService = null) {
+  constructor(
+    swapService,
+    priceService,
+    rebalanceClient,
+    balanceService = null
+  ) {
     this.swapService = swapService;
     this.priceService = priceService;
     this.rebalanceClient = rebalanceClient;
@@ -947,7 +952,10 @@ class UnifiedZapExecutor {
       return fallbackSymbol || null;
     }
 
-    const tokenMeta = TokenConfigService.getTokenByAddress(chainId, tokenAddress);
+    const tokenMeta = TokenConfigService.getTokenByAddress(
+      chainId,
+      tokenAddress
+    );
     if (tokenMeta?.symbol) {
       return tokenMeta.symbol;
     }
@@ -1001,7 +1009,10 @@ class UnifiedZapExecutor {
     try {
       return BigInt(candidate.toString());
     } catch (error) {
-      console.warn('Failed to parse swap output amount, defaulting to 0:', error);
+      console.warn(
+        'Failed to parse swap output amount, defaulting to 0:',
+        error
+      );
       return 0n;
     }
   }
@@ -1105,14 +1116,12 @@ class UnifiedZapExecutor {
       const executionContext = await this.prepareExecutionContext(request);
 
       // Generate ONLY swap transactions (Phase 1)
-      const swapTransactions = await this._generateSwapTransactionsOnly(
-        executionContext
-      );
+      const swapTransactions =
+        await this._generateSwapTransactionsOnly(executionContext);
 
       // Determine which token addresses to query after swaps
-      const swapTokenAddresses = this._extractSwapOutputTokens(
-        executionContext
-      );
+      const swapTokenAddresses =
+        this._extractSwapOutputTokens(executionContext);
 
       // Store state for Phase 2
       this.phasedStore.set(executionId, {
@@ -1193,9 +1202,7 @@ class UnifiedZapExecutor {
       this._validateActualBalances(actualBalances, state.swapTokenAddresses);
 
       // 4. Deserialize execution context
-      const executionContext = this._deserializeContext(
-        state.executionContext
-      );
+      const executionContext = this._deserializeContext(state.executionContext);
 
       // 5. Generate deposit transactions with ACTUAL balances
       const depositTransactions =
@@ -1212,7 +1219,7 @@ class UnifiedZapExecutor {
       });
 
       // Get updated state for metadata
-      const updatedState = this.phasedStore.get(executionId);
+      const _updatedState = this.phasedStore.get(executionId);
 
       return {
         executionId,
@@ -1239,7 +1246,14 @@ class UnifiedZapExecutor {
    * @private
    */
   async _generateSwapTransactionsOnly(executionContext) {
-    const { protocolAllocations, userAddress, inputToken, inputTokenDecimals, slippage, tokenPrices } = executionContext;
+    const {
+      protocolAllocations,
+      userAddress,
+      inputToken,
+      inputTokenDecimals,
+      slippage,
+      tokenPrices,
+    } = executionContext;
     const transactions = [];
 
     for (const protocolAllocation of protocolAllocations) {
@@ -1263,7 +1277,10 @@ class UnifiedZapExecutor {
             tokenPrices,
           });
 
-          if (swapResult.swapTransactions && swapResult.swapTransactions.length > 0) {
+          if (
+            swapResult.swapTransactions &&
+            swapResult.swapTransactions.length > 0
+          ) {
             transactions.push(...swapResult.swapTransactions);
           }
         } else if (tokenRequirements.mode === 'LP') {
@@ -1279,7 +1296,10 @@ class UnifiedZapExecutor {
             tokenPrices,
           });
 
-          if (lpSwapResult.swapTransactions && lpSwapResult.swapTransactions.length > 0) {
+          if (
+            lpSwapResult.swapTransactions &&
+            lpSwapResult.swapTransactions.length > 0
+          ) {
             transactions.push(...lpSwapResult.swapTransactions);
           }
         }
@@ -1299,7 +1319,10 @@ class UnifiedZapExecutor {
    * Generate deposit transactions using ACTUAL on-chain balances (Phase 2)
    * @private
    */
-  async _generateDepositTransactionsWithBalances(executionContext, actualBalances) {
+  async _generateDepositTransactionsWithBalances(
+    executionContext,
+    actualBalances
+  ) {
     const { protocolAllocations, userAddress, slippage } = executionContext;
     const transactions = [];
 
@@ -1551,21 +1574,29 @@ class UnifiedZapExecutor {
         // Restore amount BigInt
         const restoredProto = {
           ...proto,
-          amount: typeof proto.amount === 'string' ? BigInt(proto.amount) : proto.amount,
+          amount:
+            typeof proto.amount === 'string'
+              ? BigInt(proto.amount)
+              : proto.amount,
         };
 
         // Restore protocol instance from factory
-        if (proto.id && !proto.instance) {
+        // Always recreate the instance from factory, even if instance exists (it may be serialized empty object)
+        if (proto.config) {
           try {
             restoredProto.instance = this.protocolFactory.createProtocol(
-              proto.id,
-              chainName
+              proto.config,
+              chainName,
+              proto.chainId
             );
           } catch (error) {
             console.warn(
               `Failed to restore protocol instance for ${proto.id}: ${error.message}`
             );
           }
+        } else if (proto.instance) {
+          // Instance exists but no config - use it as-is (shouldn't happen)
+          restoredProto.instance = proto.instance;
         }
 
         return restoredProto;

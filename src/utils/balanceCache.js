@@ -180,7 +180,7 @@ class BalanceCache {
     this.cleanupInterval = setInterval(() => {
       const cleaned = this.cleanup();
       if (cleaned > 0) {
-        console.log(`[BalanceCache] Cleaned up ${cleaned} expired entries`);
+        console.warn(`[BalanceCache] Cleaned up ${cleaned} expired entries`);
       }
     }, interval);
 

@@ -193,7 +193,7 @@ class PhasedZapController {
    * @param {Object} req - Express request
    * @param {Object} res - Express response
    */
-  static async getStatus(req, res) {
+  static getStatus(req, res) {
     try {
       const { executionId } = req.params;
 

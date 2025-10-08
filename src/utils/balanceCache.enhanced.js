@@ -53,7 +53,7 @@ class BalanceCacheMonitor {
 
   recordInvalidation(reason) {
     this.metrics.invalidations++;
-    console.log(`[BalanceCache] Invalidated: ${reason}`);
+    console.warn(`[BalanceCache] Invalidated: ${reason}`);
   }
 
   recordPartialUpdate() {
@@ -219,7 +219,7 @@ class BalanceCache {
       });
 
       this.monitor.recordPartialUpdate();
-      console.log(
+      console.warn(
         `[BalanceCache] Partial update: ${tokenAddress} on chain ${chainId}`
       );
     }
@@ -270,7 +270,7 @@ class BalanceCache {
     this.set(cacheKey, updated);
     this.monitor.recordPartialUpdate();
 
-    console.log(
+    console.warn(
       `[BalanceCache] Refreshed ${tokenAddresses.length} tokens on chain ${chainId}`
     );
     return updated;
@@ -388,7 +388,7 @@ class BalanceCache {
     this.cleanupInterval = setInterval(() => {
       const cleaned = this.cleanup();
       if (cleaned > 0) {
-        console.log(`[BalanceCache] Cleaned up ${cleaned} expired entries`);
+        console.warn(`[BalanceCache] Cleaned up ${cleaned} expired entries`);
       }
     }, interval);
 
@@ -448,20 +448,20 @@ class BalanceCache {
   logHealthReport() {
     const stats = this.getStats();
 
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  Balance Cache Health Report');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`  Cache Size:        ${stats.size} entries`);
-    console.log(`  Hit Rate:          ${stats.hitRate}`);
-    console.log(`  Avg Cache Age:     ${stats.avgCacheAge}`);
-    console.log(`  Stale Hit Rate:    ${stats.staleHitRate}`);
-    console.log(`  Total Hits:        ${stats.hits}`);
-    console.log(`  Total Misses:      ${stats.misses}`);
-    console.log(`  Partial Updates:   ${stats.partialUpdates}`);
-    console.log(`  Invalidations:     ${stats.invalidations}`);
-    console.log(`  Memory Usage:      ${stats.memoryUsage}`);
-    console.log(`  TTL:               ${stats.defaultTTL / 1000}s`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.warn('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.warn('  Balance Cache Health Report');
+    console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.warn(`  Cache Size:        ${stats.size} entries`);
+    console.warn(`  Hit Rate:          ${stats.hitRate}`);
+    console.warn(`  Avg Cache Age:     ${stats.avgCacheAge}`);
+    console.warn(`  Stale Hit Rate:    ${stats.staleHitRate}`);
+    console.warn(`  Total Hits:        ${stats.hits}`);
+    console.warn(`  Total Misses:      ${stats.misses}`);
+    console.warn(`  Partial Updates:   ${stats.partialUpdates}`);
+    console.warn(`  Invalidations:     ${stats.invalidations}`);
+    console.warn(`  Memory Usage:      ${stats.memoryUsage}`);
+    console.warn(`  TTL:               ${stats.defaultTTL / 1000}s`);
+    console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   }
 }
 
