@@ -9,6 +9,7 @@ describe('PriceCache', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     cache = new PriceCache();
   });
 
@@ -107,7 +108,11 @@ describe('PriceCache', () => {
     });
 
     test('should track stale hits', () => {
-      cache.set('ETH', { price: 1000, timestamp: Date.now() - 400000 }); // 6.6 min old
+      // Manually set an old entry (set() would override the timestamp)
+      const oldTimestamp = Date.now() - 400000; // 6.6 min old
+      cache.cache.set('eth', { price: 1000, timestamp: oldTimestamp });
+      cache.cacheTimeouts.set('eth', Date.now() + 180000); // Still valid TTL
+
       cache.get('ETH');
 
       const stats = cache.getStats();

@@ -3,6 +3,7 @@
  */
 
 jest.mock('../../src/services/balanceService');
+jest.mock('../../src/controllers/balanceController');
 
 const express = require('express');
 const request = require('supertest');
@@ -64,7 +65,9 @@ describe('Balance Routes', () => {
         res.json({ success: true, data: { balances: [] } });
       });
 
-      const res = await request(app).get('/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb');
+      const res = await request(app).get(
+        '/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+      );
 
       expect(BalanceController.getBalances).toHaveBeenCalled();
       expect(res.status).toBe(200);
@@ -75,7 +78,9 @@ describe('Balance Routes', () => {
         res.json({ success: true });
       });
 
-      await request(app).get('/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb?tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
+      await request(app).get(
+        '/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb?tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+      );
 
       expect(BalanceController.getBalances).toHaveBeenCalled();
     });
@@ -87,7 +92,9 @@ describe('Balance Routes', () => {
         res.json({ success: true, data: { balance: '1000000000000000000' } });
       });
 
-      const res = await request(app).get('/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb/native');
+      const res = await request(app).get(
+        '/balances/1/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb/native'
+      );
 
       expect(BalanceController.getNativeBalance).toHaveBeenCalled();
       expect(res.status).toBe(200);

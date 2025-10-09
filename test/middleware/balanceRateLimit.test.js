@@ -42,6 +42,8 @@ describe('balanceRateLimit', () => {
   beforeEach(() => {
     // Use fake timers to control time-based logic like window resets
     jest.useFakeTimers();
+    // Set a consistent starting time for Date.now()
+    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     // Create a new RateLimiter instance for each test to ensure isolation
     limiter = new RateLimiter();
   });
@@ -109,7 +111,9 @@ describe('balanceRateLimit', () => {
         expect(result.allowed).toBe(false);
         expect(result.limit).toBe('wallet');
         expect(result.retryAfter).toBe(60);
-        expect(result.message).toContain(`Rate limit exceeded for wallet ${wallet1}`);
+        expect(result.message).toContain(
+          `Rate limit exceeded for wallet ${wallet1}`
+        );
         expect(result.message).toContain('Maximum 10 requests per minute');
 
         // Global count should be 10, not 11
@@ -118,14 +122,17 @@ describe('balanceRateLimit', () => {
       });
 
       it('should reset the wallet limit after the time window expires', () => {
+        const startTime = new Date('2024-01-01T00:00:00Z').getTime();
+
         // Exhaust the wallet limit
         for (let i = 0; i < 10; i++) {
           limiter.checkLimit(wallet1);
         }
         expect(limiter.checkLimit(wallet1).allowed).toBe(false);
 
-        // Advance time by 60 seconds
-        jest.advanceTimersByTime(60 * 1000);
+        // Advance time by just over 60 seconds (both timers and system time)
+        jest.advanceTimersByTime(60001);
+        jest.setSystemTime(startTime + 60001);
 
         // The next request should be allowed
         const result = limiter.checkLimit(wallet1);
@@ -197,7 +204,9 @@ describe('balanceRateLimit', () => {
         expect(result.limit).toBe('global');
         expect(result.retryAfter).toBe(60);
         expect(result.message).toContain('Global rate limit exceeded');
-        expect(result.message).toContain('Too many requests across all wallets');
+        expect(result.message).toContain(
+          'Too many requests across all wallets'
+        );
 
         // Wallet count for the new wallet should be 0
         const status = limiter.getStatus(wallet1);
@@ -206,14 +215,17 @@ describe('balanceRateLimit', () => {
       });
 
       it('should reset the global limit after the time window expires', () => {
+        const startTime = new Date('2024-01-01T00:00:00Z').getTime();
+
         // Exhaust the global limit
         for (let i = 0; i < 100; i++) {
           limiter.checkLimit(`0xwallet${i}`);
         }
         expect(limiter.checkLimit(wallet1).allowed).toBe(false);
 
-        // Advance time by 60 seconds
-        jest.advanceTimersByTime(60 * 1000);
+        // Advance time by just over 60 seconds (both timers and system time)
+        jest.advanceTimersByTime(60001);
+        jest.setSystemTime(startTime + 60001);
 
         // The next request should be allowed
         const result = limiter.checkLimit(wallet1);
@@ -290,22 +302,27 @@ describe('balanceRateLimit', () => {
       });
 
       it('should reset windows independently', () => {
+        const startTime = new Date('2024-01-01T00:00:00Z').getTime();
+
         limiter.checkLimit(wallet1);
 
         // Advance time by 30 seconds
         jest.advanceTimersByTime(30 * 1000);
+        jest.setSystemTime(startTime + 30 * 1000);
 
         limiter.checkLimit(wallet2);
+        limiter.checkLimit(wallet2); // Make a second request for wallet2
 
         // Advance time by 31 seconds (61 total for wallet1, 31 for wallet2)
         jest.advanceTimersByTime(31 * 1000);
+        jest.setSystemTime(startTime + 61 * 1000);
 
-        // Wallet1 should have reset
+        // Wallet1 should have reset (> 60 seconds since first check)
         const result1 = limiter.checkLimit(wallet1);
         expect(result1.allowed).toBe(true);
         expect(limiter.getStatus(wallet1).walletCount).toBe(1);
 
-        // Wallet2 should not have reset
+        // Wallet2 should not have reset (only 31 seconds since first check)
         expect(limiter.getStatus(wallet2).walletCount).toBe(2);
       });
     });
@@ -452,7 +469,8 @@ describe('balanceRateLimit', () => {
     beforeEach(() => {
       originalCheckLimit = singletonRateLimiter.checkLimit;
       originalGetStatus = singletonRateLimiter.getStatus;
-      singletonRateLimiter.checkLimit = (...args) => limiter.checkLimit(...args);
+      singletonRateLimiter.checkLimit = (...args) =>
+        limiter.checkLimit(...args);
       singletonRateLimiter.getStatus = (...args) => limiter.getStatus(...args);
     });
 
@@ -463,7 +481,9 @@ describe('balanceRateLimit', () => {
 
     describe('Success path (within limits)', () => {
       it('should call next() and set headers for an allowed request from query', () => {
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
 
         balanceRateLimit(req, res, next);
 
@@ -478,7 +498,9 @@ describe('balanceRateLimit', () => {
       });
 
       it('should call next() and set headers for an allowed request from body', () => {
-        const { req, res, next } = makeMockReqRes({ body: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          body: { wallet: wallet1 },
+        });
 
         balanceRateLimit(req, res, next);
 
@@ -505,7 +527,9 @@ describe('balanceRateLimit', () => {
           limiter.checkLimit(wallet1);
         }
 
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.headers['x-ratelimit-remaining-wallet']).toBe(4); // 10 - 6
@@ -517,7 +541,9 @@ describe('balanceRateLimit', () => {
           limiter.checkLimit(wallet1);
         }
 
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.headers['x-ratelimit-remaining-wallet']).toBe(0);
@@ -532,7 +558,9 @@ describe('balanceRateLimit', () => {
           limiter.checkLimit(wallet1);
         }
 
-        const { req, res, next } = makeMockReqRes({ body: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          body: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(next).not.toHaveBeenCalled();
@@ -541,7 +569,9 @@ describe('balanceRateLimit', () => {
         expect(res.jsonData.limitType).toBe('wallet');
         expect(res.jsonData.retryAfter).toBe(60);
         expect(res.jsonData.retryAfterMs).toBe(60000);
-        expect(res.jsonData.message).toContain('Rate limit exceeded for wallet');
+        expect(res.jsonData.message).toContain(
+          'Rate limit exceeded for wallet'
+        );
         expect(res.headers['retry-after']).toBe(60);
         // Remaining should be 0, not negative
         expect(res.headers['x-ratelimit-remaining-wallet']).toBe(0);
@@ -553,7 +583,9 @@ describe('balanceRateLimit', () => {
           limiter.checkLimit(`0xwallet${i}`);
         }
 
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(next).not.toHaveBeenCalled();
@@ -575,7 +607,9 @@ describe('balanceRateLimit', () => {
         // Advance time by 25 seconds
         jest.advanceTimersByTime(25 * 1000);
 
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.headers['retry-after']).toBe(35); // 60 - 25
@@ -587,7 +621,9 @@ describe('balanceRateLimit', () => {
           limiter.checkLimit(wallet1);
         }
 
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.jsonData).toEqual({
@@ -638,7 +674,9 @@ describe('balanceRateLimit', () => {
       });
 
       it('should handle undefined wallet in body', () => {
-        const { req, res, next } = makeMockReqRes({ body: { wallet: undefined } });
+        const { req, res, next } = makeMockReqRes({
+          body: { wallet: undefined },
+        });
         balanceRateLimit(req, res, next);
 
         expect(next).toHaveBeenCalledTimes(1);
@@ -647,7 +685,9 @@ describe('balanceRateLimit', () => {
 
     describe('Rate limit headers', () => {
       it('should set all required rate limit headers', () => {
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.headers['x-ratelimit-limit-wallet']).toBeDefined();
@@ -658,10 +698,14 @@ describe('balanceRateLimit', () => {
       });
 
       it('should set X-RateLimit-Reset-Wallet as Unix timestamp in seconds', () => {
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
-        const resetTimestamp = parseInt(res.headers['x-ratelimit-reset-wallet']);
+        const resetTimestamp = parseInt(
+          res.headers['x-ratelimit-reset-wallet']
+        );
         const now = Math.floor(Date.now() / 1000);
 
         // Should be a valid Unix timestamp in the future
@@ -682,7 +726,9 @@ describe('balanceRateLimit', () => {
       });
 
       it('should not set Retry-After header for allowed requests', () => {
-        const { req, res, next } = makeMockReqRes({ query: { wallet: wallet1 } });
+        const { req, res, next } = makeMockReqRes({
+          query: { wallet: wallet1 },
+        });
         balanceRateLimit(req, res, next);
 
         expect(res.headers['retry-after']).toBeUndefined();
@@ -734,6 +780,8 @@ describe('balanceRateLimit', () => {
       });
 
       it('should recover after time window reset', () => {
+        const startTime = new Date('2024-01-01T00:00:00Z').getTime();
+
         // Exhaust limit
         for (let i = 0; i < 10; i++) {
           limiter.checkLimit(wallet1);
@@ -744,8 +792,9 @@ describe('balanceRateLimit', () => {
         balanceRateLimit(mock1.req, mock1.res, mock1.next);
         expect(mock1.res.statusCode).toBe(429);
 
-        // Advance time
-        jest.advanceTimersByTime(60 * 1000);
+        // Advance time by just over 60 seconds (both timers and system time)
+        jest.advanceTimersByTime(60001);
+        jest.setSystemTime(startTime + 60001);
 
         // Should work again
         const mock2 = makeMockReqRes({ query: { wallet: wallet1 } });

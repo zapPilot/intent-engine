@@ -3,7 +3,6 @@
  */
 
 const {
-  balanceValidationRules,
   handleValidationErrors,
   SUPPORTED_CHAINS,
   SUPPORTED_CHAIN_IDS,
@@ -14,7 +13,9 @@ const {
 describe('Balance Validator', () => {
   describe('isValidAddress', () => {
     test('should return true for valid address', () => {
-      expect(isValidAddress('0x742d35cc6634c0532925a3b844bc9e7595f0beb')).toBe(true);
+      expect(isValidAddress('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')).toBe(
+        true
+      );
     });
 
     test('should return false for invalid address', () => {
@@ -27,7 +28,11 @@ describe('Balance Validator', () => {
 
   describe('areValidAddresses', () => {
     test('should return true for valid comma-separated addresses', () => {
-      expect(areValidAddresses('0x742d35cc6634c0532925a3b844bc9e7595f0beb,0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')).toBe(true);
+      expect(
+        areValidAddresses(
+          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,0xdAC17F958D2ee523a2206206994597C13D831ec7'
+        )
+      ).toBe(true);
     });
 
     test('should return true for empty string (optional)', () => {
@@ -36,11 +41,17 @@ describe('Balance Validator', () => {
     });
 
     test('should return false for invalid address in list', () => {
-      expect(areValidAddresses('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb,0xinvalid')).toBe(false);
+      expect(
+        areValidAddresses(
+          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,0xinvalid'
+        )
+      ).toBe(false);
     });
 
     test('should return false for more than 50 addresses', () => {
-      const addresses = Array(51).fill('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb').join(',');
+      const addresses = Array(51)
+        .fill('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+        .join(',');
       expect(areValidAddresses(addresses)).toBe(false);
     });
   });
@@ -58,7 +69,9 @@ describe('Balance Validator', () => {
   describe('SUPPORTED_CHAIN_IDS', () => {
     test('should be array of numbers', () => {
       expect(Array.isArray(SUPPORTED_CHAIN_IDS)).toBe(true);
-      expect(SUPPORTED_CHAIN_IDS.every(id => typeof id === 'number')).toBe(true);
+      expect(SUPPORTED_CHAIN_IDS.every(id => typeof id === 'number')).toBe(
+        true
+      );
       expect(SUPPORTED_CHAIN_IDS).toContain(1);
       expect(SUPPORTED_CHAIN_IDS).toContain(137);
     });
