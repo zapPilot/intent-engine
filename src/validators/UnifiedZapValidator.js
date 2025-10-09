@@ -190,15 +190,29 @@ class UnifiedZapValidator {
 
   /**
    * Validate input token address
-   * @param {string} inputToken - Input token address
+   * @param {string} inputToken - Input token address or 'native' keyword
    */
   static validateInputToken(inputToken) {
     if (!inputToken || typeof inputToken !== 'string') {
       throw new Error('inputToken is required and must be a string');
     }
 
+    const normalized = inputToken.toLowerCase();
+
+    // Allow native token identifiers
+    if (
+      normalized === 'native' ||
+      normalized === '0x0000000000000000000000000000000000000000' ||
+      normalized === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    ) {
+      return; // Valid native token identifier
+    }
+
+    // Validate as Ethereum address
     if (!/^0x[a-fA-F0-9]{40}$/.test(inputToken)) {
-      throw new Error('Invalid inputToken: must be a valid Ethereum address');
+      throw new Error(
+        'Invalid inputToken: must be a valid Ethereum address or "native"'
+      );
     }
   }
 
