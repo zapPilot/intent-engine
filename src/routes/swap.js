@@ -481,30 +481,4 @@ router.get('/tokens/providers', (req, res) => {
   });
 });
 
-/**
- * @swagger
- * /health:
- *   get:
- *     tags:
- *       - Health
- *     summary: Basic health check
- *     description: Simple health check endpoint to verify API is running
- *     responses:
- *       200:
- *         description: API is healthy and operational
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/HealthResponse'
- *             examples:
- *               healthCheck:
- *                 summary: Healthy response
- *                 value:
- *                   status: "healthy"
- *                   timestamp: "2024-01-01T00:00:00.000Z"
- */
-router.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
-
 module.exports = router;

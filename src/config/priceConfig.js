@@ -59,6 +59,7 @@ const priceConfig = {
       // CoinMarketCap uses numeric IDs
       btc: '1',
       eth: '1027',
+      weth: '1027',
       usdc: '3408',
       usdt: '825',
       bnb: '1839',
@@ -144,6 +145,7 @@ const priceConfig = {
       // For major coins, we can use coin IDs directly
       btc: 'bitcoin',
       eth: 'ethereum',
+      weth: 'ethereum',
       usdc: 'usd-coin',
       usdt: 'tether',
       bnb: 'binancecoin',
