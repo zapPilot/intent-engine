@@ -210,10 +210,10 @@ class PendlePTProtocol extends BaseProtocolV2 {
       tokenIn: this.underlyingTokenAddress,
       netTokenIn: netTokenIn,
       tokenMintSy: this.underlyingTokenAddress,
-      pendleSwap: ethers.constants.AddressZero,
+      pendleSwap: ethers.ZeroAddress,
       swapData: {
         swapType: 0,
-        extRouter: ethers.constants.AddressZero,
+        extRouter: ethers.ZeroAddress,
         extCalldata: '0x',
         needScale: false,
       },
@@ -324,10 +324,10 @@ class PendlePTProtocol extends BaseProtocolV2 {
       tokenOut: this.underlyingTokenAddress,
       minTokenOut: 0n, // Would calculate based on slippage
       tokenRedeemSy: this.underlyingTokenAddress,
-      pendleSwap: ethers.constants.AddressZero,
+      pendleSwap: ethers.ZeroAddress,
       swapData: {
         swapType: 0,
-        extRouter: ethers.constants.AddressZero,
+        extRouter: ethers.ZeroAddress,
         extCalldata: '0x',
         needScale: false,
       },

@@ -1,5 +1,5 @@
-const BalanceService = require('../balanceService');
-const BalanceCache = require('../../utils/balanceCache');
+const BalanceService = require('../../src/services/balanceService');
+const BalanceCache = require('../../src/utils/balanceCache');
 
 // Mock axios
 jest.mock('axios');

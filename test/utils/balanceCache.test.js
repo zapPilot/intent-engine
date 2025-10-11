@@ -1,4 +1,4 @@
-const BalanceCache = require('../balanceCache');
+const BalanceCache = require('../../src/utils/balanceCache');
 
 describe('BalanceCache', () => {
   let cache;
