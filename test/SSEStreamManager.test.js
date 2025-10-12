@@ -1,7 +1,5 @@
-const {
-  SSEStreamManager,
-  DustZapSSEOrchestrator,
-} = require('../src/services/SSEStreamManager');
+const SSEStreamManager = require('../src/services/SSEStreamManager');
+const DustZapSSEOrchestrator = require('../src/services/orchestrators/DustZapSSEOrchestrator');
 const SSEEventFactory = require('../src/services/SSEEventFactory');
 const SwapProcessingService = require('../src/services/SwapProcessingService');
 

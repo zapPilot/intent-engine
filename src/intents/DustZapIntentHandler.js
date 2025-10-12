@@ -92,7 +92,7 @@ class DustZapIntentHandler extends BaseIntentHandler {
    */
   processTokensWithSSEStreaming(executionContext, streamWriter) {
     // Import here to avoid circular dependencies
-    const { DustZapSSEOrchestrator } = require('../services/SSEStreamManager');
+    const DustZapSSEOrchestrator = require('../services/orchestrators/DustZapSSEOrchestrator');
 
     const sseOrchestrator = new DustZapSSEOrchestrator(this);
     return sseOrchestrator.orchestrateSSEStreaming(
