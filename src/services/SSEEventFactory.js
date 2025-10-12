@@ -331,7 +331,14 @@ class SSEEventFactory {
       throw new Error('Invalid event structure for SSE transmission');
     }
 
-    return `data: ${JSON.stringify(event)}\n\n`;
+    const serialized = JSON.stringify(event, (_key, value) => {
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      return value;
+    });
+
+    return `data: ${serialized}\n\n`;
   }
 
   /**
