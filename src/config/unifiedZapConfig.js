@@ -13,42 +13,42 @@ const UNIFIED_ZAP_CONFIG = {
       targetAssets: ['USDC', 'USDT', 'DAI', 'EURC'],
       chains: ['arbitrum', 'base', 'optimism'],
       protocols: [
-        // Aave lending on Base
-        {
-          id: 'aave-usdc-base',
-          name: 'Aave USDC (Base)',
-          implementation: 'AaveProtocol',
-          chain: 'base',
-          chainId: 8453,
-          weight: 20,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'usdc',
-            zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-            assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
-            protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
-            assetDecimals: 6,
-          },
-        },
-        // Aave USDC on Arbitrum
-        {
-          id: 'aave-usdc-arbitrum',
-          name: 'Aave USDC (Arbitrum)',
-          implementation: 'AaveProtocol',
-          chain: 'arbitrum',
-          chainId: 42161,
-          weight: 100,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'usdc',
-            zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-            assetAddress: '0x625e7708f30ca75bfd92586e17077590c60eb4cd',
-            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-            assetDecimals: 6,
-          },
-        },
+        // // Aave lending on Base
+        // {
+        //   id: 'aave-usdc-base',
+        //   name: 'Aave USDC (Base)',
+        //   implementation: 'AaveProtocol',
+        //   chain: 'base',
+        //   chainId: 8453,
+        //   weight: 20,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'single',
+        //     symbolOfBestTokenToZapInOut: 'usdc',
+        //     zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        //     assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
+        //     protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
+        //     assetDecimals: 6,
+        //   },
+        // },
+        // // Aave USDC on Arbitrum
+        // {
+        //   id: 'aave-usdc-arbitrum',
+        //   name: 'Aave USDC (Arbitrum)',
+        //   implementation: 'AaveProtocol',
+        //   chain: 'arbitrum',
+        //   chainId: 42161,
+        //   weight: 100,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'single',
+        //     symbolOfBestTokenToZapInOut: 'usdc',
+        //     zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        //     assetAddress: '0x625e7708f30ca75bfd92586e17077590c60eb4cd',
+        //     protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+        //     assetDecimals: 6,
+        //   },
+        // },
         // Pendle PT gUSDC on Arbitrum
         {
           id: 'pendle-pt-gusdc-arbitrum',
@@ -62,7 +62,7 @@ const UNIFIED_ZAP_CONFIG = {
             mode: 'single',
             marketAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48',
             assetAddress: '0x247f150C90c9EEb7d733219bfA36D189C76D5Ec5',
-            protocolAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48', // Add this line - using marketAddress
+            protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
             ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
             assetDecimals: 6,
             symbolOfBestTokenToZapOut: 'usdc',
@@ -72,35 +72,35 @@ const UNIFIED_ZAP_CONFIG = {
           },
         },
         // Velodrome BOLD/USDC LP on Base
-        {
-          id: 'velodrome-bold-usdc-base',
-          name: 'Velodrome BOLD/USDC LP (Base)',
-          implementation: 'VelodromeProtocol',
-          chain: 'base',
-          chainId: 8453,
-          weight: 30,
-          enabled: true,
-          config: {
-            mode: 'LP',
-            protocolName: 'aerodrome',
-            protocolVersion: '0',
-            assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
-            assetDecimals: 18,
-            routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
-            guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
-            lpTokens: [
-              ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
-              ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
-            ],
-            rewards: [
-              {
-                symbol: 'aero',
-                address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
-                decimals: 18,
-              },
-            ],
-          },
-        },
+        // {
+        //   id: 'velodrome-bold-usdc-base',
+        //   name: 'Velodrome BOLD/USDC LP (Base)',
+        //   implementation: 'VelodromeProtocol',
+        //   chain: 'base',
+        //   chainId: 8453,
+        //   weight: 30,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'LP',
+        //     protocolName: 'aerodrome',
+        //     protocolVersion: '0',
+        //     assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
+        //     assetDecimals: 18,
+        //     routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
+        //     guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
+        //     lpTokens: [
+        //       ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
+        //       ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
+        //     ],
+        //     rewards: [
+        //       {
+        //         symbol: 'aero',
+        //         address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
+        //         decimals: 18,
+        //       },
+        //     ],
+        //   },
+        // },
         // // Velodrome USDC/sUSD LP on Optimism
         // {
         //   id: 'velodrome-usdc-susd-optimism',

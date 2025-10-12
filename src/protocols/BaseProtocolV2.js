@@ -243,9 +243,21 @@ class BaseProtocolV2 {
    * @protected
    */
   _applySlippage(amount, slippage) {
-    const slippageBasisPoints = Math.floor(slippage * 100);
+    const amountBigInt =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
+
+    const numericSlippage =
+      slippage === undefined || slippage === null ? 0 : Number(slippage);
+
+    if (!Number.isFinite(numericSlippage)) {
+      throw new Error(`Invalid slippage value: ${slippage}`);
+    }
+
+    const clampedSlippage = Math.min(Math.max(numericSlippage, 0), 99.99);
+    const slippageBasisPoints = Math.floor(clampedSlippage * 100);
     const multiplier = BigInt(10000 - slippageBasisPoints);
-    return (amount * multiplier) / 10000n;
+
+    return (amountBigInt * multiplier) / 10000n;
   }
 
   /**

@@ -6,6 +6,23 @@
 const BaseProtocolV2 = require('./BaseProtocolV2');
 const { ethers } = require('ethers');
 
+const STABLE_TOKEN_SYMBOLS = new Set([
+  'usdc',
+  'usdt',
+  'dai',
+  'susd',
+  'msusd',
+  'eurc',
+  'usdx',
+  'susdx',
+  'gusdc',
+  'usdbc',
+  'usdce',
+  'usdp',
+  'usd+',
+  'bold',
+]);
+
 class VelodromeProtocol extends BaseProtocolV2 {
   constructor(config, chain, chainId) {
     super(config, chain, chainId);
@@ -33,6 +50,11 @@ class VelodromeProtocol extends BaseProtocolV2 {
       address: this.lpTokens[1][1],
       decimals: this.lpTokens[1][2],
     };
+
+    this.isStablePool =
+      typeof config.isStablePool === 'boolean'
+        ? config.isStablePool
+        : this._inferStablePoolFromSymbols();
   }
 
   /**
@@ -51,7 +73,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
   ) {
     this._validateAddress(userAddress);
 
-    const { token0Amount, token1Amount, slippage = 0.5 } = additionalParams;
+    const { token0Amount, token1Amount, slippage } = additionalParams;
 
     if (!token0Amount || !token1Amount) {
       throw new Error(
@@ -73,9 +95,11 @@ class VelodromeProtocol extends BaseProtocolV2 {
       throw new Error('Both token amounts must be greater than zero');
     }
 
-    // Calculate minimum amounts with slippage
-    const minAmount0 = this._applySlippage(amount0, slippage);
-    const minAmount1 = this._applySlippage(amount1, slippage);
+    const effectiveSlippage = this._resolveDepositSlippage(slippage);
+
+    // Calculate minimum amounts with slippage buffer
+    const minAmount0 = this._applySlippage(amount0, effectiveSlippage);
+    const minAmount1 = this._applySlippage(amount1, effectiveSlippage);
     const deadline = this._getDeadline();
 
     // Check if tokens are sorted correctly for Velodrome
@@ -95,11 +119,12 @@ class VelodromeProtocol extends BaseProtocolV2 {
       minAmount1
     );
 
-    // Generate add liquidity transaction
+    const isStablePool = this._isStablePool();
+
     const addLiquidityData = this._encodeAddLiquidityCall(
       sortedToken0,
       sortedToken1,
-      this._isStablePool(), // Determine if stable or volatile pool
+      isStablePool,
       sortedAmount0,
       sortedAmount1,
       sortedMin0,
@@ -265,27 +290,61 @@ class VelodromeProtocol extends BaseProtocolV2 {
   }
 
   /**
-   * Determine if this is a stable pool based on protocol name
-   * @returns {boolean} - Whether this is a stable pool
+   * Determine effective slippage buffer for LP deposits.
+   * Applies a more conservative floor for stable pools to mirror v1 behavior.
+   * @param {number} slippage - Requested slippage percentage (e.g. 0.5 for 0.5%)
+   * @returns {number} - Slippage percentage to apply
+   * @private
+   */
+  _resolveDepositSlippage(slippage) {
+    const numericSlippage =
+      slippage === undefined || slippage === null
+        ? undefined
+        : Number(slippage);
+
+    const baseSlippage = Number.isFinite(numericSlippage)
+      ? numericSlippage
+      : 0.5;
+
+    const sanitizedSlippage = Math.max(baseSlippage, 0);
+
+    if (this._isStablePool()) {
+      const configuredMinimum =
+        typeof this.config.minStableDepositSlippage === 'number'
+          ? this.config.minStableDepositSlippage
+          : 20;
+
+      return Math.max(sanitizedSlippage, configuredMinimum);
+    }
+
+    return sanitizedSlippage;
+  }
+
+  /**
+   * Determine if this configuration targets a stable pool.
+   * @returns {boolean}
    * @private
    */
   _isStablePool() {
-    // Usually stable pools are marked in configuration or can be inferred from tokens
-    // For now, assume correlated assets (stablecoins) use stable pools
-    const stableTokens = [
-      'usdc',
-      'usdt',
-      'dai',
-      'susd',
-      'eurc',
-      'usdx',
-      'susdx',
-    ];
-    const token0Symbol = this.token0.symbol.toLowerCase();
-    const token1Symbol = this.token1.symbol.toLowerCase();
+    return !!this.isStablePool;
+  }
+
+  /**
+   * Infer whether the pool should be treated as stable using token symbols.
+   * @returns {boolean}
+   * @private
+   */
+  _inferStablePoolFromSymbols() {
+    const token0Symbol = (this.token0.symbol || '').toLowerCase();
+    const token1Symbol = (this.token1.symbol || '').toLowerCase();
+
+    if (!token0Symbol || !token1Symbol) {
+      return false;
+    }
 
     return (
-      stableTokens.includes(token0Symbol) && stableTokens.includes(token1Symbol)
+      STABLE_TOKEN_SYMBOLS.has(token0Symbol) &&
+      STABLE_TOKEN_SYMBOLS.has(token1Symbol)
     );
   }
 

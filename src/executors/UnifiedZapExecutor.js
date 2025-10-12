@@ -653,6 +653,7 @@ class UnifiedZapExecutor {
           depositAmount,
           { slippage }
         );
+        console.log('depositTx', depositTx);
         transactions.push(depositTx);
       } else if (tokenRequirements.mode === 'LP') {
         const lpContext = tokenRequirements.protocolSpecific || {};
