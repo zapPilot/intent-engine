@@ -72,65 +72,65 @@ const UNIFIED_ZAP_CONFIG = {
           },
         },
         // Velodrome BOLD/USDC LP on Base
-        // {
-        //   id: 'velodrome-bold-usdc-base',
-        //   name: 'Velodrome BOLD/USDC LP (Base)',
-        //   implementation: 'VelodromeProtocol',
-        //   chain: 'base',
-        //   chainId: 8453,
-        //   weight: 30,
-        //   enabled: true,
-        //   config: {
-        //     mode: 'LP',
-        //     protocolName: 'aerodrome',
-        //     protocolVersion: '0',
-        //     assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
-        //     assetDecimals: 18,
-        //     routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
-        //     guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
-        //     lpTokens: [
-        //       ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
-        //       ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
-        //     ],
-        //     rewards: [
-        //       {
-        //         symbol: 'aero',
-        //         address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
-        //         decimals: 18,
-        //       },
-        //     ],
-        //   },
-        // },
-        // // Velodrome USDC/sUSD LP on Optimism
-        // {
-        //   id: 'velodrome-usdc-susd-optimism',
-        //   name: 'Velodrome USDC/sUSD LP (Optimism)',
-        //   implementation: 'VelodromeProtocol',
-        //   chain: 'optimism',
-        //   chainId: 10,
-        //   weight: 25,
-        //   enabled: true,
-        //   config: {
-        //     mode: 'LP',
-        //     protocolName: 'velodrome',
-        //     protocolVersion: 'v2',
-        //     assetAddress: '0xbC26519f936A90E78fe2C9aA2A03CC208f041234',
-        //     assetDecimals: 18,
-        //     routerAddress: '0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858',
-        //     guageAddress: '0x0E4c56B4a766968b12c286f67aE341b11eDD8b8d',
-        //     lpTokens: [
-        //       ['usdc', '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', 6],
-        //       ['susd', '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9', 18],
-        //     ],
-        //     rewards: [
-        //       {
-        //         symbol: 'velo',
-        //         address: '0x9560e827af36c94d2ac33a39bce1fe78631088db',
-        //         decimals: 18,
-        //       },
-        //     ],
-        //   },
-        // },
+        {
+          id: 'velodrome-bold-usdc-base',
+          name: 'Velodrome BOLD/USDC LP (Base)',
+          implementation: 'VelodromeProtocol',
+          chain: 'base',
+          chainId: 8453,
+          weight: 30,
+          enabled: true,
+          config: {
+            mode: 'LP',
+            protocolName: 'aerodrome',
+            protocolVersion: '0',
+            assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
+            assetDecimals: 18,
+            routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
+            guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
+            lpTokens: [
+              ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
+              ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
+            ],
+            rewards: [
+              {
+                symbol: 'aero',
+                address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
+                decimals: 18,
+              },
+            ],
+          },
+        },
+        // Velodrome USDC/sUSD LP on Optimism
+        {
+          id: 'velodrome-usdc-susd-optimism',
+          name: 'Velodrome USDC/sUSD LP (Optimism)',
+          implementation: 'VelodromeProtocol',
+          chain: 'optimism',
+          chainId: 10,
+          weight: 25,
+          enabled: true,
+          config: {
+            mode: 'LP',
+            protocolName: 'velodrome',
+            protocolVersion: 'v2',
+            assetAddress: '0xbC26519f936A90E78fe2C9aA2A03CC208f041234',
+            assetDecimals: 18,
+            routerAddress: '0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858',
+            guageAddress: '0x0E4c56B4a766968b12c286f67aE341b11eDD8b8d',
+            lpTokens: [
+              ['usdc', '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', 6],
+              ['susd', '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9', 18],
+            ],
+            rewards: [
+              {
+                symbol: 'velo',
+                address: '0x9560e827af36c94d2ac33a39bce1fe78631088db',
+                decimals: 18,
+              },
+            ],
+          },
+        },
       ],
     },
 
