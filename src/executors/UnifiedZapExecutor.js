@@ -833,31 +833,58 @@ class UnifiedZapExecutor {
       token1.symbol
     );
 
-    const swap0 = await this._executeSwap({
-      chainId: protocolAllocation.chainId,
-      userAddress,
-      fromTokenAddress: inputToken,
-      fromTokenDecimals: inputTokenDecimals,
-      toTokenAddress: token0.address,
-      toTokenDecimals: token0.decimals,
-      amount: swapAmount0,
-      slippage,
-      tokenPrices,
-      toTokenSymbol: symbol0,
-    });
+    // Normalize addresses for comparison
+    const normalizedInput =
+      this._normalizeSwapAddress(inputToken).toLowerCase();
+    const normalizedToken0 = this._normalizeSwapAddress(
+      token0.address
+    ).toLowerCase();
+    const normalizedToken1 = this._normalizeSwapAddress(
+      token1.address
+    ).toLowerCase();
 
-    const swap1 = await this._executeSwap({
-      chainId: protocolAllocation.chainId,
-      userAddress,
-      fromTokenAddress: inputToken,
-      fromTokenDecimals: inputTokenDecimals,
-      toTokenAddress: token1.address,
-      toTokenDecimals: token1.decimals,
-      amount: swapAmount1,
-      slippage,
-      tokenPrices,
-      toTokenSymbol: symbol1,
-    });
+    // Execute swaps only for tokens that don't match input token
+    const swap0 =
+      normalizedInput === normalizedToken0
+        ? {
+            transactions: [],
+            swapQuote: null,
+            depositAmount: swapAmount0,
+            depositTokenAddress: token0.address,
+          }
+        : await this._executeSwap({
+            chainId: protocolAllocation.chainId,
+            userAddress,
+            fromTokenAddress: inputToken,
+            fromTokenDecimals: inputTokenDecimals,
+            toTokenAddress: token0.address,
+            toTokenDecimals: token0.decimals,
+            amount: swapAmount0,
+            slippage,
+            tokenPrices,
+            toTokenSymbol: symbol0,
+          });
+
+    const swap1 =
+      normalizedInput === normalizedToken1
+        ? {
+            transactions: [],
+            swapQuote: null,
+            depositAmount: swapAmount1,
+            depositTokenAddress: token1.address,
+          }
+        : await this._executeSwap({
+            chainId: protocolAllocation.chainId,
+            userAddress,
+            fromTokenAddress: inputToken,
+            fromTokenDecimals: inputTokenDecimals,
+            toTokenAddress: token1.address,
+            toTokenDecimals: token1.decimals,
+            amount: swapAmount1,
+            slippage,
+            tokenPrices,
+            toTokenSymbol: symbol1,
+          });
 
     if (swap0.depositAmount <= 0n || swap1.depositAmount <= 0n) {
       throw new Error(
@@ -892,6 +919,16 @@ class UnifiedZapExecutor {
 
     const normalizedFrom = this._normalizeSwapAddress(fromTokenAddress);
     const normalizedTo = this._normalizeSwapAddress(toTokenAddress);
+
+    // Skip swap if from and to tokens are identical (case-insensitive)
+    if (normalizedFrom.toLowerCase() === normalizedTo.toLowerCase()) {
+      return {
+        transactions: [],
+        swapQuote: null,
+        depositAmount: amount,
+        depositTokenAddress: toTokenAddress,
+      };
+    }
 
     const ethPrice =
       this._resolveTokenPrice('eth', tokenPrices) ??

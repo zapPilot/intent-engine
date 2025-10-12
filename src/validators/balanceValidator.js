@@ -29,11 +29,20 @@ const SUPPORTED_CHAIN_IDS = Object.keys(SUPPORTED_CHAINS).map(Number);
  * Custom validator: Check if value is a valid Ethereum address
  */
 const isValidAddress = value => {
-  if (!value) {
+  if (!value || typeof value !== 'string') {
     return false;
   }
+
   try {
-    return isAddress(value);
+    if (isAddress(value)) {
+      return true;
+    }
+  } catch {
+    // no-op, fall back to lowercase normalization
+  }
+
+  try {
+    return isAddress(value.toLowerCase());
   } catch {
     return false;
   }

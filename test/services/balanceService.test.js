@@ -56,7 +56,7 @@ describe('BalanceService', () => {
   });
 
   describe('getBalances', () => {
-    const mockAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+    const mockAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0';
     const mockResponse = [
       {
         token_address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
@@ -188,7 +188,7 @@ describe('BalanceService', () => {
   });
 
   describe('getNativeBalance', () => {
-    const mockAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+    const mockAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0';
     const mockNativeResponse = {
       balance: '1500000000000000000',
     };
@@ -212,7 +212,7 @@ describe('BalanceService', () => {
 
   describe('Cache operations', () => {
     it('should clear address cache', () => {
-      const address = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+      const address = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0';
       const key = BalanceCache.generateKey(1, address);
 
       balanceService.cache.set(key, { test: 'data' });
@@ -277,7 +277,7 @@ describe('BalanceService', () => {
         .mockResolvedValueOnce({ data: [] });
 
       const result = await balanceService.getBalances(
-        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
         { chainId: 1, skipCache: true }
       );
 
@@ -293,7 +293,7 @@ describe('BalanceService', () => {
 
       await expect(
         balanceService.getBalances(
-          '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+          '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
           { chainId: 1, skipCache: true }
         )
       ).rejects.toThrow();
@@ -306,7 +306,7 @@ describe('BalanceService', () => {
 
       await expect(
         balanceService.getBalances(
-          '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+          '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
           { chainId: 1, skipCache: true }
         )
       ).rejects.toThrow('Invalid Moralis response format');

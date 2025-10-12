@@ -307,7 +307,7 @@ class BalanceService {
     }));
 
     return {
-      address,
+      address: address.toLowerCase(),
       chainId: String(chainId),
       balances,
       totalTokens: balances.length,

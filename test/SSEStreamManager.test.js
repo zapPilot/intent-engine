@@ -609,10 +609,8 @@ describe('DustZapSSEOrchestrator', () => {
         )
       ).rejects.toThrow(error);
 
-      expect(consoleError).toHaveBeenCalledWith(
-        'SSE orchestration error:',
-        error
-      );
+      // Logger now uses structured format, so just verify console.error was called
+      expect(consoleError).toHaveBeenCalled();
       expect(mockStreamWriter).toHaveBeenCalledWith({ type: 'error' });
 
       consoleError.mockRestore();

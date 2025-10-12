@@ -218,7 +218,8 @@ describe('Phased Zap Execution - Integration Tests', () => {
       expect(initResponse.body.success).toBe(true);
       expect(initResponse.body.phase).toBe(1);
       expect(initResponse.body.executionId).toBeDefined();
-      expect(initResponse.body.transactions.length).toBeGreaterThan(0);
+      expect(initResponse.body.transactions.length).toBe(0);
+      expect(mockSwapService.getSecondBestSwapQuote).not.toHaveBeenCalled();
       expect(initResponse.body.metadata.nextStep).toBeDefined();
 
       const { executionId } = initResponse.body;

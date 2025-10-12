@@ -683,8 +683,17 @@ describe('IntentController Integration Tests', () => {
 
       const responses = await Promise.all(requests);
 
-      responses.forEach(response => {
-        expect([200, 503].includes(response.status)).toBe(true);
+      const expectations = [
+        { endpoint: '/api/v1/intents', statuses: [200] },
+        { endpoint: '/api/v1/intents/health', statuses: [200, 503] },
+        { endpoint: '/api/v1/strategies', statuses: [200] },
+        { endpoint: '/api/v1/intents', statuses: [200] },
+        { endpoint: '/api/v1/intents/health', statuses: [200, 503] },
+      ];
+
+      responses.forEach((response, index) => {
+        const { statuses } = expectations[index];
+        expect(statuses.includes(response.status)).toBe(true);
       });
     });
 

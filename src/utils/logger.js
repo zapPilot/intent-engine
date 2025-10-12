@@ -39,12 +39,14 @@ class Logger {
 
   info(message, meta = {}) {
     if (this.level >= LOG_LEVELS.INFO) {
+      // eslint-disable-next-line no-console
       console.info(this._formatMessage('INFO', message, meta));
     }
   }
 
   debug(message, meta = {}) {
     if (this.level >= LOG_LEVELS.DEBUG) {
+      // eslint-disable-next-line no-console
       console.log(this._formatMessage('DEBUG', message, meta));
     }
   }

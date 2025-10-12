@@ -13,7 +13,7 @@ const {
 describe('Validation Helper Functions', () => {
   describe('isValidAddress', () => {
     it('should validate correct Ethereum addresses', () => {
-      expect(isValidAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb')).toBe(
+      expect(isValidAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0')).toBe(
         true
       );
       expect(isValidAddress('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')).toBe(
@@ -39,7 +39,7 @@ describe('Validation Helper Functions', () => {
   describe('areValidAddresses', () => {
     it('should validate comma-separated addresses', () => {
       const valid =
-        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       expect(areValidAddresses(valid)).toBe(true);
     });
 
@@ -51,7 +51,7 @@ describe('Validation Helper Functions', () => {
 
     it('should reject lists with invalid addresses', () => {
       const invalid =
-        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb,invalid-address';
+        '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0,invalid-address';
       expect(areValidAddresses(invalid)).toBe(false);
     });
 
@@ -66,7 +66,7 @@ describe('Validation Helper Functions', () => {
 
     it('should handle whitespace in addresses', () => {
       const withSpaces =
-        '  0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb  ,  0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48  ';
+        '  0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0  ,  0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48  ';
       expect(areValidAddresses(withSpaces)).toBe(true);
     });
   });
@@ -128,7 +128,7 @@ describe('Balance Validator Integration', () => {
     const req = {
       query: {
         chainId: '1',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
       },
     };
 
@@ -139,7 +139,7 @@ describe('Balance Validator Integration', () => {
   it('should require chainId', async () => {
     const req = {
       query: {
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
       },
     };
 
@@ -162,7 +162,7 @@ describe('Balance Validator Integration', () => {
     const req = {
       query: {
         chainId: '999',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
       },
     };
 
@@ -186,7 +186,7 @@ describe('Balance Validator Integration', () => {
     const req = {
       query: {
         chainId: '1',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
         tokens:
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,0xdAC17F958D2ee523a2206206994597C13D831ec7',
       },
@@ -200,7 +200,7 @@ describe('Balance Validator Integration', () => {
     const req = {
       query: {
         chainId: '1',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
         tokens: 'invalid-token,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       },
     };
@@ -210,7 +210,7 @@ describe('Balance Validator Integration', () => {
   });
 
   it('should validate all supported chains', async () => {
-    const wallet = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+    const wallet = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0';
 
     for (const chainId of SUPPORTED_CHAIN_IDS) {
       const req = { query: { chainId: chainId.toString(), wallet } };

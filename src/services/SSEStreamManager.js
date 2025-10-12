@@ -4,7 +4,6 @@
  */
 
 const SSEEventFactory = require('./SSEEventFactory');
-const SwapProcessingService = require('./SwapProcessingService');
 
 class SSEStreamManager {
   /**
