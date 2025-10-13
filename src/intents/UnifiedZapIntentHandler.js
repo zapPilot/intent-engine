@@ -105,6 +105,40 @@ class UnifiedZapIntentHandler extends BaseIntentHandler {
       );
     };
 
+    const priceErrors = Array.isArray(executionContext.tokenPriceErrors)
+      ? executionContext.tokenPriceErrors
+      : [];
+
+    if (priceErrors.length > 0) {
+      emitPhaseProgress('price_fetch', 5, {
+        message: 'Unable to fetch required token prices',
+        errorCount: priceErrors.length,
+      });
+
+      const summaryMessage = priceErrors
+        .map(
+          errorInfo =>
+            `${errorInfo.symbol}: ${errorInfo.userMessage || errorInfo.message}`
+        )
+        .join('; ');
+
+      streamWriter(
+        SSEEventFactory.createErrorEvent(summaryMessage, {
+          phase: 'price_fetch',
+          errorCode: 'TOKEN_PRICE_UNAVAILABLE',
+          processedTokens: 0,
+          totalTokens: executionContext.protocolAllocations?.length || 0,
+          errors: priceErrors,
+        })
+      );
+
+      return {
+        success: false,
+        error: summaryMessage,
+        priceErrors,
+      };
+    }
+
     try {
       // Phase 1: Strategy Parsing
       emitPhaseProgress('strategy_parsing', 0, {

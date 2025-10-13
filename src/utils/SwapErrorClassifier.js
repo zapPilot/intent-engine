@@ -3,10 +3,13 @@
  * Provides consistent error structures and classifications across all intent handlers
  */
 
+const { MissingTokenMappingError } = require('./errors');
+
 /**
  * Error categories for swap operations
  */
 const ERROR_CATEGORIES = {
+  CONFIG_MISSING_TOKEN_MAPPING: 'CONFIG_MISSING_TOKEN_MAPPING',
   QUOTE_FAILED: 'QUOTE_FAILED',
   DATA_EXTRACTION_ERROR: 'DATA_EXTRACTION_ERROR',
   PROCESSING_ERROR: 'PROCESSING_ERROR',
@@ -50,9 +53,22 @@ class SwapErrorClassifier {
    * @returns {Object} Standardized error classification
    */
   static classifyError(error, context = {}) {
+    const { tokenSymbol = 'Unknown', swapQuote = null } = context;
+
+    // Handle specific, structured errors first for clarity
+    if (error instanceof MissingTokenMappingError) {
+      return {
+        category: ERROR_CATEGORIES.CONFIG_MISSING_TOKEN_MAPPING,
+        providerState: PROVIDER_STATES.FAILED,
+        errorMessage: error.message,
+        userFriendlyMessage: `Configuration for token ${error.symbol} is missing.`,
+        developerMessage: error.developerMessage,
+        originalError: error,
+      };
+    }
+
     const errorMessage =
       typeof error === 'string' ? error : error?.message || 'Unknown error';
-    const { tokenSymbol = 'Unknown', swapQuote = null } = context;
 
     // Determine error category based on error message and context
     let category = ERROR_CATEGORIES.UNKNOWN_ERROR;
@@ -91,6 +107,7 @@ class SwapErrorClassifier {
       providerState,
       errorMessage,
       userFriendlyMessage,
+      developerMessage: errorMessage, // Default developer message is the raw error
       originalError: error,
     };
   }

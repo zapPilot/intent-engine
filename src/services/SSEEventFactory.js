@@ -93,6 +93,7 @@ class SSEEventFactory {
       token,
       error,
       errorCategory,
+      developerMessage,
       userFriendlyMessage,
       provider = 'failed',
       tradingLoss = null,
@@ -110,6 +111,7 @@ class SSEEventFactory {
       error:
         typeof error === 'string' ? error : error?.message || 'Unknown error',
       errorCategory,
+      developerMessage,
       userFriendlyMessage,
 
       // Fallback data for consistency

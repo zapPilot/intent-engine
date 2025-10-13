@@ -192,9 +192,22 @@ class PendlePTProtocol extends BaseProtocolV2 {
   getTokenRequirements(inputToken) {
     const baseRequirements = super.getTokenRequirements(inputToken);
 
+    const normalizedInput = inputToken?.toLowerCase?.() || '';
+    const normalizedUnderlying =
+      this.underlyingTokenAddress?.toLowerCase?.() || '';
+
+    const requiresSwap =
+      normalizedInput &&
+      normalizedUnderlying &&
+      normalizedInput !== normalizedUnderlying;
+
     return {
       ...baseRequirements,
+      inputToken: this.underlyingTokenAddress || baseRequirements.inputToken,
+      outputToken: this.underlyingTokenAddress || baseRequirements.outputToken,
+      requiresSwap: requiresSwap || baseRequirements.requiresSwap,
       protocolSpecific: {
+        ...(baseRequirements.protocolSpecific || {}),
         marketAddress: this.marketAddress,
         ptTokenAddress: this.ptTokenAddress,
         ytTokenAddress: this.ytTokenAddress,

@@ -9,6 +9,7 @@ const { TokenConfigService, CHAIN_METADATA } = require('../config/tokenConfig');
 const SSEEventFactory = require('../services/SSEEventFactory');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const PhasedExecutionStore = require('./PhasedExecutionStore');
+const { MissingTokenMappingError } = require('../utils/errors');
 
 class UnifiedZapExecutor {
   constructor(
@@ -52,10 +53,8 @@ class UnifiedZapExecutor {
     );
 
     // Phase 2: Get current prices for calculations
-    const tokenPrices = await this._getTokenPrices(
-      inputToken,
-      protocolAllocations
-    );
+    const { prices: tokenPrices, errors: tokenPriceErrors } =
+      await this._getTokenPrices(inputToken, protocolAllocations);
 
     // Phase 3: Calculate token requirements for each protocol
     const protocolsWithRequirements = await this._analyzeTokenRequirements(
@@ -75,6 +74,7 @@ class UnifiedZapExecutor {
       strategyAllocations,
       protocolAllocations: protocolsWithRequirements,
       tokenPrices,
+      tokenPriceErrors,
       timestamp: Date.now(),
     };
   }
@@ -506,18 +506,79 @@ class UnifiedZapExecutor {
 
     // Fetch prices for all tokens
     const prices = {};
+    const errors = [];
     const pricePromises = Array.from(tokenSymbols).map(async symbol => {
       try {
         const priceObj = await this.priceService.getPrice(symbol);
         prices[symbol] = priceObj.price;
       } catch (error) {
-        console.warn(`Failed to get price for ${symbol}:`, error.message);
+        const formattedError = this._formatTokenPriceError(symbol, error);
+        errors.push(formattedError);
+        console.warn(
+          `Failed to get price for ${symbol}:`,
+          formattedError.developerMessage || formattedError.message
+        );
         prices[symbol] = 0;
       }
     });
 
     await Promise.all(pricePromises);
-    return prices;
+    return {
+      prices,
+      errors,
+    };
+  }
+
+  _formatTokenPriceError(symbol, error) {
+    const normalizedSymbol = symbol?.toUpperCase?.() || symbol || 'UNKNOWN';
+    const message =
+      error && typeof error.message === 'string'
+        ? error.message
+        : 'Unknown token price error';
+
+    const errorInfo = {
+      symbol: normalizedSymbol,
+      code: 'PRICE_FETCH_FAILED',
+      message,
+      developerMessage:
+        error instanceof MissingTokenMappingError && error.developerMessage
+          ? error.developerMessage
+          : message,
+      provider: error?.provider || null,
+      severity: 'critical',
+      userMessage: `Unable to retrieve price for token '${normalizedSymbol}'.`,
+    };
+
+    if (error instanceof MissingTokenMappingError) {
+      errorInfo.code = 'CONFIG_MISSING_TOKEN_MAPPING';
+      errorInfo.provider = error.provider;
+      errorInfo.userMessage = `Configuration for token '${normalizedSymbol}' is missing.`;
+    }
+
+    const providerErrors = this._extractProviderErrors(error);
+    if (providerErrors.length > 0) {
+      errorInfo.providersAttempted = providerErrors;
+    }
+
+    return errorInfo;
+  }
+
+  _extractProviderErrors(error) {
+    if (!error || typeof error.message !== 'string') {
+      return [];
+    }
+
+    const detailsMatch = error.message.match(/Failed to get price[^:]*:(.*)$/);
+    if (!detailsMatch || detailsMatch.length < 2) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(detailsMatch[1].trim());
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_parseError) {
+      return [];
+    }
   }
 
   /**
