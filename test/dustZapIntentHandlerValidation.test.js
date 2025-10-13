@@ -149,7 +149,7 @@ describe('DustZapIntentHandler Validation', () => {
       );
     });
 
-    it('should throw error for non-ETH target token', () => {
+    it('should accept non-ETH target token when wildcard enabled', () => {
       const invalidRequest = {
         userAddress: '0x2eCBC6f229feD06044CDb0dD772437a30190CD50',
         chainId: 1,
@@ -161,9 +161,7 @@ describe('DustZapIntentHandler Validation', () => {
         },
       };
 
-      expect(() => handler.validate(invalidRequest)).toThrow(
-        'Only ETH target token is currently supported'
-      );
+      expect(() => handler.validate(invalidRequest)).not.toThrow();
     });
 
     it('should accept ETH target token', () => {

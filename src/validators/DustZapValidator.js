@@ -49,8 +49,28 @@ class DustZapValidator {
       }
     }
 
-    if (targetToken && !config.SUPPORTED_TARGET_TOKENS.includes(targetToken)) {
-      throw new Error(config.ERRORS.UNSUPPORTED_TARGET_TOKEN);
+    const { SUPPORTED_TARGET_TOKENS } = config;
+    const allowAny =
+      SUPPORTED_TARGET_TOKENS === '*' ||
+      SUPPORTED_TARGET_TOKENS === 'ANY' ||
+      SUPPORTED_TARGET_TOKENS === 'any';
+
+    if (targetToken && !allowAny) {
+      if (Array.isArray(SUPPORTED_TARGET_TOKENS)) {
+        const normalizedTarget = targetToken.toLowerCase();
+        const supportedMatch = SUPPORTED_TARGET_TOKENS.some(token => {
+          if (!token) {
+            return false;
+          }
+          return token.toLowerCase() === normalizedTarget;
+        });
+
+        if (!supportedMatch) {
+          throw new Error(config.ERRORS.UNSUPPORTED_TARGET_TOKEN);
+        }
+      } else {
+        throw new Error(config.ERRORS.UNSUPPORTED_TARGET_TOKEN);
+      }
     }
 
     if (

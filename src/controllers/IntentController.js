@@ -11,6 +11,11 @@ const {
   mapUnifiedZapError,
 } = require('../utils/errorHandlerUtils');
 const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
+const {
+  normalizeZapTokenStrategy,
+  deriveLegacyStrategyDefaults,
+  getStrategyTokenSymbols,
+} = require('../utils/zapTokenStrategy');
 
 // Initialize services (these should ideally be injected or managed by a DI container)
 const swapService = new SwapService();
@@ -66,6 +71,38 @@ class IntentController {
   }
 
   static _formatProtocolDetails(protocol) {
+    if (!protocol) {
+      throw new Error('Protocol details are required');
+    }
+
+    const config = protocol.config || {};
+
+    let zapStrategy = null;
+    try {
+      zapStrategy = normalizeZapTokenStrategy(
+        config.zapTokenStrategy,
+        deriveLegacyStrategyDefaults(config)
+      );
+    } catch (error) {
+      console.warn(
+        `Failed to normalize zapTokenStrategy for protocol ${protocol.id}:`,
+        error.message
+      );
+    }
+
+    const lpTargetTokens = Array.isArray(config.lpTokens)
+      ? config.lpTokens
+          .map(entry => (Array.isArray(entry) ? entry[0] : null))
+          .filter(Boolean)
+      : null;
+
+    const strategyTargetTokens = getStrategyTokenSymbols(zapStrategy).filter(
+      Boolean
+    );
+
+    const targetTokens =
+      (lpTargetTokens?.length ? lpTargetTokens : strategyTargetTokens) || [];
+
     return {
       id: protocol.id,
       protocol: IntentController._extractProtocolName(protocol),
@@ -75,13 +112,8 @@ class IntentController {
       chainId: protocol.chainId,
       weight: protocol.weight,
       enabled: protocol.enabled !== false,
-      mode: protocol.config?.mode || 'single',
-      targetTokens:
-        protocol.config?.lpTokens?.map(([symbol]) => symbol) ||
-        [
-          protocol.config?.symbolOfBestTokenToZapInOut ||
-            protocol.config?.symbolOfBestTokenToZapOut,
-        ].filter(Boolean),
+      mode: config?.mode || 'single',
+      targetTokens,
     };
   }
 

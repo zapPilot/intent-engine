@@ -10,6 +10,13 @@ const SSEEventFactory = require('../services/SSEEventFactory');
 const TransactionBuilder = require('../transactions/TransactionBuilder');
 const PhasedExecutionStore = require('./PhasedExecutionStore');
 const { MissingTokenMappingError } = require('../utils/errors');
+const {
+  normalizeZapTokenStrategy,
+  deriveLegacyStrategyDefaults,
+  getStrategyTokenSymbols,
+  getDefaultInputToken,
+  getDefaultOutputToken,
+} = require('../utils/zapTokenStrategy');
 
 class UnifiedZapExecutor {
   constructor(
@@ -491,15 +498,34 @@ class UnifiedZapExecutor {
 
     // Add protocol tokens
     protocolAllocations.forEach(protocol => {
-      const config = protocol.instance.config;
-      if (config.symbolOfBestTokenToZapInOut) {
-        tokenSymbols.add(config.symbolOfBestTokenToZapInOut.toLowerCase());
+      const config = protocol.instance.config || {};
+
+      try {
+        const strategy = normalizeZapTokenStrategy(
+          config.zapTokenStrategy,
+          deriveLegacyStrategyDefaults(config)
+        );
+
+        getStrategyTokenSymbols(strategy)
+          .filter(
+            symbol =>
+              symbol && symbol.toLowerCase && symbol.toLowerCase() !== 'any'
+          )
+          .forEach(symbol => tokenSymbols.add(symbol.toLowerCase()));
+      } catch (error) {
+        if (config.symbolOfBestTokenToZapInOut) {
+          tokenSymbols.add(config.symbolOfBestTokenToZapInOut.toLowerCase());
+        } else if (config.symbolOfBestTokenToZapOut) {
+          tokenSymbols.add(config.symbolOfBestTokenToZapOut.toLowerCase());
+        }
       }
 
       // Add LP tokens if applicable
       if (config.lpTokens) {
         config.lpTokens.forEach(([symbol]) => {
-          tokenSymbols.add(symbol.toLowerCase());
+          if (symbol) {
+            tokenSymbols.add(symbol.toLowerCase());
+          }
         });
       }
     });
@@ -821,10 +847,15 @@ class UnifiedZapExecutor {
       targetTokenAddress
     );
 
+    const fallbackSymbol = this._getStrategySymbol(
+      protocolAllocation.config?.config,
+      'input'
+    );
+
     const symbolHint = this._resolveTokenSymbol(
       protocolAllocation.chainId,
       targetTokenAddress,
-      protocolAllocation.config?.config?.symbolOfBestTokenToZapInOut
+      fallbackSymbol
     );
 
     const swapResult = await this._executeSwap({
@@ -1043,6 +1074,36 @@ class UnifiedZapExecutor {
     }
 
     return address;
+  }
+
+  _getStrategySymbol(protocolConfig, direction = 'input') {
+    if (!protocolConfig) {
+      return null;
+    }
+
+    try {
+      const strategy = normalizeZapTokenStrategy(
+        protocolConfig.zapTokenStrategy,
+        deriveLegacyStrategyDefaults(protocolConfig)
+      );
+
+      const token =
+        direction === 'output'
+          ? getDefaultOutputToken(strategy)
+          : getDefaultInputToken(strategy);
+
+      return token?.symbol || null;
+    } catch (error) {
+      if (direction === 'output') {
+        return protocolConfig.symbolOfBestTokenToZapOut || null;
+      }
+
+      return (
+        protocolConfig.symbolOfBestTokenToZapInOut ||
+        protocolConfig.symbolOfBestTokenToZapOut ||
+        null
+      );
+    }
   }
 
   _resolveTokenSymbol(chainId, tokenAddress, fallbackSymbol) {

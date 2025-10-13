@@ -60,17 +60,24 @@ const UNIFIED_ZAP_CONFIG = {
           enabled: true,
           config: {
             mode: 'single',
-            symbolOfBestTokenToZapInOut: 'usdc',
-            zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
             marketAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48',
             assetAddress: '0x247f150C90c9EEb7d733219bfA36D189C76D5Ec5',
             protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
             ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
             assetDecimals: 6,
-            symbolOfBestTokenToZapOut: 'usdc',
-            bestTokenAddressToZapOut:
-              '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-            decimalOfBestTokenToZapOut: 6,
+            zapTokenStrategy: {
+              type: 'passthrough',
+              defaultInputToken: {
+                symbol: 'usdc',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+              defaultOutputToken: {
+                symbol: 'usdc',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+            },
           },
         },
         // Velodrome BOLD/USDC LP on Base

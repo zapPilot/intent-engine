@@ -4,6 +4,11 @@
  */
 
 const { ethers } = require('ethers');
+const {
+  normalizeZapTokenStrategy,
+  deriveLegacyStrategyDefaults,
+  getDefaultOutputToken,
+} = require('../utils/zapTokenStrategy');
 
 class BaseProtocolV2 {
   /**
@@ -120,13 +125,31 @@ class BaseProtocolV2 {
    * @returns {Object} - Protocol info for UI display
    */
   getProtocolInfo() {
+    let targetAsset = this.config.symbolOfBestTokenToZapInOut || null;
+
+    try {
+      const strategy = normalizeZapTokenStrategy(
+        this.config.zapTokenStrategy,
+        deriveLegacyStrategyDefaults(this.config)
+      );
+      const defaultOutput = getDefaultOutputToken(strategy);
+      if (defaultOutput?.symbol) {
+        targetAsset = defaultOutput.symbol;
+      }
+    } catch (error) {
+      // Fallback to legacy fields if strategy normalization fails
+      if (!targetAsset && this.config.symbolOfBestTokenToZapOut) {
+        targetAsset = this.config.symbolOfBestTokenToZapOut;
+      }
+    }
+
     return {
       id: this.config.id || `${this.chain}-${this.constructor.name}`,
       name: this.config.name || this.constructor.name,
       chain: this.chain,
       chainId: this.chainId,
       mode: this.mode,
-      targetAsset: this.config.symbolOfBestTokenToZapInOut,
+      targetAsset,
       enabled: this.config.enabled !== false,
     };
   }
