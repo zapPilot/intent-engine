@@ -11,12 +11,45 @@
  */
 
 const request = require('supertest');
-const app = require('../src/app');
-const BalanceController = require('../src/controllers/balanceController');
-const axios = require('axios');
+
+jest.mock('../src/utils/retry', () => {
+  const actual = jest.requireActual('../src/utils/retry');
+
+  return {
+    ...actual,
+    retryWithBackoff: async (fn, options = {}, shouldRetry) => {
+      const mergedOptions = {
+        retries: 3,
+        ...options,
+      };
+      const retries = mergedOptions.retries ?? 3;
+
+      for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
+        try {
+          return await fn();
+        } catch (error) {
+          const hasMoreAttempts = attempt <= retries;
+          const shouldAttemptRetry = shouldRetry
+            ? shouldRetry(error, attempt, mergedOptions)
+            : true;
+
+          if (!hasMoreAttempts || !shouldAttemptRetry) {
+            throw error;
+          }
+        }
+      }
+
+      throw new Error('retryWithBackoff: Exhausted attempts without result');
+    },
+  };
+});
 
 // Mock axios for controlled Moralis API responses
 jest.mock('axios');
+
+const app = require('../src/app');
+const BalanceController = require('../src/controllers/balanceController');
+const axios = require('axios');
 
 const { TEST_ADDRESSES } = require('./utils/testHelpers');
 

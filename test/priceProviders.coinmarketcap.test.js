@@ -1,5 +1,6 @@
 jest.mock('axios');
 const axios = require('axios');
+const { MissingTokenMappingError } = require('../src/utils/errors');
 
 describe('CoinMarketCapProvider', () => {
   let CoinMarketCapProvider;
@@ -78,7 +79,10 @@ describe('CoinMarketCapProvider', () => {
   it('throws when token unsupported', async () => {
     const provider = new CoinMarketCapProvider();
     await expect(provider.getPrice('nope')).rejects.toThrow(
-      'Token nope not supported by coinmarketcap'
+      MissingTokenMappingError
+    );
+    await expect(provider.getPrice('nope')).rejects.toThrow(
+      "Token 'nope' not found in mapping for provider 'coinmarketcap'"
     );
   });
 
@@ -160,7 +164,10 @@ describe('CoinMarketCapProvider', () => {
   it('getBulkPrices throws when no supported tokens', async () => {
     const provider = new CoinMarketCapProvider();
     await expect(provider.getBulkPrices(['foo'])).rejects.toThrow(
-      'No supported tokens found for CoinMarketCap'
+      MissingTokenMappingError
+    );
+    await expect(provider.getBulkPrices(['foo'])).rejects.toThrow(
+      "Token 'foo' not found in mapping for provider 'coinmarketcap'"
     );
   });
 });
