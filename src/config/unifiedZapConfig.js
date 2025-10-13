@@ -65,6 +65,10 @@ const UNIFIED_ZAP_CONFIG = {
             protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
             ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
             assetDecimals: 6,
+            symbolOfBestTokenToZapOut: 'usdc',
+            bestTokenAddressToZapOut:
+              '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+            decimalOfBestTokenToZapOut: 6,
             zapTokenStrategy: {
               type: 'passthrough',
               defaultInputToken: {

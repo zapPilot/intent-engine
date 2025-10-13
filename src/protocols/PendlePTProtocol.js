@@ -18,6 +18,7 @@ const {
   requiresSwapForToken,
   isAddressEqual,
 } = require('../utils/zapTokenStrategy');
+const { TokenConfigService } = require('../config/tokenConfig');
 
 const PENDLE_CORE_API_BASE = 'https://api-v2.pendle.finance/core/v1';
 const PENDLE_SDK_API_BASE = `${PENDLE_CORE_API_BASE}/sdk`;
@@ -104,6 +105,8 @@ class PendlePTProtocol extends BaseProtocolV2 {
 
     // Pendle router addresses (chain-specific)
     this.routerAddresses = this._getPendleRouterAddresses();
+
+    this.currentDepositTokenMetadata = null;
   }
 
   /**
@@ -231,20 +234,31 @@ class PendlePTProtocol extends BaseProtocolV2 {
       resolvedDepositToken = this.defaultInputToken || null;
     }
 
-    const depositTokenAddress = resolvedDepositToken?.address || null;
+    const depositTokenAddress =
+      resolvedDepositToken?.address ||
+      baseRequirements.inputToken ||
+      inputToken ||
+      null;
 
     const strategyRequiresSwap = requiresSwapForToken(
       this.zapTokenStrategy,
       inputToken
     );
 
-    const requiresSwap =
-      strategyRequiresSwap ||
-      baseRequirements.requiresSwap ||
-      (inputToken &&
-        depositTokenAddress &&
-        inputToken.toLowerCase() !== depositTokenAddress.toLowerCase()) ||
-      false;
+    let requiresSwap = baseRequirements.requiresSwap;
+
+    if (this.zapTokenStrategy?.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH) {
+      requiresSwap = false;
+    } else {
+      requiresSwap =
+        strategyRequiresSwap ||
+        requiresSwap ||
+        (inputToken &&
+          depositTokenAddress &&
+          !isAddressEqual(inputToken, depositTokenAddress));
+    }
+
+    this.currentDepositTokenMetadata = resolvedDepositToken;
 
     return {
       ...baseRequirements,
@@ -357,12 +371,33 @@ class PendlePTProtocol extends BaseProtocolV2 {
     return bounded / 100;
   }
 
+  _normalizeTokenWithRegistry(token) {
+    if (!token || !token.address) {
+      throw new Error('Token address is required');
+    }
+
+    const registryMeta = TokenConfigService.getTokenByAddress(
+      this.chainId,
+      token.address
+    );
+
+    return normalizeToken({
+      address: token.address,
+      symbol: token.symbol ?? registryMeta?.symbol ?? null,
+      decimals:
+        token.decimals ??
+        registryMeta?.decimals ??
+        this.defaultInputToken?.decimals ??
+        null,
+    });
+  }
+
   _resolveDepositTokenMetadata(inputToken) {
     if (!this.zapTokenStrategy) {
       if (!inputToken) {
         throw new Error('Input token is required for Pendle deposit');
       }
-      return normalizeToken({ address: inputToken });
+      return this._normalizeTokenWithRegistry({ address: inputToken });
     }
 
     if (this.zapTokenStrategy.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH) {
@@ -377,7 +412,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
           return defaultMeta;
         }
 
-        return normalizeToken({
+        return this._normalizeTokenWithRegistry({
           address: inputToken,
         });
       }
