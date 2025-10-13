@@ -223,27 +223,41 @@ class PendlePTProtocol extends BaseProtocolV2 {
    */
   getTokenRequirements(inputToken) {
     const baseRequirements = super.getTokenRequirements(inputToken);
+    let resolvedDepositToken = null;
+
+    try {
+      resolvedDepositToken = this._resolveDepositTokenMetadata(inputToken);
+    } catch (error) {
+      resolvedDepositToken = this.defaultInputToken || null;
+    }
+
+    const depositTokenAddress = resolvedDepositToken?.address || null;
+
     const strategyRequiresSwap = requiresSwapForToken(
       this.zapTokenStrategy,
       inputToken
     );
-    const requiresSwap =
-      strategyRequiresSwap || baseRequirements.requiresSwap || false;
 
-    const underlyingTokenAddress =
-      this.underlyingTokenMetadata?.address || null;
+    const requiresSwap =
+      strategyRequiresSwap ||
+      baseRequirements.requiresSwap ||
+      (inputToken &&
+        depositTokenAddress &&
+        inputToken.toLowerCase() !== depositTokenAddress.toLowerCase()) ||
+      false;
 
     return {
       ...baseRequirements,
-      inputToken: underlyingTokenAddress || baseRequirements.inputToken,
-      outputToken: underlyingTokenAddress || baseRequirements.outputToken,
+      inputToken: depositTokenAddress || baseRequirements.inputToken,
+      outputToken: depositTokenAddress || baseRequirements.outputToken,
       requiresSwap,
       protocolSpecific: {
         ...(baseRequirements.protocolSpecific || {}),
         marketAddress: this.marketAddress,
         ptTokenAddress: this.ptTokenAddress,
         ytTokenAddress: this.ytTokenAddress,
-        underlyingToken: underlyingTokenAddress,
+        underlyingToken: depositTokenAddress,
+        depositToken: resolvedDepositToken,
         routerAddress: this.routerAddresses.router,
         requiresMarketInteraction: true,
         zapTokenStrategy: this.zapTokenStrategy,
@@ -359,10 +373,12 @@ class PendlePTProtocol extends BaseProtocolV2 {
         }
 
         const defaultMeta = this.defaultInputToken;
+        if (defaultMeta && isAddressEqual(defaultMeta.address, inputToken)) {
+          return defaultMeta;
+        }
+
         return normalizeToken({
           address: inputToken,
-          symbol: defaultMeta?.symbol || null,
-          decimals: defaultMeta?.decimals ?? null,
         });
       }
 
