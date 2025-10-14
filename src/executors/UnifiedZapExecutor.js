@@ -512,7 +512,7 @@ class UnifiedZapExecutor {
               symbol && symbol.toLowerCase && symbol.toLowerCase() !== 'any'
           )
           .forEach(symbol => tokenSymbols.add(symbol.toLowerCase()));
-      } catch (error) {
+      } catch (_error) {
         if (config.symbolOfBestTokenToZapInOut) {
           tokenSymbols.add(config.symbolOfBestTokenToZapInOut.toLowerCase());
         } else if (config.symbolOfBestTokenToZapOut) {
@@ -1093,7 +1093,7 @@ class UnifiedZapExecutor {
           : getDefaultInputToken(strategy);
 
       return token?.symbol || null;
-    } catch (error) {
+    } catch (_error) {
       if (direction === 'output') {
         return protocolConfig.symbolOfBestTokenToZapOut || null;
       }

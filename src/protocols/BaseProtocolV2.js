@@ -136,7 +136,7 @@ class BaseProtocolV2 {
       if (defaultOutput?.symbol) {
         targetAsset = defaultOutput.symbol;
       }
-    } catch (error) {
+    } catch (_error) {
       // Fallback to legacy fields if strategy normalization fails
       if (!targetAsset && this.config.symbolOfBestTokenToZapOut) {
         targetAsset = this.config.symbolOfBestTokenToZapOut;

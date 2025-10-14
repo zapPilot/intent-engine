@@ -91,8 +91,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
     this.underlyingTokenMetadata = this.defaultInputToken;
     this.outputTokenMetadata = this.defaultOutputToken;
 
-    this.underlyingTokenAddress =
-      this.underlyingTokenMetadata?.address || null;
+    this.underlyingTokenAddress = this.underlyingTokenMetadata?.address || null;
     this.bestTokenAddress = this.outputTokenMetadata?.address || null;
     this.bestTokenSymbol =
       this.outputTokenMetadata?.symbol ||
@@ -230,7 +229,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
 
     try {
       resolvedDepositToken = this._resolveDepositTokenMetadata(inputToken);
-    } catch (error) {
+    } catch (_error) {
       resolvedDepositToken = this.defaultInputToken || null;
     }
 
@@ -284,7 +283,12 @@ class PendlePTProtocol extends BaseProtocolV2 {
    * @private
    */
   _validatePendleConfig() {
-    const required = ['marketAddress', 'assetAddress', 'ytAddress', 'assetDecimals'];
+    const required = [
+      'marketAddress',
+      'assetAddress',
+      'ytAddress',
+      'assetDecimals',
+    ];
 
     const missing = required.filter(key => this.config[key] === undefined);
     if (missing.length > 0) {
@@ -488,7 +492,10 @@ class PendlePTProtocol extends BaseProtocolV2 {
     }
 
     if (tokenMeta.decimals === null || tokenMeta.decimals === undefined) {
-      if (this.bestTokenDecimals !== null && this.bestTokenDecimals !== undefined) {
+      if (
+        this.bestTokenDecimals !== null &&
+        this.bestTokenDecimals !== undefined
+      ) {
         return this._formatAmount(amount, this.bestTokenDecimals);
       }
       return this._formatAmount(amount);
@@ -797,9 +804,8 @@ class PendlePTProtocol extends BaseProtocolV2 {
     const receiver = additionalParams.receiver || userAddress;
     const requestedTokenOut =
       additionalParams.tokenOut || additionalParams.tokenOutAddress || null;
-    const tokenOutMetadata = this._resolveRedeemTokenMetadata(
-      requestedTokenOut
-    );
+    const tokenOutMetadata =
+      this._resolveRedeemTokenMetadata(requestedTokenOut);
     const isExpired =
       typeof additionalParams.isExpired === 'boolean'
         ? additionalParams.isExpired
