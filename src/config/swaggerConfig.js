@@ -1,10 +1,7 @@
-const swaggerJsdoc = require('swagger-jsdoc');
+const fs = require('fs');
+const path = require('path');
 const swaggerDefinitions = require('./swagger');
 
-/**
- * Swagger configuration for Intent Engine API
- * Refactored to use modular domain-specific definitions
- */
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -34,14 +31,38 @@ const swaggerOptions = {
     },
     tags: swaggerDefinitions.tags,
   },
-  apis: [
-    './src/routes/*.js', // Path to the API docs
-    './src/app.js', // Main app file
-  ],
+  apis: ['./src/routes/*.js', './src/app.js'],
 };
 
-// Generate Swagger specification
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+const resolveSpecPath = () =>
+  path.resolve(__dirname, '..', '..', 'docs', 'swagger.json');
+
+const loadSwaggerSpec = () => {
+  const specPath = resolveSpecPath();
+
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (fs.existsSync(specPath)) {
+      // The spec path is project-internal and derived from __dirname
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      const content = fs.readFileSync(specPath, 'utf8');
+      return JSON.parse(content);
+    }
+  } catch (error) {
+    console.warn(
+      `Failed to load Swagger spec from ${specPath}:`,
+      error.message
+    );
+  }
+
+  // Fallback: return base definition without generated paths
+  return {
+    ...swaggerOptions.definition,
+    paths: {},
+  };
+};
+
+const swaggerSpec = loadSwaggerSpec();
 
 module.exports = {
   swaggerOptions,

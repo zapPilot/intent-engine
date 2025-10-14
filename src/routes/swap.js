@@ -4,7 +4,6 @@ const PriceService = require('../services/priceService');
 const {
   swapQuoteValidation,
   bulkPricesValidation,
-  handleValidationErrors,
   validateTokenAddresses,
 } = require('../utils/validation');
 
@@ -134,7 +133,6 @@ const priceService = new PriceService();
 router.get(
   '/swap/quote',
   swapQuoteValidation,
-  handleValidationErrors,
   validateTokenAddresses,
   async (req, res, next) => {
     try {
@@ -280,31 +278,21 @@ router.get('/swap/providers', (req, res) => {
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-router.get(
-  '/tokens/prices',
-  bulkPricesValidation,
-  handleValidationErrors,
-  async (req, res, next) => {
-    try {
-      const { tokens, useCache = 'true', timeout = '5000' } = req.query;
+router.get('/tokens/prices', bulkPricesValidation, async (req, res, next) => {
+  try {
+    const { tokens, useCache = true, timeout = 5000 } = req.query;
 
-      // Parse comma-separated tokens and clean up whitespace
-      const tokenSymbols = tokens
-        .split(',')
-        .map(token => token.trim())
-        .filter(token => token);
-      const options = {
-        useCache: useCache === 'true',
-        timeout: parseInt(timeout),
-      };
+    const options = {
+      useCache: Boolean(useCache),
+      timeout: Number.parseInt(timeout, 10),
+    };
 
-      const result = await priceService.getBulkPrices(tokenSymbols, options);
-      res.json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await priceService.getBulkPrices(tokens, options);
+    res.json(result);
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * @swagger

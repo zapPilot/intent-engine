@@ -4,12 +4,9 @@
  * Validates:
  * - chainId: Must be one of the supported chains (1, 137, 42161, 8453, 10)
  * - wallet: Must be a valid Ethereum address
- * - tokens: Optional array of valid token addresses
- *
- * Uses express-validator for validation rules.
+ * - tokens: Optional comma-separated list of valid token addresses
  */
 
-const { query, validationResult } = require('express-validator');
 const { isAddress } = require('ethers');
 
 /**
@@ -25,6 +22,8 @@ const SUPPORTED_CHAINS = {
 
 const SUPPORTED_CHAIN_IDS = Object.keys(SUPPORTED_CHAINS).map(Number);
 
+const buildError = (field, message, value) => ({ field, message, value });
+
 /**
  * Custom validator: Check if value is a valid Ethereum address
  */
@@ -38,7 +37,7 @@ const isValidAddress = value => {
       return true;
     }
   } catch {
-    // no-op, fall back to lowercase normalization
+    // Ignore and fall back to lowercase check
   }
 
   try {
@@ -71,71 +70,90 @@ const areValidAddresses = value => {
   return addresses.every(isValidAddress);
 };
 
+const normalizeTokens = value =>
+  value
+    .split(',')
+    .map(addr => addr.trim().toLowerCase())
+    .filter(Boolean);
+
 /**
- * Validation rules for balance endpoint
+ * Validate balance query parameters and return collected errors + normalized values.
+ * @param {Object} query
+ * @returns {{errors: Array, normalized: Object}}
  */
-const balanceValidationRules = [
-  query('chainId')
-    .exists()
-    .withMessage('chainId is required')
-    .isInt()
-    .withMessage('chainId must be an integer')
-    .toInt()
-    .custom(value => SUPPORTED_CHAIN_IDS.includes(value))
-    .withMessage(
-      `chainId must be one of: ${SUPPORTED_CHAIN_IDS.join(', ')} (${Object.entries(
-        SUPPORTED_CHAINS
+const validateBalanceQuery = query => {
+  const errors = [];
+  const normalized = {};
+
+  const rawChainId = query?.chainId;
+  const parsedChainId = Number(rawChainId);
+
+  if (!Number.isInteger(parsedChainId)) {
+    errors.push(
+      buildError('chainId', 'chainId must be an integer', rawChainId)
+    );
+  } else if (!SUPPORTED_CHAIN_IDS.includes(parsedChainId)) {
+    const chainList = SUPPORTED_CHAIN_IDS.join(', ');
+    const chainDescriptions = Object.entries(SUPPORTED_CHAINS)
+      .map(([id, name]) => `${id}=${name}`)
+      .join(', ');
+    errors.push(
+      buildError(
+        'chainId',
+        `chainId must be one of: ${chainList} (${chainDescriptions})`,
+        rawChainId
       )
-        .map(([id, name]) => `${id}=${name}`)
-        .join(', ')})`
-    ),
+    );
+  } else {
+    normalized.chainId = parsedChainId;
+  }
 
-  query('wallet')
-    .exists()
-    .withMessage('wallet address is required')
-    .trim()
-    .notEmpty()
-    .withMessage('wallet address cannot be empty')
-    .custom(isValidAddress)
-    .withMessage('wallet must be a valid Ethereum address (0x... format)')
-    .customSanitizer(value => value.toLowerCase()),
+  const rawWallet =
+    typeof query?.wallet === 'string' ? query.wallet.trim() : '';
+  if (!rawWallet) {
+    errors.push(
+      buildError('wallet', 'wallet address is required', query?.wallet)
+    );
+  } else if (!isValidAddress(rawWallet)) {
+    errors.push(
+      buildError(
+        'wallet',
+        'wallet must be a valid Ethereum address (0x... format)',
+        query?.wallet
+      )
+    );
+  } else {
+    normalized.wallet = rawWallet.toLowerCase();
+  }
 
-  query('tokens')
-    .optional()
-    .trim()
-    .custom(areValidAddresses)
-    .withMessage(
-      'tokens must be a comma-separated list of valid Ethereum addresses (max 50 tokens)'
-    )
-    .customSanitizer(value => {
-      if (!value) {
-        return undefined;
-      }
-      // Normalize to lowercase array
-      return value
-        .split(',')
-        .map(addr => addr.trim().toLowerCase())
-        .filter(Boolean);
-    }),
-];
+  if (query?.tokens !== undefined) {
+    const tokensValue =
+      typeof query.tokens === 'string' ? query.tokens.trim() : '';
 
-/**
- * Middleware to handle validation errors
- */
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
+    if (tokensValue && !areValidAddresses(tokensValue)) {
+      errors.push(
+        buildError(
+          'tokens',
+          'tokens must be a comma-separated list of valid Ethereum addresses (max 50 tokens)',
+          query.tokens
+        )
+      );
+    } else if (tokensValue) {
+      normalized.tokens = normalizeTokens(tokensValue);
+    }
+  }
 
-  if (!errors.isEmpty()) {
-    const formattedErrors = errors.array().map(err => ({
-      field: err.path || err.param,
-      message: err.msg,
-      value: err.value,
-    }));
+  return { errors, normalized };
+};
 
+const balanceValidator = (req, res, next) => {
+  const { errors, normalized } = validateBalanceQuery(req.query || {});
+
+  if (errors.length > 0) {
     return res.status(400).json({
       error: 'Validation Error',
       message: 'Invalid request parameters',
-      errors: formattedErrors,
+      errors,
       details: {
         supportedChains: SUPPORTED_CHAINS,
         example: {
@@ -148,30 +166,26 @@ const handleValidationErrors = (req, res, next) => {
     });
   }
 
+  if (normalized.chainId !== undefined) {
+    req.query.chainId = normalized.chainId;
+  }
+
+  if (normalized.wallet) {
+    req.query.wallet = normalized.wallet;
+  }
+
+  if (Array.isArray(normalized.tokens)) {
+    req.query.tokens = normalized.tokens.join(',');
+    req.query.tokensList = normalized.tokens;
+  }
+
   next();
 };
-
-/**
- * Combined validation middleware for balance endpoint
- *
- * Usage:
- *   router.get('/balance', balanceRateLimit, balanceValidator, getBalance);
- *
- * Query Parameters:
- *   - chainId: number (required) - One of 1, 10, 137, 8453, 42161
- *   - wallet: string (required) - Valid Ethereum address
- *   - tokens: string (optional) - Comma-separated list of token addresses
- *
- * Example:
- *   GET /balance?chainId=1&wallet=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
- */
-const balanceValidator = [...balanceValidationRules, handleValidationErrors];
 
 module.exports = balanceValidator;
 
 // Export for testing and reuse
-module.exports.balanceValidationRules = balanceValidationRules;
-module.exports.handleValidationErrors = handleValidationErrors;
+module.exports.validateBalanceQuery = validateBalanceQuery;
 module.exports.SUPPORTED_CHAINS = SUPPORTED_CHAINS;
 module.exports.SUPPORTED_CHAIN_IDS = SUPPORTED_CHAIN_IDS;
 module.exports.isValidAddress = isValidAddress;

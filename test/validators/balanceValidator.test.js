@@ -2,8 +2,9 @@
  * Tests for Balance Validator Middleware
  */
 
+const balanceValidator = require('../../src/validators/balanceValidator');
 const {
-  balanceValidationRules,
+  validateBalanceQuery,
   SUPPORTED_CHAIN_IDS,
   SUPPORTED_CHAINS,
   isValidAddress,
@@ -91,178 +92,103 @@ describe('Supported Chains', () => {
 });
 
 describe('Balance Validator Integration', () => {
-  // Mock express-validator for integration tests
-  const mockValidate = (rules, req) => {
-    // Simplified mock - in real tests, use express-validator's test utilities
-    const errors = [];
+  const runValidation = query => validateBalanceQuery(query).errors;
 
-    // Manually check chainId
-    if (!req.query.chainId) {
-      errors.push({ path: 'chainId', msg: 'chainId is required' });
-    } else if (!SUPPORTED_CHAIN_IDS.includes(parseInt(req.query.chainId))) {
-      errors.push({
-        path: 'chainId',
-        msg: 'chainId must be one of supported chains',
-      });
-    }
-
-    // Manually check wallet
-    if (!req.query.wallet) {
-      errors.push({ path: 'wallet', msg: 'wallet address is required' });
-    } else if (!isValidAddress(req.query.wallet)) {
-      errors.push({
-        path: 'wallet',
-        msg: 'wallet must be a valid Ethereum address',
-      });
-    }
-
-    // Manually check tokens (optional)
-    if (req.query.tokens && !areValidAddresses(req.query.tokens)) {
-      errors.push({ path: 'tokens', msg: 'tokens must be valid addresses' });
-    }
-
-    return errors;
-  };
-
-  it('should validate correct request', async () => {
-    const req = {
-      query: {
-        chainId: '1',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
-      },
-    };
-
-    const errors = await mockValidate(balanceValidationRules, req);
+  it('should validate correct request', () => {
+    const errors = runValidation({
+      chainId: '1',
+      wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+    });
     expect(errors).toHaveLength(0);
   });
 
-  it('should require chainId', async () => {
-    const req = {
-      query: {
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
-      },
-    };
-
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors.some(e => e.path === 'chainId')).toBe(true);
+  it('should require chainId', () => {
+    const errors = runValidation({
+      wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+    });
+    expect(errors.some(e => e.field === 'chainId')).toBe(true);
   });
 
-  it('should require wallet', async () => {
-    const req = {
-      query: {
-        chainId: '1',
-      },
-    };
-
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors.some(e => e.path === 'wallet')).toBe(true);
+  it('should require wallet', () => {
+    const errors = runValidation({
+      chainId: '1',
+    });
+    expect(errors.some(e => e.field === 'wallet')).toBe(true);
   });
 
-  it('should reject unsupported chainId', async () => {
-    const req = {
-      query: {
-        chainId: '999',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
-      },
-    };
-
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors.some(e => e.path === 'chainId')).toBe(true);
+  it('should reject unsupported chainId', () => {
+    const errors = runValidation({
+      chainId: '999',
+      wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+    });
+    expect(errors.some(e => e.field === 'chainId')).toBe(true);
   });
 
-  it('should reject invalid wallet address', async () => {
-    const req = {
-      query: {
-        chainId: '1',
-        wallet: 'not-a-valid-address',
-      },
-    };
-
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors.some(e => e.path === 'wallet')).toBe(true);
+  it('should reject invalid wallet address', () => {
+    const errors = runValidation({
+      chainId: '1',
+      wallet: 'not-a-valid-address',
+    });
+    expect(errors.some(e => e.field === 'wallet')).toBe(true);
   });
 
-  it('should validate optional tokens parameter', async () => {
+  it('should validate optional tokens parameter', () => {
+    const errors = runValidation({
+      chainId: '1',
+      wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+      tokens:
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,0xdAC17F958D2ee523a2206206994597C13D831ec7',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should reject invalid token addresses', () => {
+    const errors = runValidation({
+      chainId: '1',
+      wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
+      tokens: 'invalid-token,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    });
+    expect(errors.some(e => e.field === 'tokens')).toBe(true);
+  });
+
+  it('should integrate with middleware and sanitize values', () => {
     const req = {
       query: {
-        chainId: '1',
+        chainId: '42161',
         wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
         tokens:
           '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,0xdAC17F958D2ee523a2206206994597C13D831ec7',
       },
     };
 
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors).toHaveLength(0);
-  });
-
-  it('should reject invalid token addresses', async () => {
-    const req = {
-      query: {
-        chainId: '1',
-        wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0',
-        tokens: 'invalid-token,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      },
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
     };
 
-    const errors = await mockValidate(balanceValidationRules, req);
-    expect(errors.some(e => e.path === 'tokens')).toBe(true);
-  });
+    const next = jest.fn();
 
-  it('should validate all supported chains', async () => {
-    const wallet = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0';
+    balanceValidator(req, res, next);
 
-    for (const chainId of SUPPORTED_CHAIN_IDS) {
-      const req = { query: { chainId: chainId.toString(), wallet } };
-      const errors = await mockValidate(balanceValidationRules, req);
-      expect(errors).toHaveLength(0);
-    }
+    expect(next).toHaveBeenCalled();
+    expect(req.query.chainId).toBe(42161);
+    expect(req.query.wallet).toBe('0x742d35cc6634c0532925a3b844bc9e7595f0beb0');
+    expect(req.query.tokensList).toEqual([
+      '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    ]);
   });
 });
 
 describe('Error Message Quality', () => {
-  it('should provide helpful error messages', async () => {
-    const req = {
-      query: {
-        chainId: '999',
-        wallet: 'invalid',
-      },
-    };
+  it('should provide helpful error messages', () => {
+    const { errors } = validateBalanceQuery({
+      chainId: '999',
+      wallet: 'invalid',
+    });
 
-    const errors = await mockValidate(balanceValidationRules, req);
-
-    // Errors should be descriptive
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some(e => e.msg.includes('chainId'))).toBe(true);
-    expect(errors.some(e => e.msg.includes('wallet'))).toBe(true);
+    expect(errors.some(e => e.message.includes('chainId'))).toBe(true);
+    expect(errors.some(e => e.message.includes('wallet'))).toBe(true);
   });
 });
-
-// Helper function for mock validation
-function mockValidate(rules, req) {
-  const errors = [];
-
-  if (!req.query.chainId) {
-    errors.push({ path: 'chainId', msg: 'chainId is required' });
-  } else if (!SUPPORTED_CHAIN_IDS.includes(parseInt(req.query.chainId))) {
-    errors.push({
-      path: 'chainId',
-      msg: 'chainId must be one of supported chains',
-    });
-  }
-
-  if (!req.query.wallet) {
-    errors.push({ path: 'wallet', msg: 'wallet address is required' });
-  } else if (!isValidAddress(req.query.wallet)) {
-    errors.push({
-      path: 'wallet',
-      msg: 'wallet must be a valid Ethereum address',
-    });
-  }
-
-  if (req.query.tokens && !areValidAddresses(req.query.tokens)) {
-    errors.push({ path: 'tokens', msg: 'tokens must be valid addresses' });
-  }
-
-  return errors;
-}

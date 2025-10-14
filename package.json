@@ -18,7 +18,7 @@
     "format:check": "prettier --check src/ test/ *.js *.json *.md",
     "quality": "npm run lint && npm run format:check && npm run test",
     "quality:fix": "npm run lint:fix && npm run format && npm run test",
-    "docs:generate": "node -e \"const { swaggerSpec } = require('./src/config/swaggerConfig'); const fs = require('fs'); if (!fs.existsSync('docs')) fs.mkdirSync('docs', { recursive: true }); fs.writeFileSync('docs/swagger.json', JSON.stringify(swaggerSpec, null, 2)); console.log('✅ Generated docs/swagger.json');\"",
+    "docs:generate": "node scripts/ensureSwaggerSpec.js",
     "docs:serve": "npm run docs:generate && npx swagger-ui-serve docs/swagger.json",
     "prepare": "husky"
   },
@@ -28,9 +28,7 @@
     "dotenv": "^16.3.1",
     "ethers": "^6.15.0",
     "express": "^4.18.2",
-    "express-validator": "^7.0.1",
     "retry": "^0.13.1",
-    "swagger-jsdoc": "^3.7.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
