@@ -149,7 +149,7 @@ class TokenProcessor {
       // Return structured error result using value object
       return TokenProcessingResult.failure({
         token,
-        error: error.message || 'Unknown swap error',
+        error: error, // Pass the full error object for better classification
         inputValueUSD: token.amount * token.price,
       });
     }
@@ -194,6 +194,7 @@ class TokenProcessor {
         token,
         error: errorClassification.errorMessage,
         errorCategory: errorClassification.category,
+        developerMessage: errorClassification.developerMessage, // Pass developer message
         userFriendlyMessage: errorClassification.userFriendlyMessage,
         provider: errorClassification.providerState,
         tradingLoss: fallbackData.tradingLoss,

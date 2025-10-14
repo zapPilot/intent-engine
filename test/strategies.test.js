@@ -4,7 +4,7 @@
  * This test file comprehensively validates the IntentController.getStrategies method
  * which returns strategy data with protocol details including:
  * - Protocol name cleaning (removing chain suffixes like "(Arbitrum)")
- * - Target token extraction from both symbolOfBestTokenToZapInOut and symbolOfBestTokenToZapOut
+ * - Target token extraction from zap token strategy definitions and legacy fields
  * - LP token handling from lpTokens array
  * - Proper formatting of protocol details using the _formatProtocolDetails private method
  *
@@ -239,44 +239,45 @@ describe('GET /api/v1/strategies', () => {
       const singleProtocols = protocols.filter(p => p.mode === 'single');
 
       singleProtocols.forEach(protocol => {
-        expect(protocol.targetTokens.length).toBe(1);
-        expect(typeof protocol.targetTokens[0]).toBe('string');
+        expect(protocol.targetTokens.length).toBeGreaterThan(0);
+        protocol.targetTokens.forEach(token => {
+          expect(typeof token).toBe('string');
+        });
       });
     });
 
-    it('should support both symbolOfBestTokenToZapInOut and symbolOfBestTokenToZapOut', () => {
+    it('should include zap token strategy symbols when configured', () => {
       const UNIFIED_ZAP_CONFIG = require('../src/config/unifiedZapConfig');
+      const {
+        normalizeZapTokenStrategy,
+        deriveLegacyStrategyDefaults,
+        getStrategyTokenSymbols,
+      } = require('../src/utils/zapTokenStrategy');
+
       const allProtocols = Object.values(
         UNIFIED_ZAP_CONFIG.STRATEGY_CATEGORIES
       ).flatMap(strategy => strategy.protocols);
 
-      // Find protocols with either field to ensure the extraction logic works
-      const protocolsWithInOut = allProtocols.filter(
-        p => p.config?.symbolOfBestTokenToZapInOut
-      );
-      const protocolsWithOut = allProtocols.filter(
-        p => p.config?.symbolOfBestTokenToZapOut
-      );
+      allProtocols.forEach(protocol => {
+        const strategy = normalizeZapTokenStrategy(
+          protocol.config?.zapTokenStrategy,
+          deriveLegacyStrategyDefaults(protocol.config || {})
+        );
 
-      if (protocolsWithInOut.length > 0) {
-        protocolsWithInOut.forEach(protocol => {
-          const responseProtocol = protocols.find(p => p.id === protocol.id);
-          expect(responseProtocol).toBeDefined();
-          expect(responseProtocol.targetTokens).toContain(
-            protocol.config.symbolOfBestTokenToZapInOut
-          );
-        });
-      }
+        const expectedSymbols = getStrategyTokenSymbols(strategy).filter(
+          symbol => symbol && symbol.toLowerCase() !== 'any'
+        );
 
-      if (protocolsWithOut.length > 0) {
-        protocolsWithOut.forEach(protocol => {
-          const responseProtocol = protocols.find(p => p.id === protocol.id);
-          expect(responseProtocol).toBeDefined();
-          expect(responseProtocol.targetTokens).toContain(
-            protocol.config.symbolOfBestTokenToZapOut
-          );
+        if (expectedSymbols.length === 0) {
+          return;
+        }
+
+        const responseProtocol = protocols.find(p => p.id === protocol.id);
+        expect(responseProtocol).toBeDefined();
+        expectedSymbols.forEach(symbol => {
+          expect(responseProtocol.targetTokens).toContain(symbol);
         });
-      }
+      });
     });
 
     it('should filter out empty/undefined tokens', () => {
@@ -306,7 +307,14 @@ describe('GET /api/v1/strategies', () => {
         enabled: true,
         config: {
           mode: 'single',
-          symbolOfBestTokenToZapInOut: 'USDC',
+          zapTokenStrategy: {
+            type: 'fixed',
+            token: {
+              symbol: 'USDC',
+              address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+              decimals: 6,
+            },
+          },
         },
       };
 
@@ -320,7 +328,7 @@ describe('GET /api/v1/strategies', () => {
       expect(formatted.mode).toBe('single');
     });
 
-    it('should handle protocol with symbolOfBestTokenToZapOut', () => {
+    it('should handle protocol with default output token strategy', () => {
       const IntentController = require('../src/controllers/IntentController');
 
       const mockProtocol = {
@@ -333,7 +341,14 @@ describe('GET /api/v1/strategies', () => {
         enabled: false,
         config: {
           mode: 'single',
-          symbolOfBestTokenToZapOut: 'WETH',
+          zapTokenStrategy: {
+            type: 'passthrough',
+            defaultOutputToken: {
+              symbol: 'WETH',
+              address: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+              decimals: 18,
+            },
+          },
         },
       };
 
@@ -386,7 +401,7 @@ describe('GET /api/v1/strategies', () => {
       const formatted =
         IntentController._formatProtocolDetails(mockMinimalProtocol);
 
-      expect(formatted.targetTokens).toEqual([]); // Empty when no tokens specified
+      expect(formatted.targetTokens).toEqual(['ANY']);
       expect(formatted.enabled).toBe(true); // Default enabled
       expect(formatted.mode).toBe('single'); // Default mode
     });
@@ -425,7 +440,7 @@ describe('GET /api/v1/strategies', () => {
       const formatted = IntentController._formatProtocolDetails(mockProtocol);
 
       expect(formatted.mode).toBe('single'); // Default mode
-      expect(formatted.targetTokens).toEqual([]); // Empty for null config
+      expect(formatted.targetTokens).toEqual(['ANY']);
       expect(formatted.enabled).toBe(true);
     });
 
@@ -445,7 +460,7 @@ describe('GET /api/v1/strategies', () => {
       const formatted = IntentController._formatProtocolDetails(mockProtocol);
 
       expect(formatted.mode).toBe('single');
-      expect(formatted.targetTokens).toEqual([]);
+      expect(formatted.targetTokens).toEqual(['ANY']);
       expect(formatted.enabled).toBe(true); // Default when not specified
     });
 
@@ -468,7 +483,7 @@ describe('GET /api/v1/strategies', () => {
       const formatted = IntentController._formatProtocolDetails(mockProtocol);
 
       expect(formatted.mode).toBe('LP');
-      expect(formatted.targetTokens).toEqual([]); // Empty for empty lpTokens
+      expect(formatted.targetTokens).toEqual(['ANY']);
     });
 
     it('should handle protocol with malformed lpTokens', () => {
@@ -498,7 +513,7 @@ describe('GET /api/v1/strategies', () => {
       expect(Array.isArray(formatted.targetTokens)).toBe(true);
     });
 
-    it('should handle protocol with both symbolOfBestTokenToZapInOut and symbolOfBestTokenToZapOut', () => {
+    it('should handle protocol with multiple zap token options', () => {
       const IntentController = require('../src/controllers/IntentController');
 
       const mockProtocol = {
@@ -510,15 +525,37 @@ describe('GET /api/v1/strategies', () => {
         weight: 50,
         config: {
           mode: 'single',
-          symbolOfBestTokenToZapInOut: 'USDC',
-          symbolOfBestTokenToZapOut: 'WETH', // Both present
+          zapTokenStrategy: {
+            type: 'options',
+            tokens: [
+              {
+                symbol: 'USDC',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+              {
+                symbol: 'WETH',
+                address: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+                decimals: 18,
+              },
+            ],
+            defaultInputToken: {
+              symbol: 'USDC',
+              address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+              decimals: 6,
+            },
+            defaultOutputToken: {
+              symbol: 'WETH',
+              address: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+              decimals: 18,
+            },
+          },
         },
       };
 
       const formatted = IntentController._formatProtocolDetails(mockProtocol);
 
-      // Should prioritize symbolOfBestTokenToZapInOut
-      expect(formatted.targetTokens).toEqual(['USDC']);
+      expect(formatted.targetTokens).toEqual(['USDC', 'WETH']);
     });
 
     it('should handle protocol with complex chain suffix patterns', () => {

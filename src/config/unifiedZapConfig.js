@@ -13,24 +13,42 @@ const UNIFIED_ZAP_CONFIG = {
       targetAssets: ['USDC', 'USDT', 'DAI', 'EURC'],
       chains: ['arbitrum', 'base', 'optimism'],
       protocols: [
-        // Aave lending on Base
-        {
-          id: 'aave-usdc-base',
-          name: 'Aave USDC (Base)',
-          implementation: 'AaveProtocol',
-          chain: 'base',
-          chainId: 8453,
-          weight: 20,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'usdc',
-            zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-            assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
-            protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
-            assetDecimals: 6,
-          },
-        },
+        // // Aave lending on Base
+        // {
+        //   id: 'aave-usdc-base',
+        //   name: 'Aave USDC (Base)',
+        //   implementation: 'AaveProtocol',
+        //   chain: 'base',
+        //   chainId: 8453,
+        //   weight: 20,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'single',
+        //     symbolOfBestTokenToZapInOut: 'usdc',
+        //     zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        //     assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
+        //     protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
+        //     assetDecimals: 6,
+        //   },
+        // },
+        // // Aave USDC on Arbitrum
+        // {
+        //   id: 'aave-usdc-arbitrum',
+        //   name: 'Aave USDC (Arbitrum)',
+        //   implementation: 'AaveProtocol',
+        //   chain: 'arbitrum',
+        //   chainId: 42161,
+        //   weight: 100,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'single',
+        //     symbolOfBestTokenToZapInOut: 'usdc',
+        //     zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        //     assetAddress: '0x625e7708f30ca75bfd92586e17077590c60eb4cd',
+        //     protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+        //     assetDecimals: 6,
+        //   },
+        // },
         // Pendle PT gUSDC on Arbitrum
         {
           id: 'pendle-pt-gusdc-arbitrum',
@@ -44,12 +62,26 @@ const UNIFIED_ZAP_CONFIG = {
             mode: 'single',
             marketAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48',
             assetAddress: '0x247f150C90c9EEb7d733219bfA36D189C76D5Ec5',
+            protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
             ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
             assetDecimals: 6,
             symbolOfBestTokenToZapOut: 'usdc',
             bestTokenAddressToZapOut:
               '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
             decimalOfBestTokenToZapOut: 6,
+            zapTokenStrategy: {
+              type: 'passthrough',
+              defaultInputToken: {
+                symbol: 'usdc',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+              defaultOutputToken: {
+                symbol: 'usdc',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+            },
           },
         },
         // Velodrome BOLD/USDC LP on Base
@@ -157,6 +189,24 @@ const UNIFIED_ZAP_CONFIG = {
             assetDecimals: 18,
           },
         },
+        // Aave WETH on Arbitrum
+        {
+          id: 'aave-weth-arbitrum',
+          name: 'Aave WETH (Arbitrum)',
+          implementation: 'AaveProtocol',
+          chain: 'arbitrum',
+          chainId: 42161,
+          weight: 100,
+          enabled: true,
+          config: {
+            mode: 'single',
+            symbolOfBestTokenToZapInOut: 'weth',
+            zapInOutTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+            assetAddress: '0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8',
+            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+            assetDecimals: 18,
+          },
+        },
       ],
     },
 
@@ -230,28 +280,38 @@ const UNIFIED_ZAP_CONFIG = {
       chainId: 1,
       name: 'Ethereum',
       nativeCurrency: 'ETH',
-      rpcUrl: 'https://mainnet.infura.io/v3/',
+      alchemyPrefix: 'eth',
+      publicRpcUrls: ['https://eth.llamarpc.com', 'https://rpc.ankr.com/eth'],
       blockExplorerUrl: 'https://etherscan.io',
     },
     arbitrum: {
       chainId: 42161,
       name: 'Arbitrum One',
       nativeCurrency: 'ETH',
-      rpcUrl: 'https://arb1.arbitrum.io/rpc',
+      alchemyPrefix: 'arb',
+      publicRpcUrls: [
+        'https://arb1.arbitrum.io/rpc',
+        'https://arbitrum.llamarpc.com',
+      ],
       blockExplorerUrl: 'https://arbiscan.io',
     },
     base: {
       chainId: 8453,
       name: 'Base',
       nativeCurrency: 'ETH',
-      rpcUrl: 'https://mainnet.base.org',
+      alchemyPrefix: 'base',
+      publicRpcUrls: ['https://mainnet.base.org', 'https://base.llamarpc.com'],
       blockExplorerUrl: 'https://basescan.org',
     },
     optimism: {
       chainId: 10,
       name: 'Optimism',
       nativeCurrency: 'ETH',
-      rpcUrl: 'https://mainnet.optimism.io',
+      alchemyPrefix: 'opt',
+      publicRpcUrls: [
+        'https://mainnet.optimism.io',
+        'https://optimism.llamarpc.com',
+      ],
       blockExplorerUrl: 'https://optimistic.etherscan.io',
     },
   },

@@ -5,6 +5,26 @@
 
 const BaseProtocolV2 = require('./BaseProtocolV2');
 const { ethers } = require('ethers');
+const axios = require('axios');
+const { getRpcProvider } = require('../utils/rpcProvider');
+const {
+  ZAP_TOKEN_STRATEGY_TYPES,
+  normalizeToken,
+  normalizeZapTokenStrategy,
+  deriveLegacyStrategyDefaults,
+  getDefaultInputToken,
+  getDefaultOutputToken,
+  findStrategyToken,
+  requiresSwapForToken,
+  isAddressEqual,
+} = require('../utils/zapTokenStrategy');
+const { TokenConfigService } = require('../config/tokenConfig');
+
+const PENDLE_CORE_API_BASE = 'https://api-v2.pendle.finance/core/v1';
+const PENDLE_SDK_API_BASE = `${PENDLE_CORE_API_BASE}/sdk`;
+const DEFAULT_SWAP_EXTRA_GAS = 600000n;
+const DEFAULT_REDEEM_EXTRA_GAS = 750000n;
+const PENDLE_MARKET_ABI = ['function isExpired() view returns (bool)'];
 
 class PendlePTProtocol extends BaseProtocolV2 {
   constructor(config, chain, chainId) {
@@ -17,74 +37,127 @@ class PendlePTProtocol extends BaseProtocolV2 {
     this.marketAddress = config.marketAddress;
     this.ptTokenAddress = config.assetAddress;
     this.ytTokenAddress = config.ytAddress;
-    this.underlyingTokenAddress = config.bestTokenAddressToZapOut;
     this.tokenDecimals = config.assetDecimals;
+    this.assetDecimals = config.assetDecimals;
+
+    this.zapTokenStrategy = normalizeZapTokenStrategy(
+      config.zapTokenStrategy,
+      deriveLegacyStrategyDefaults(config)
+    );
+
+    this.defaultInputToken = getDefaultInputToken(this.zapTokenStrategy);
+    this.defaultOutputToken = getDefaultOutputToken(this.zapTokenStrategy);
+
+    this.underlyingTokenMetadata = this.defaultInputToken;
+    this.outputTokenMetadata = this.defaultOutputToken;
+
+    this.underlyingTokenAddress = this.underlyingTokenMetadata?.address || null;
+    this.bestTokenAddress = this.outputTokenMetadata?.address || null;
+    this.bestTokenSymbol =
+      this.outputTokenMetadata?.symbol ||
+      this.underlyingTokenMetadata?.symbol ||
+      null;
+    this.bestTokenDecimals =
+      this.outputTokenMetadata?.decimals ??
+      this.underlyingTokenMetadata?.decimals ??
+      (Number.isInteger(config.assetDecimals) ? config.assetDecimals : null);
 
     // Pendle router addresses (chain-specific)
     this.routerAddresses = this._getPendleRouterAddresses();
+
+    this.currentDepositTokenMetadata = null;
   }
 
   /**
    * Generate deposit transaction for Pendle PT minting
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to deposit
+   * @param {BigInt|string} amount - Amount to deposit
    * @param {Object} additionalParams - Slippage and other params
    * @returns {Promise<Object>} - Deposit transaction object
    */
-  getDepositTransaction(
+  async getDepositTransaction(
     userAddress,
     inputToken,
     amount,
     additionalParams = {}
   ) {
     this._validateAddress(userAddress);
-    this._validateAddress(inputToken);
 
-    const depositAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
+    if (inputToken) {
+      this._validateAddress(inputToken);
+    }
 
-    if (depositAmount.isZero()) {
+    const depositAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
+
+    if (depositAmount === 0n) {
       throw new Error('Deposit amount cannot be zero');
     }
 
-    const slippage = additionalParams.slippage || 0.5;
-    const deadline = this._getDeadline();
+    const depositToken = this._resolveDepositTokenMetadata(inputToken);
 
-    // For Pendle, we need to mint PT+YT from underlying asset
-    // This typically involves swapping to underlying asset first (if needed) then minting
-
-    if (
-      inputToken.toLowerCase() === this.underlyingTokenAddress.toLowerCase()
-    ) {
-      // Direct minting from underlying asset
-      return this._getMintPTTransaction(
-        userAddress,
-        depositAmount,
-        slippage,
-        deadline
-      );
-    } else {
-      // Need to swap first, then mint - this would typically be handled at executor level
+    const isExpired = await this._isMarketExpired();
+    if (isExpired) {
       throw new Error(
-        `Input token ${inputToken} requires swap to ${this.underlyingTokenAddress} before Pendle minting`
+        `Pendle market ${this.marketAddress} is expired and cannot accept deposits`
       );
     }
+
+    const normalizedSlippage = this._normalizePendleSlippage(
+      additionalParams.slippage
+    );
+
+    const swapQuote = await this._fetchPendleSwapQuote({
+      receiver: userAddress,
+      tokenIn: depositToken.address,
+      tokenOut: this.ptTokenAddress,
+      amountIn: depositAmount,
+      slippage: normalizedSlippage,
+    });
+
+    const latestPendleAssetPrice = await this._fetchPendleAssetPrice();
+
+    const baseTx = this._buildTransactionFromPendleQuote(swapQuote, {
+      defaultExtraGas: DEFAULT_SWAP_EXTRA_GAS,
+    });
+
+    const amountLabel = this._formatAmountForToken(depositAmount, depositToken);
+    const tokenLabel = this._formatTokenLabel(depositToken);
+
+    return {
+      ...baseTx,
+      description:
+        amountLabel !== null
+          ? `Swap ${amountLabel} ${tokenLabel} into Pendle PT`
+          : `Swap ${tokenLabel} into Pendle PT`,
+      meta: {
+        ...baseTx.meta,
+        quoteType: 'swapDeposit',
+        tokenIn: depositToken.address,
+        tokenOut: this.ptTokenAddress,
+        amountIn: depositAmount.toString(),
+        estimatedAmountOut: swapQuote?.data?.amountOut ?? null,
+        slippage: normalizedSlippage,
+        latestPendleAssetPrice,
+        tokenInSymbol: depositToken.symbol || null,
+        zapTokenStrategy: this.zapTokenStrategy,
+      },
+    };
   }
 
   /**
    * Estimate gas for Pendle operations
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to process
+   * @param {BigInt|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
   estimateGas(_userAddress, _inputToken, _amount) {
     try {
       // Pendle operations are more gas-intensive due to market interactions
-      const approvalGas = ethers.BigNumber.from('50000');
-      const mintPTGas = ethers.BigNumber.from('400000'); // PT minting is complex
+      const approvalGas = BigInt(50000);
+      const mintPTGas = BigInt(400000); // PT minting is complex
 
       return {
         approval: {
@@ -96,7 +169,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
           description: 'Mint PT tokens via Pendle',
         },
         total: {
-          gasLimit: approvalGas.add(mintPTGas),
+          gasLimit: approvalGas + mintPTGas,
           description: 'Total estimated gas for Pendle PT',
         },
       };
@@ -112,16 +185,55 @@ class PendlePTProtocol extends BaseProtocolV2 {
    */
   getTokenRequirements(inputToken) {
     const baseRequirements = super.getTokenRequirements(inputToken);
+    let resolvedDepositToken = null;
+
+    try {
+      resolvedDepositToken = this._resolveDepositTokenMetadata(inputToken);
+    } catch (_error) {
+      resolvedDepositToken = this.defaultInputToken || null;
+    }
+
+    const depositTokenAddress =
+      resolvedDepositToken?.address ||
+      baseRequirements.inputToken ||
+      inputToken ||
+      null;
+
+    const strategyRequiresSwap = requiresSwapForToken(
+      this.zapTokenStrategy,
+      inputToken
+    );
+
+    let requiresSwap = baseRequirements.requiresSwap;
+
+    if (this.zapTokenStrategy?.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH) {
+      requiresSwap = false;
+    } else {
+      requiresSwap =
+        strategyRequiresSwap ||
+        requiresSwap ||
+        (inputToken &&
+          depositTokenAddress &&
+          !isAddressEqual(inputToken, depositTokenAddress));
+    }
+
+    this.currentDepositTokenMetadata = resolvedDepositToken;
 
     return {
       ...baseRequirements,
+      inputToken: depositTokenAddress || baseRequirements.inputToken,
+      outputToken: depositTokenAddress || baseRequirements.outputToken,
+      requiresSwap,
       protocolSpecific: {
+        ...(baseRequirements.protocolSpecific || {}),
         marketAddress: this.marketAddress,
         ptTokenAddress: this.ptTokenAddress,
         ytTokenAddress: this.ytTokenAddress,
-        underlyingToken: this.underlyingTokenAddress,
+        underlyingToken: depositTokenAddress,
+        depositToken: resolvedDepositToken,
         routerAddress: this.routerAddresses.router,
         requiresMarketInteraction: true,
+        zapTokenStrategy: this.zapTokenStrategy,
       },
     };
   }
@@ -135,97 +247,441 @@ class PendlePTProtocol extends BaseProtocolV2 {
       'marketAddress',
       'assetAddress',
       'ytAddress',
-      'bestTokenAddressToZapOut',
       'assetDecimals',
-      'symbolOfBestTokenToZapOut',
     ];
 
-    const missing = required.filter(key => !this.config[key]);
+    const missing = required.filter(key => this.config[key] === undefined);
     if (missing.length > 0) {
       throw new Error(`Missing required Pendle config: ${missing.join(', ')}`);
     }
 
     // Validate addresses
-    const addresses = [
-      'marketAddress',
-      'assetAddress',
-      'ytAddress',
-      'bestTokenAddressToZapOut',
-    ];
-    addresses.forEach(key => {
-      if (!ethers.utils.isAddress(this.config[key])) {
+    const addressKeys = ['marketAddress', 'assetAddress', 'ytAddress'];
+
+    if (this.config.bestTokenAddressToZapOut) {
+      addressKeys.push('bestTokenAddressToZapOut');
+    }
+
+    addressKeys.forEach(key => {
+      if (this.config[key] && !ethers.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
       }
     });
+
+    if (
+      !Number.isInteger(this.config.assetDecimals) ||
+      this.config.assetDecimals < 0
+    ) {
+      throw new Error(`Invalid assetDecimals: ${this.config.assetDecimals}`);
+    }
+
+    if (this.config.decimalOfBestTokenToZapOut !== undefined) {
+      if (
+        !Number.isInteger(this.config.decimalOfBestTokenToZapOut) ||
+        this.config.decimalOfBestTokenToZapOut < 0
+      ) {
+        throw new Error(
+          `Invalid decimalOfBestTokenToZapOut: ${this.config.decimalOfBestTokenToZapOut}`
+        );
+      }
+    }
+
+    if (this.config.zapTokenStrategy) {
+      normalizeZapTokenStrategy(
+        this.config.zapTokenStrategy,
+        deriveLegacyStrategyDefaults(this.config)
+      );
+    }
   }
 
-  /**
-   * Get PT minting transaction
-   * @param {string} userAddress - User address
-   * @param {BigNumber} amount - Amount to mint
-   * @param {number} slippage - Slippage tolerance
-   * @param {number} deadline - Transaction deadline
-   * @returns {Object} - Mint transaction
-   * @private
-   */
-  _getMintPTTransaction(userAddress, amount, slippage, deadline) {
-    // Calculate minimum PT out with slippage
-    const minPTOut = this._applySlippage(amount, slippage);
+  _getRpcProviderInstance() {
+    if (!this._rpcProvider) {
+      this._rpcProvider = getRpcProvider(this.chainId);
+    }
+    return this._rpcProvider;
+  }
 
-    // Encode mint transaction for Pendle Router
-    const mintData = this._encodeMintPTCall(
-      userAddress,
-      this.marketAddress,
-      amount,
-      minPTOut,
-      deadline
+  _getMarketContract() {
+    if (!this._marketContract) {
+      this._marketContract = new ethers.Contract(
+        this.marketAddress,
+        PENDLE_MARKET_ABI,
+        this._getRpcProviderInstance()
+      );
+    }
+    return this._marketContract;
+  }
+
+  async _isMarketExpired() {
+    try {
+      const contract = this._getMarketContract();
+      return await contract.isExpired();
+    } catch (error) {
+      throw new Error(
+        `Failed to check Pendle market expiry: ${this._extractPendleError(error)}`
+      );
+    }
+  }
+
+  _normalizePendleSlippage(slippage) {
+    const numeric =
+      slippage === undefined || slippage === null ? 0.5 : Number(slippage);
+
+    if (!Number.isFinite(numeric)) {
+      throw new Error(`Invalid slippage value for Pendle: ${slippage}`);
+    }
+
+    const bounded = Math.min(Math.max(numeric, 0), 100);
+    return bounded / 100;
+  }
+
+  _normalizeTokenWithRegistry(token) {
+    if (!token || !token.address) {
+      throw new Error('Token address is required');
+    }
+
+    const registryMeta = TokenConfigService.getTokenByAddress(
+      this.chainId,
+      token.address
+    );
+
+    return normalizeToken({
+      address: token.address,
+      symbol: token.symbol ?? registryMeta?.symbol ?? null,
+      decimals:
+        token.decimals ??
+        registryMeta?.decimals ??
+        this.defaultInputToken?.decimals ??
+        null,
+    });
+  }
+
+  _resolveDepositTokenMetadata(inputToken) {
+    if (!this.zapTokenStrategy) {
+      if (!inputToken) {
+        throw new Error('Input token is required for Pendle deposit');
+      }
+      return this._normalizeTokenWithRegistry({ address: inputToken });
+    }
+
+    if (this.zapTokenStrategy.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH) {
+      if (inputToken) {
+        const match = findStrategyToken(this.zapTokenStrategy, inputToken);
+        if (match) {
+          return match;
+        }
+
+        const defaultMeta = this.defaultInputToken;
+        if (defaultMeta && isAddressEqual(defaultMeta.address, inputToken)) {
+          return defaultMeta;
+        }
+
+        return this._normalizeTokenWithRegistry({
+          address: inputToken,
+        });
+      }
+
+      if (this.defaultInputToken) {
+        return this.defaultInputToken;
+      }
+
+      throw new Error(
+        'Input token is required for passthrough zap strategy on Pendle'
+      );
+    }
+
+    const tokenAddress = inputToken || this.defaultInputToken?.address;
+    if (!tokenAddress) {
+      throw new Error('Input token is required for Pendle deposit');
+    }
+
+    const tokenMeta = findStrategyToken(this.zapTokenStrategy, tokenAddress);
+    if (!tokenMeta) {
+      throw new Error(
+        `Input token ${tokenAddress} is not supported by this Pendle strategy`
+      );
+    }
+
+    if (
+      inputToken &&
+      this.zapTokenStrategy.type === ZAP_TOKEN_STRATEGY_TYPES.FIXED &&
+      !isAddressEqual(tokenMeta.address, inputToken)
+    ) {
+      throw new Error(
+        `Input token ${inputToken} must match required token ${tokenMeta.address}`
+      );
+    }
+
+    return tokenMeta;
+  }
+
+  _resolveRedeemTokenMetadata(requestedToken) {
+    if (!this.zapTokenStrategy) {
+      if (!requestedToken && !this.bestTokenAddress) {
+        throw new Error('tokenOut is required for Pendle redemption');
+      }
+      const fallback = requestedToken || this.bestTokenAddress;
+      return normalizeToken({
+        address: fallback,
+        symbol: this.bestTokenSymbol || null,
+        decimals: this.bestTokenDecimals ?? null,
+      });
+    }
+
+    if (requestedToken) {
+      const match = findStrategyToken(this.zapTokenStrategy, requestedToken);
+      if (match) {
+        return match;
+      }
+      return normalizeToken({ address: requestedToken });
+    }
+
+    const defaultToken = getDefaultOutputToken(this.zapTokenStrategy);
+    if (defaultToken) {
+      return defaultToken;
+    }
+
+    throw new Error(
+      'tokenOut must be provided for passthrough zap strategy redemption'
+    );
+  }
+
+  _formatAmountForToken(amount, tokenMeta) {
+    if (!tokenMeta) {
+      return this._formatAmount(amount);
+    }
+
+    if (tokenMeta.decimals === null || tokenMeta.decimals === undefined) {
+      if (
+        this.bestTokenDecimals !== null &&
+        this.bestTokenDecimals !== undefined
+      ) {
+        return this._formatAmount(amount, this.bestTokenDecimals);
+      }
+      return this._formatAmount(amount);
+    }
+
+    return this._formatAmount(amount, tokenMeta.decimals);
+  }
+
+  _formatTokenLabel(tokenMeta) {
+    if (!tokenMeta) {
+      return 'token';
+    }
+
+    if (tokenMeta.symbol) {
+      return tokenMeta.symbol.toUpperCase();
+    }
+
+    return this._shortenAddress(tokenMeta.address);
+  }
+
+  _shortenAddress(address) {
+    if (!address || address.length < 10) {
+      return address || 'token';
+    }
+
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }
+
+  async _fetchPendleSwapQuote({
+    receiver,
+    tokenIn,
+    tokenOut,
+    amountIn,
+    slippage,
+  }) {
+    try {
+      const response = await axios.get(
+        `${PENDLE_SDK_API_BASE}/${this.chainId}/markets/${this.marketAddress}/swap`,
+        {
+          params: {
+            receiver,
+            slippage,
+            enableAggregator: true,
+            tokenIn,
+            tokenOut,
+            amountIn: this._toApiAmount(amountIn),
+          },
+        }
+      );
+
+      if (!response.data?.tx) {
+        throw new Error('Missing transaction data in Pendle swap response');
+      }
+
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        `Pendle swap quote failed: ${this._extractPendleError(error)}`
+      );
+    }
+  }
+
+  async _fetchPendleRedeemQuote({ receiver, tokenOut, amountIn, slippage }) {
+    try {
+      const response = await axios.get(
+        `${PENDLE_SDK_API_BASE}/${this.chainId}/redeem`,
+        {
+          params: {
+            receiver,
+            slippage,
+            enableAggregator: true,
+            yt: this.ytTokenAddress,
+            tokenOut,
+            amountIn: this._toApiAmount(amountIn),
+          },
+        }
+      );
+
+      if (!response.data?.tx) {
+        throw new Error('Missing transaction data in Pendle redeem response');
+      }
+
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        `Pendle redeem quote failed: ${this._extractPendleError(error)}`
+      );
+    }
+  }
+
+  async _fetchPendleAssetPrice() {
+    try {
+      const response = await axios.get(
+        `${PENDLE_CORE_API_BASE}/${this.chainId}/assets/prices`,
+        {
+          params: {
+            addresses: this.ptTokenAddress,
+            skip: 0,
+          },
+        }
+      );
+
+      const priceMap = response.data?.prices || {};
+      const key = this.ptTokenAddress.toLowerCase();
+
+      if (priceMap[key] === undefined) {
+        throw new Error(
+          `Price for ${this.ptTokenAddress} not found in Pendle response`
+        );
+      }
+
+      const rawPrice = Number(priceMap[key]);
+      if (!Number.isFinite(rawPrice)) {
+        throw new Error(
+          `Invalid price value returned for ${this.ptTokenAddress}: ${priceMap[key]}`
+        );
+      }
+
+      return rawPrice / Math.pow(10, this.assetDecimals);
+    } catch (error) {
+      throw new Error(
+        `Pendle asset price fetch failed: ${this._extractPendleError(error)}`
+      );
+    }
+  }
+
+  _buildTransactionFromPendleQuote(quote, { defaultExtraGas }) {
+    const tx = quote?.tx;
+    if (!tx?.to || !tx?.data) {
+      throw new Error('Pendle quote missing target transaction data');
+    }
+
+    const gasLimit = this._computeGasLimit(
+      tx.gas ?? tx.gasLimit,
+      defaultExtraGas
     );
 
     return {
-      to: this.routerAddresses.router,
-      data: mintData,
-      value: '0',
-      gasLimit: null,
-      description: `Mint PT tokens from ${this._formatAmount(amount, this.tokenDecimals)} ${this.config.symbolOfBestTokenToZapOut}`,
+      to: tx.to,
+      data: tx.data,
+      value: this._normalizeTxValue(tx.value),
+      gasLimit,
+      meta: {
+        raw: quote,
+      },
     };
   }
 
-  /**
-   * Encode Pendle PT minting call
-   * @param {string} receiver - Address to receive PT+YT
-   * @param {string} market - Market address
-   * @param {BigNumber} netTokenIn - Amount of underlying token
-   * @param {BigNumber} minPTOut - Minimum PT tokens to receive
-   * @param {number} deadline - Transaction deadline
-   * @returns {string} - Encoded function data
-   * @private
-   */
-  _encodeMintPTCall(receiver, market, netTokenIn, minPTOut, _deadline) {
-    // Simplified Pendle Router interface for PT minting
-    const routerInterface = new ethers.utils.Interface([
-      'function mintPyFromToken(address receiver, address market, uint256 minPyOut, (address tokenIn, uint256 netTokenIn, address tokenMintSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netPyOut, uint256 netSyFee)',
-    ]);
+  _computeGasLimit(baseGas, extraGas = 0n) {
+    let gas = null;
 
-    // Simplified parameters - in practice this would need more complex swap data
-    const tokenInput = {
-      tokenIn: this.underlyingTokenAddress,
-      netTokenIn: netTokenIn,
-      tokenMintSy: this.underlyingTokenAddress,
-      pendleSwap: ethers.constants.AddressZero,
-      swapData: {
-        swapType: 0,
-        extRouter: ethers.constants.AddressZero,
-        extCalldata: '0x',
-        needScale: false,
-      },
-    };
+    if (baseGas !== undefined && baseGas !== null) {
+      try {
+        gas = this._toBigInt(baseGas);
+      } catch (error) {
+        console.warn('Unable to parse Pendle gas estimate:', error);
+      }
+    }
 
-    return routerInterface.encodeFunctionData('mintPyFromToken', [
-      receiver,
-      market,
-      minPTOut,
-      tokenInput,
-    ]);
+    if (extraGas && extraGas > 0n) {
+      gas = (gas ?? 0n) + extraGas;
+    }
+
+    return gas;
+  }
+
+  _toApiAmount(amount) {
+    if (typeof amount === 'bigint') {
+      return amount.toString();
+    }
+    if (typeof amount === 'number') {
+      return BigInt(Math.floor(amount)).toString();
+    }
+    if (typeof amount === 'string') {
+      return amount;
+    }
+    if (amount && typeof amount.toString === 'function') {
+      return amount.toString();
+    }
+    throw new Error(`Unsupported amount type for Pendle API: ${amount}`);
+  }
+
+  _toBigInt(value) {
+    if (typeof value === 'bigint') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return BigInt(Math.floor(value));
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+        return BigInt(trimmed);
+      }
+      return BigInt(trimmed);
+    }
+    throw new Error(`Cannot convert value to BigInt: ${value}`);
+  }
+
+  _normalizeTxValue(value) {
+    if (value === undefined || value === null) {
+      return '0';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'bigint') {
+      return value.toString();
+    }
+    if (typeof value === 'number') {
+      return Math.max(value, 0).toString();
+    }
+    return value.toString();
+  }
+
+  _extractPendleError(error) {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    if (error.response?.data?.error) {
+      return error.response.data.error;
+    }
+    if (error.response?.status) {
+      return `status ${error.response.status}`;
+    }
+    return error.message || 'unknown error';
   }
 
   /**
@@ -281,66 +737,110 @@ class PendlePTProtocol extends BaseProtocolV2 {
     };
   }
 
-  /**
-   * Get redemption transaction (for matured PT)
-   * @param {string} userAddress - User wallet address
-   * @param {BigNumber|string} amount - PT amount to redeem
-   * @returns {Promise<Object>} - Redemption transaction
-   */
-  getRedemptionTransaction(userAddress, amount) {
-    this._validateAddress(userAddress);
-
-    const redeemAmount = ethers.BigNumber.isBigNumber(amount)
-      ? amount
-      : ethers.BigNumber.from(amount.toString());
-
-    const redeemData = this._encodeRedeemPTCall(
-      userAddress,
-      this.marketAddress,
-      redeemAmount
-    );
-
-    return {
-      to: this.routerAddresses.router,
-      data: redeemData,
-      value: '0',
-      gasLimit: null,
-      description: `Redeem ${this._formatAmount(redeemAmount, this.tokenDecimals)} PT tokens`,
-    };
+  getAssetPrice() {
+    return this._fetchPendleAssetPrice();
   }
 
   /**
-   * Encode PT redemption call
-   * @param {string} receiver - Address to receive underlying tokens
-   * @param {string} market - Market address
-   * @param {BigNumber} netPyIn - Amount of PT to redeem
-   * @returns {string} - Encoded function data
-   * @private
+   * Get redemption transaction (swap or redeem depending on market state)
+   * @param {string} userAddress - User wallet address
+   * @param {BigInt|string} amount - PT amount to process
+   * @param {Object} additionalParams - Options (slippage, isExpired override)
+   * @returns {Promise<Object>} - Redemption transaction
    */
-  _encodeRedeemPTCall(receiver, market, netPyIn) {
-    const routerInterface = new ethers.utils.Interface([
-      'function redeemPyToToken(address receiver, address market, uint256 netPyIn, (address tokenOut, uint256 minTokenOut, address tokenRedeemSy, address pendleSwap, (uint8 swapType, address extRouter, bytes extCalldata, bool needScale) swapData)) returns (uint256 netTokenOut, uint256 netSyFee)',
-    ]);
+  async getRedemptionTransaction(userAddress, amount, additionalParams = {}) {
+    this._validateAddress(userAddress);
 
-    const tokenOutput = {
-      tokenOut: this.underlyingTokenAddress,
-      minTokenOut: ethers.BigNumber.from(0), // Would calculate based on slippage
-      tokenRedeemSy: this.underlyingTokenAddress,
-      pendleSwap: ethers.constants.AddressZero,
-      swapData: {
-        swapType: 0,
-        extRouter: ethers.constants.AddressZero,
-        extCalldata: '0x',
-        needScale: false,
+    const redeemAmount =
+      typeof amount === 'bigint' ? amount : BigInt(amount.toString());
+
+    if (redeemAmount === 0n) {
+      throw new Error('Redeem amount cannot be zero');
+    }
+
+    const normalizedSlippage = this._normalizePendleSlippage(
+      additionalParams.slippage
+    );
+    const receiver = additionalParams.receiver || userAddress;
+    const requestedTokenOut =
+      additionalParams.tokenOut || additionalParams.tokenOutAddress || null;
+    const tokenOutMetadata =
+      this._resolveRedeemTokenMetadata(requestedTokenOut);
+    const isExpired =
+      typeof additionalParams.isExpired === 'boolean'
+        ? additionalParams.isExpired
+        : await this._isMarketExpired();
+
+    if (isExpired) {
+      const redeemQuote = await this._fetchPendleRedeemQuote({
+        receiver,
+        tokenOut: tokenOutMetadata.address,
+        amountIn: redeemAmount,
+        slippage: normalizedSlippage,
+      });
+
+      const baseTx = this._buildTransactionFromPendleQuote(redeemQuote, {
+        defaultExtraGas: DEFAULT_REDEEM_EXTRA_GAS,
+      });
+
+      const tokenLabel = this._formatTokenLabel(tokenOutMetadata);
+
+      return {
+        ...baseTx,
+        description: `Redeem ${this._formatAmount(
+          redeemAmount,
+          this.tokenDecimals
+        )} PT into ${tokenLabel}`,
+        meta: {
+          ...baseTx.meta,
+          quoteType: 'redeem',
+          tokenIn: this.ptTokenAddress,
+          tokenOut: tokenOutMetadata.address,
+          tokenOutSymbol: tokenOutMetadata.symbol || null,
+          amountIn: redeemAmount.toString(),
+          slippage: normalizedSlippage,
+          isExpired: true,
+          zapTokenStrategy: this.zapTokenStrategy,
+        },
+      };
+    }
+
+    const swapQuote = await this._fetchPendleSwapQuote({
+      receiver,
+      tokenIn: this.ptTokenAddress,
+      tokenOut: tokenOutMetadata.address,
+      amountIn: redeemAmount,
+      slippage: normalizedSlippage,
+    });
+
+    const latestPendleAssetPrice = await this._fetchPendleAssetPrice();
+
+    const baseTx = this._buildTransactionFromPendleQuote(swapQuote, {
+      defaultExtraGas: DEFAULT_REDEEM_EXTRA_GAS,
+    });
+
+    const tokenLabel = this._formatTokenLabel(tokenOutMetadata);
+
+    return {
+      ...baseTx,
+      description: `Swap ${this._formatAmount(
+        redeemAmount,
+        this.tokenDecimals
+      )} PT into ${tokenLabel}`,
+      meta: {
+        ...baseTx.meta,
+        quoteType: 'swapRedeem',
+        tokenIn: this.ptTokenAddress,
+        tokenOut: tokenOutMetadata.address,
+        amountIn: redeemAmount.toString(),
+        estimatedAmountOut: swapQuote?.data?.amountOut ?? null,
+        slippage: normalizedSlippage,
+        latestPendleAssetPrice,
+        isExpired: false,
+        tokenOutSymbol: tokenOutMetadata.symbol || null,
+        zapTokenStrategy: this.zapTokenStrategy,
       },
     };
-
-    return routerInterface.encodeFunctionData('redeemPyToToken', [
-      receiver,
-      market,
-      netPyIn,
-      tokenOutput,
-    ]);
   }
 }
 

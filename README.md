@@ -16,7 +16,7 @@ A Node.js Express API server for intent-based DeFi operations, providing optimal
 - **Comprehensive Caching**: In-memory caching with configurable TTL for price data
 - **Multiple Price Sources**: CoinMarketCap, CoinGecko with extensible architecture
 - **Retry Logic**: Automatic retry with exponential backoff for failed requests
-- **Input Validation**: Comprehensive parameter validation using express-validator
+- **Input Validation**: Comprehensive parameter validation via custom middleware
 - **Error Handling**: Robust error handling with meaningful error messages
 - **CORS Support**: Configured for cross-origin requests
 - **Testing**: Comprehensive test suite with Jest and Supertest
@@ -48,6 +48,9 @@ ZEROX_API_KEY=your_0x_api_key_here
 
 # Price API Keys
 COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here,your_second_key_here
+
+# RPC Provider (optional - falls back to public RPCs if not provided)
+ALCHEMY_API_KEY=your_alchemy_api_key_here
 
 # Server Configuration
 PORT=3002
@@ -317,6 +320,9 @@ ZEROX_API_KEY=your_0x_api_key_here
 
 # Price API Keys
 COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here
+
+# RPC Provider (optional - falls back to public RPCs if not provided)
+ALCHEMY_API_KEY=your_alchemy_api_key_here
 
 # Server Configuration
 PORT=3002

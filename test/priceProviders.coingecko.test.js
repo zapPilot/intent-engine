@@ -3,6 +3,7 @@ const axios = require('axios');
 
 // Use actual config for token id mapping
 const { getTokenId } = require('../src/config/priceConfig');
+const { MissingTokenMappingError } = require('../src/utils/errors');
 
 describe('CoinGeckoProvider', () => {
   let CoinGeckoProvider;
@@ -43,7 +44,10 @@ describe('CoinGeckoProvider', () => {
   it('getPrice throws when token unsupported', async () => {
     const provider = new CoinGeckoProvider();
     await expect(provider.getPrice('notatoken')).rejects.toThrow(
-      'Token notatoken not supported by coingecko'
+      MissingTokenMappingError
+    );
+    await expect(provider.getPrice('notatoken')).rejects.toThrow(
+      "Token 'notatoken' not found in mapping for provider 'coingecko'"
     );
   });
 
@@ -110,7 +114,10 @@ describe('CoinGeckoProvider', () => {
   it('getBulkPrices throws when no supported tokens', async () => {
     const provider = new CoinGeckoProvider();
     await expect(provider.getBulkPrices(['foo', 'bar'])).rejects.toThrow(
-      'No supported tokens found for CoinGecko'
+      MissingTokenMappingError
+    );
+    await expect(provider.getBulkPrices(['foo', 'bar'])).rejects.toThrow(
+      "Token 'foo' not found in mapping for provider 'coingecko'"
     );
   });
 

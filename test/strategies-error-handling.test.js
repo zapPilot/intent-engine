@@ -36,7 +36,17 @@ const mockUnifiedZapConfig = {
           chainId: 42161,
           weight: 50,
           enabled: true,
-          config: { mode: 'single', symbolOfBestTokenToZapInOut: 'USDC' },
+          config: {
+            mode: 'single',
+            zapTokenStrategy: {
+              type: 'fixed',
+              token: {
+                symbol: 'USDC',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+            },
+          },
         },
         {
           id: 'test-protocol-2',
@@ -313,7 +323,17 @@ describe('Strategies Error Handling and Edge Cases', () => {
           chainId: 42161,
           weight: 1,
           enabled: true,
-          config: { mode: 'single', symbolOfBestTokenToZapInOut: 'USDC' },
+          config: {
+            mode: 'single',
+            zapTokenStrategy: {
+              type: 'fixed',
+              token: {
+                symbol: 'USDC',
+                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+                decimals: 6,
+              },
+            },
+          },
         }));
 
       originalConfig.STRATEGY_CATEGORIES = {

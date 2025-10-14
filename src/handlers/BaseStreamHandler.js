@@ -4,7 +4,7 @@
  */
 
 const IntentIdGenerator = require('../utils/intentIdGenerator');
-const { SSEStreamManager } = require('../services/SSEStreamManager');
+const SSEStreamManager = require('../services/SSEStreamManager');
 
 class BaseStreamHandler {
   constructor(intentService) {

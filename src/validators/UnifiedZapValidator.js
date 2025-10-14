@@ -73,7 +73,7 @@ class UnifiedZapValidator {
     this.validateInputToken(inputToken);
 
     // Validate input amount
-    this.validateInputAmount(inputAmount, config);
+    this.validateInputAmount(inputAmount);
 
     // Validate slippage (optional)
     if (slippage !== undefined) {
@@ -190,15 +190,29 @@ class UnifiedZapValidator {
 
   /**
    * Validate input token address
-   * @param {string} inputToken - Input token address
+   * @param {string} inputToken - Input token address or 'native' keyword
    */
   static validateInputToken(inputToken) {
     if (!inputToken || typeof inputToken !== 'string') {
       throw new Error('inputToken is required and must be a string');
     }
 
+    const normalized = inputToken.toLowerCase();
+
+    // Allow native token identifiers
+    if (
+      normalized === 'native' ||
+      normalized === '0x0000000000000000000000000000000000000000' ||
+      normalized === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    ) {
+      return; // Valid native token identifier
+    }
+
+    // Validate as Ethereum address
     if (!/^0x[a-fA-F0-9]{40}$/.test(inputToken)) {
-      throw new Error('Invalid inputToken: must be a valid Ethereum address');
+      throw new Error(
+        'Invalid inputToken: must be a valid Ethereum address or "native"'
+      );
     }
   }
 
@@ -207,7 +221,7 @@ class UnifiedZapValidator {
    * @param {string} inputAmount - Input amount as string
    * @param {Object} config - UnifiedZap configuration
    */
-  static validateInputAmount(inputAmount, config) {
+  static validateInputAmount(inputAmount) {
     if (!inputAmount) {
       throw new Error('inputAmount is required');
     }
@@ -216,28 +230,77 @@ class UnifiedZapValidator {
       throw new Error('inputAmount must be a string');
     }
 
-    // Check if it's a valid number string
-    if (!/^\d+$/.test(inputAmount)) {
-      throw new Error(
-        'inputAmount must be a valid positive integer string (no decimals)'
-      );
+    const normalizedAmount = inputAmount.trim();
+    if (!this._isValidPositiveNumberString(normalizedAmount)) {
+      throw new Error('inputAmount must be a valid positive number string');
     }
 
-    const amount = parseFloat(inputAmount);
+    const amount = parseFloat(normalizedAmount);
 
     if (amount <= 0) {
       throw new Error('inputAmount must be greater than 0');
     }
 
     // Optional: Check minimum amount (if configured)
-    if (
-      config.VALIDATION.minInputAmount &&
-      amount < config.VALIDATION.minInputAmount
-    ) {
-      throw new Error(
-        `inputAmount must be at least ${config.VALIDATION.minInputAmount}, got ${amount}`
-      );
+    // we should use USD value as min threshold, since we can zapIn with eth/btc as well so use amount as threshold is not correct
+    // if (
+    //   config.VALIDATION.minInputAmount &&
+    //   amount < config.VALIDATION.minInputAmount
+    // ) {
+    //   throw new Error(
+    //     `inputAmount must be at least ${config.VALIDATION.minInputAmount}, got ${amount}`
+    //   );
+    // }
+  }
+
+  /**
+   * Determine if value is a positive number string (digits with optional decimal part)
+   * @param {string} value - Value to validate
+   * @returns {boolean} - True if value is a valid number string
+   * @private
+   */
+  static _isValidPositiveNumberString(value) {
+    if (!value) {
+      return false;
     }
+
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      return false;
+    }
+
+    const [whole, fraction = ''] = parts;
+
+    if (!this._isDigitsOnly(whole)) {
+      return false;
+    }
+
+    if (fraction && !this._isDigitsOnly(fraction)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if string contains only digit characters
+   * @param {string} value - String to test
+   * @returns {boolean} - True if string is non-empty and numeric
+   * @private
+   */
+  static _isDigitsOnly(value) {
+    if (!value) {
+      return false;
+    }
+
+    for (let i = 0; i < value.length; i += 1) {
+      const code = value.charCodeAt(i);
+      if (code < 48 || code > 57) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -267,36 +330,6 @@ class UnifiedZapValidator {
   }
 
   /**
-   * Validate strategy is available on the requested chain
-   * @param {string} strategyId - Strategy ID
-   * @param {number} chainId - Chain ID
-   * @param {Object} config - UnifiedZap configuration
-   * @returns {boolean} - Whether strategy is available on chain
-   */
-  static isStrategyAvailableOnChain(
-    strategyId,
-    chainId,
-    config = UNIFIED_ZAP_CONFIG
-  ) {
-    const strategyConfig = config.STRATEGY_CATEGORIES[strategyId];
-    if (!strategyConfig) {
-      return false;
-    }
-
-    const chainName = this.getChainNameById(chainId, config);
-    if (!chainName) {
-      return false;
-    }
-
-    // Check if strategy has protocols on this chain
-    const chainProtocols = strategyConfig.protocols.filter(
-      p => p.chain === chainName && p.enabled !== false
-    );
-
-    return chainProtocols.length > 0;
-  }
-
-  /**
    * Get chain name by chain ID
    * @param {number} chainId - Chain ID
    * @param {Object} config - UnifiedZap configuration
@@ -311,78 +344,6 @@ class UnifiedZapValidator {
       }
     }
     return null;
-  }
-
-  /**
-   * Get validation summary for debugging
-   * @param {Object} request - Intent request
-   * @param {Object} config - UnifiedZap configuration
-   * @returns {Object} - Validation summary
-   */
-  static getValidationSummary(request, config = UNIFIED_ZAP_CONFIG) {
-    try {
-      this.validate(request, config);
-
-      const { params } = request;
-      const chainName = this.getChainNameById(request.chainId, config);
-
-      return {
-        valid: true,
-        chainName,
-        totalStrategies: params.strategyAllocations.length,
-        totalPercentage: params.strategyAllocations.reduce(
-          (sum, s) => sum + s.percentage,
-          0
-        ),
-        strategiesOnChain: params.strategyAllocations.filter(s =>
-          this.isStrategyAvailableOnChain(s.strategyId, request.chainId, config)
-        ).length,
-        estimatedComplexity: this.calculateComplexity(
-          params.strategyAllocations,
-          config
-        ),
-      };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error.message,
-        errorType: error.constructor.name,
-      };
-    }
-  }
-
-  /**
-   * Calculate request complexity score
-   * @param {Array} strategyAllocations - Strategy allocations
-   * @param {Object} config - UnifiedZap configuration
-   * @returns {number} - Complexity score (1-10)
-   */
-  static calculateComplexity(strategyAllocations, config) {
-    let complexity = 1;
-
-    // Base complexity from strategy count
-    complexity += strategyAllocations.length * 0.5;
-
-    // Protocol count complexity
-    const totalProtocols = strategyAllocations.reduce((total, allocation) => {
-      const strategyConfig = config.STRATEGY_CATEGORIES[allocation.strategyId];
-      return total + strategyConfig.protocols.length;
-    }, 0);
-
-    complexity += Math.min(totalProtocols * 0.3, 3);
-
-    // Multi-chain complexity (if strategies span multiple chains)
-    const chains = new Set();
-    strategyAllocations.forEach(allocation => {
-      const strategyConfig = config.STRATEGY_CATEGORIES[allocation.strategyId];
-      strategyConfig.protocols.forEach(protocol => chains.add(protocol.chain));
-    });
-
-    if (chains.size > 1) {
-      complexity += 2;
-    }
-
-    return Math.min(Math.ceil(complexity), 10);
   }
 }
 

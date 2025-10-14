@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getTokenId } = require('../../config/priceConfig');
+const { MissingTokenMappingError } = require('../../utils/errors');
 
 /**
  * CoinGecko Price Provider
@@ -21,7 +22,7 @@ class CoinGeckoProvider {
   async getPrice(symbol, options = {}) {
     const coinId = getTokenId(this.name, symbol);
     if (!coinId) {
-      throw new Error(`Token ${symbol} not supported by ${this.name}`);
+      throw new MissingTokenMappingError(this.name, symbol);
     }
 
     const config = {
@@ -62,6 +63,9 @@ class CoinGeckoProvider {
         },
       };
     } catch (error) {
+      if (error instanceof MissingTokenMappingError) {
+        throw error; // Re-throw our custom error to be caught by the classifier
+      }
       if (error.response) {
         throw new Error(
           `CoinGecko API error: ${error.response.data?.error || error.message}`
@@ -96,6 +100,10 @@ class CoinGeckoProvider {
     }
 
     if (coinIds.length === 0) {
+      // If all tokens are unsupported, we can throw a clear error.
+      if (unsupportedTokens.length > 0) {
+        throw new MissingTokenMappingError(this.name, unsupportedTokens[0]);
+      }
       throw new Error('No supported tokens found for CoinGecko');
     }
 
@@ -139,11 +147,12 @@ class CoinGeckoProvider {
         }
       }
 
-      // Add errors for unsupported tokens
+      // Add errors for unsupported tokens using the new error type for consistency
       for (const symbol of unsupportedTokens) {
+        const configError = new MissingTokenMappingError(this.name, symbol);
         errors.push({
           symbol,
-          error: `Token ${symbol} not supported by ${this.name}`,
+          error: configError.developerMessage, // Use the detailed message for logs
           provider: this.name,
         });
       }

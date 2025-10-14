@@ -84,19 +84,6 @@ class SwapProcessingService {
   }
 
   /**
-   * Handle token processing result and update progress
-   * @deprecated Use TokenBatchProcessor directly for new implementations
-   * Maintained for backward compatibility
-   * @param {Object} params - Result handling parameters
-   * @returns {number} Updated transaction index
-   */
-  _handleTokenProcessingResult(params) {
-    const progressTracker = this.tokenBatchProcessor.progressTracker;
-    const result = progressTracker.handleTokenProcessingResult(params);
-    return result.updatedTransactionIndex;
-  }
-
-  /**
    * Extract processing context from request parameters
    * @param {Object} executionContext - Execution context from intent handler
    * @returns {SwapExecutionContext} Processing context for swap operations

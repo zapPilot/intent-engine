@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getTokenId } = require('../../config/priceConfig');
+const { MissingTokenMappingError } = require('../../utils/errors');
 
 /**
  * CoinMarketCap Price Provider
@@ -51,7 +52,7 @@ class CoinMarketCapProvider {
   async getPrice(symbol, options = {}) {
     const tokenId = getTokenId(this.name, symbol);
     if (!tokenId) {
-      throw new Error(`Token ${symbol} not supported by ${this.name}`);
+      throw new MissingTokenMappingError(this.name, symbol);
     }
 
     const apiKey = this.getNextApiKey();
@@ -103,6 +104,9 @@ class CoinMarketCapProvider {
         },
       };
     } catch (error) {
+      if (error instanceof MissingTokenMappingError) {
+        throw error; // Re-throw our custom error to be caught by the classifier
+      }
       if (error.response) {
         // API returned an error response
         const errorMessage =
@@ -141,6 +145,10 @@ class CoinMarketCapProvider {
     }
 
     if (tokenIds.length === 0) {
+      // If all tokens are unsupported, we can throw a clear error.
+      if (unsupportedTokens.length > 0) {
+        throw new MissingTokenMappingError(this.name, unsupportedTokens[0]);
+      }
       throw new Error('No supported tokens found for CoinMarketCap');
     }
 
@@ -197,11 +205,12 @@ class CoinMarketCapProvider {
         }
       }
 
-      // Add errors for unsupported tokens
+      // Add errors for unsupported tokens using the new error type for consistency
       for (const symbol of unsupportedTokens) {
+        const configError = new MissingTokenMappingError(this.name, symbol);
         errors.push({
           symbol,
-          error: `Token ${symbol} not supported by ${this.name}`,
+          error: configError.developerMessage, // Use the detailed message for logs
           provider: this.name,
         });
       }

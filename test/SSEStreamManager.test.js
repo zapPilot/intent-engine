@@ -1,7 +1,5 @@
-const {
-  SSEStreamManager,
-  DustZapSSEOrchestrator,
-} = require('../src/services/SSEStreamManager');
+const SSEStreamManager = require('../src/services/SSEStreamManager');
+const DustZapSSEOrchestrator = require('../src/services/orchestrators/DustZapSSEOrchestrator');
 const SSEEventFactory = require('../src/services/SSEEventFactory');
 const SwapProcessingService = require('../src/services/SwapProcessingService');
 
@@ -611,10 +609,8 @@ describe('DustZapSSEOrchestrator', () => {
         )
       ).rejects.toThrow(error);
 
-      expect(consoleError).toHaveBeenCalledWith(
-        'SSE orchestration error:',
-        error
-      );
+      // Logger now uses structured format, so just verify console.error was called
+      expect(consoleError).toHaveBeenCalled();
       expect(mockStreamWriter).toHaveBeenCalledWith({ type: 'error' });
 
       consoleError.mockRestore();

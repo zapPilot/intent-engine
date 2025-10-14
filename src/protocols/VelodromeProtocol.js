@@ -6,6 +6,23 @@
 const BaseProtocolV2 = require('./BaseProtocolV2');
 const { ethers } = require('ethers');
 
+const STABLE_TOKEN_SYMBOLS = new Set([
+  'usdc',
+  'usdt',
+  'dai',
+  'susd',
+  'msusd',
+  'eurc',
+  'usdx',
+  'susdx',
+  'gusdc',
+  'usdbc',
+  'usdce',
+  'usdp',
+  'usd+',
+  'bold',
+]);
+
 class VelodromeProtocol extends BaseProtocolV2 {
   constructor(config, chain, chainId) {
     super(config, chain, chainId);
@@ -33,13 +50,18 @@ class VelodromeProtocol extends BaseProtocolV2 {
       address: this.lpTokens[1][1],
       decimals: this.lpTokens[1][2],
     };
+
+    this.isStablePool =
+      typeof config.isStablePool === 'boolean'
+        ? config.isStablePool
+        : this._inferStablePoolFromSymbols();
   }
 
   /**
    * Generate deposit transaction for Velodrome LP provision
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to deposit
+   * @param {BigInt|string} amount - Amount to deposit
    * @param {Object} additionalParams - Token amounts and slippage
    * @returns {Promise<Object>} - Deposit transaction object
    */
@@ -51,7 +73,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
   ) {
     this._validateAddress(userAddress);
 
-    const { token0Amount, token1Amount, slippage = 0.5 } = additionalParams;
+    const { token0Amount, token1Amount, slippage } = additionalParams;
 
     if (!token0Amount || !token1Amount) {
       throw new Error(
@@ -59,21 +81,25 @@ class VelodromeProtocol extends BaseProtocolV2 {
       );
     }
 
-    const amount0 = ethers.BigNumber.isBigNumber(token0Amount)
-      ? token0Amount
-      : ethers.BigNumber.from(token0Amount.toString());
+    const amount0 =
+      typeof token0Amount === 'bigint'
+        ? token0Amount
+        : BigInt(token0Amount.toString());
 
-    const amount1 = ethers.BigNumber.isBigNumber(token1Amount)
-      ? token1Amount
-      : ethers.BigNumber.from(token1Amount.toString());
+    const amount1 =
+      typeof token1Amount === 'bigint'
+        ? token1Amount
+        : BigInt(token1Amount.toString());
 
-    if (amount0.isZero() || amount1.isZero()) {
+    if (amount0 === 0n || amount1 === 0n) {
       throw new Error('Both token amounts must be greater than zero');
     }
 
-    // Calculate minimum amounts with slippage
-    const minAmount0 = this._applySlippage(amount0, slippage);
-    const minAmount1 = this._applySlippage(amount1, slippage);
+    const effectiveSlippage = this._resolveDepositSlippage(slippage);
+
+    // Calculate minimum amounts with slippage buffer
+    const minAmount0 = this._applySlippage(amount0, effectiveSlippage);
+    const minAmount1 = this._applySlippage(amount1, effectiveSlippage);
     const deadline = this._getDeadline();
 
     // Check if tokens are sorted correctly for Velodrome
@@ -93,11 +119,12 @@ class VelodromeProtocol extends BaseProtocolV2 {
       minAmount1
     );
 
-    // Generate add liquidity transaction
+    const isStablePool = this._isStablePool();
+
     const addLiquidityData = this._encodeAddLiquidityCall(
       sortedToken0,
       sortedToken1,
-      this._isStablePool(), // Determine if stable or volatile pool
+      isStablePool,
       sortedAmount0,
       sortedAmount1,
       sortedMin0,
@@ -118,17 +145,16 @@ class VelodromeProtocol extends BaseProtocolV2 {
   /**
    * Generate staking transaction for LP tokens in gauge
    * @param {string} userAddress - User wallet address
-   * @param {BigNumber|string} lpAmount - LP token amount to stake
+   * @param {BigInt|string} lpAmount - LP token amount to stake
    * @returns {Promise<Object>} - Staking transaction
    */
   getStakingTransaction(userAddress, lpAmount) {
     this._validateAddress(userAddress);
 
-    const stakeAmount = ethers.BigNumber.isBigNumber(lpAmount)
-      ? lpAmount
-      : ethers.BigNumber.from(lpAmount.toString());
+    const stakeAmount =
+      typeof lpAmount === 'bigint' ? lpAmount : BigInt(lpAmount.toString());
 
-    if (stakeAmount.isZero()) {
+    if (stakeAmount === 0n) {
       throw new Error('Stake amount cannot be zero');
     }
 
@@ -147,20 +173,20 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * Estimate gas for Velodrome operations
    * @param {string} userAddress - User wallet address
    * @param {string} inputToken - Input token address
-   * @param {BigNumber|string} amount - Amount to process
+   * @param {BigInt|string} amount - Amount to process
    * @returns {Promise<Object>} - Gas estimates
    */
   estimateGas(_userAddress, _inputToken, _amount) {
     try {
       // LP operations require multiple approvals and higher gas
-      const token0ApprovalGas = ethers.BigNumber.from('50000');
-      const token1ApprovalGas = ethers.BigNumber.from('50000');
-      const addLiquidityGas = ethers.BigNumber.from('300000');
-      const stakeGas = ethers.BigNumber.from('150000');
+      const token0ApprovalGas = BigInt(50000);
+      const token1ApprovalGas = BigInt(50000);
+      const addLiquidityGas = BigInt(300000);
+      const stakeGas = BigInt(150000);
 
       return {
         approvals: {
-          gasLimit: token0ApprovalGas.add(token1ApprovalGas),
+          gasLimit: token0ApprovalGas + token1ApprovalGas,
           description: 'Approve both LP tokens',
         },
         addLiquidity: {
@@ -172,10 +198,8 @@ class VelodromeProtocol extends BaseProtocolV2 {
           description: 'Stake LP tokens in gauge',
         },
         total: {
-          gasLimit: token0ApprovalGas
-            .add(token1ApprovalGas)
-            .add(addLiquidityGas)
-            .add(stakeGas),
+          gasLimit:
+            token0ApprovalGas + token1ApprovalGas + addLiquidityGas + stakeGas,
           description: 'Total estimated gas for LP + staking',
         },
       };
@@ -247,7 +271,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
         throw new Error(`Invalid symbol for lpTokens[${index}]: ${symbol}`);
       }
 
-      if (!ethers.utils.isAddress(address)) {
+      if (!ethers.isAddress(address)) {
         throw new Error(`Invalid address for lpTokens[${index}]: ${address}`);
       }
 
@@ -259,34 +283,68 @@ class VelodromeProtocol extends BaseProtocolV2 {
     // Validate addresses
     const addresses = ['routerAddress', 'guageAddress', 'assetAddress'];
     addresses.forEach(key => {
-      if (!ethers.utils.isAddress(this.config[key])) {
+      if (!ethers.isAddress(this.config[key])) {
         throw new Error(`Invalid ${key}: ${this.config[key]}`);
       }
     });
   }
 
   /**
-   * Determine if this is a stable pool based on protocol name
-   * @returns {boolean} - Whether this is a stable pool
+   * Determine effective slippage buffer for LP deposits.
+   * Applies a more conservative floor for stable pools to mirror v1 behavior.
+   * @param {number} slippage - Requested slippage percentage (e.g. 0.5 for 0.5%)
+   * @returns {number} - Slippage percentage to apply
+   * @private
+   */
+  _resolveDepositSlippage(slippage) {
+    const numericSlippage =
+      slippage === undefined || slippage === null
+        ? undefined
+        : Number(slippage);
+
+    const baseSlippage = Number.isFinite(numericSlippage)
+      ? numericSlippage
+      : 0.5;
+
+    const sanitizedSlippage = Math.max(baseSlippage, 0);
+
+    if (this._isStablePool()) {
+      const configuredMinimum =
+        typeof this.config.minStableDepositSlippage === 'number'
+          ? this.config.minStableDepositSlippage
+          : 20;
+
+      return Math.max(sanitizedSlippage, configuredMinimum);
+    }
+
+    return sanitizedSlippage;
+  }
+
+  /**
+   * Determine if this configuration targets a stable pool.
+   * @returns {boolean}
    * @private
    */
   _isStablePool() {
-    // Usually stable pools are marked in configuration or can be inferred from tokens
-    // For now, assume correlated assets (stablecoins) use stable pools
-    const stableTokens = [
-      'usdc',
-      'usdt',
-      'dai',
-      'susd',
-      'eurc',
-      'usdx',
-      'susdx',
-    ];
-    const token0Symbol = this.token0.symbol.toLowerCase();
-    const token1Symbol = this.token1.symbol.toLowerCase();
+    return !!this.isStablePool;
+  }
+
+  /**
+   * Infer whether the pool should be treated as stable using token symbols.
+   * @returns {boolean}
+   * @private
+   */
+  _inferStablePoolFromSymbols() {
+    const token0Symbol = (this.token0.symbol || '').toLowerCase();
+    const token1Symbol = (this.token1.symbol || '').toLowerCase();
+
+    if (!token0Symbol || !token1Symbol) {
+      return false;
+    }
 
     return (
-      stableTokens.includes(token0Symbol) && stableTokens.includes(token1Symbol)
+      STABLE_TOKEN_SYMBOLS.has(token0Symbol) &&
+      STABLE_TOKEN_SYMBOLS.has(token1Symbol)
     );
   }
 
@@ -294,10 +352,10 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * Sort tokens according to Velodrome requirements
    * @param {string} tokenA - Token A address
    * @param {string} tokenB - Token B address
-   * @param {BigNumber} amountA - Amount A
-   * @param {BigNumber} amountB - Amount B
-   * @param {BigNumber} minA - Min amount A
-   * @param {BigNumber} minB - Min amount B
+   * @param {BigInt} amountA - Amount A
+   * @param {BigInt} amountB - Amount B
+   * @param {BigInt} minA - Min amount A
+   * @param {BigInt} minB - Min amount B
    * @returns {Array} - Sorted tokens and amounts
    * @private
    */
@@ -316,10 +374,10 @@ class VelodromeProtocol extends BaseProtocolV2 {
    * @param {string} tokenA - Token A address
    * @param {string} tokenB - Token B address
    * @param {boolean} stable - Whether pool is stable
-   * @param {BigNumber} amountADesired - Desired amount A
-   * @param {BigNumber} amountBDesired - Desired amount B
-   * @param {BigNumber} amountAMin - Minimum amount A
-   * @param {BigNumber} amountBMin - Minimum amount B
+   * @param {BigInt} amountADesired - Desired amount A
+   * @param {BigInt} amountBDesired - Desired amount B
+   * @param {BigInt} amountAMin - Minimum amount A
+   * @param {BigInt} amountBMin - Minimum amount B
    * @param {string} to - Recipient address
    * @param {number} deadline - Transaction deadline
    * @returns {string} - Encoded function data
@@ -336,7 +394,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
     to,
     deadline
   ) {
-    const routerInterface = new ethers.utils.Interface([
+    const routerInterface = new ethers.Interface([
       'function addLiquidity(address tokenA, address tokenB, bool stable, uint256 amountADesired, uint256 amountBDesired, uint256 amountAMin, uint256 amountBMin, address to, uint256 deadline) returns (uint256 amountA, uint256 amountB, uint256 liquidity)',
     ]);
 
@@ -355,12 +413,12 @@ class VelodromeProtocol extends BaseProtocolV2 {
 
   /**
    * Encode stake call for gauge contract
-   * @param {BigNumber} amount - Amount to stake
+   * @param {BigInt} amount - Amount to stake
    * @returns {string} - Encoded function data
    * @private
    */
   _encodeStakeCall(amount) {
-    const gaugeInterface = new ethers.utils.Interface([
+    const gaugeInterface = new ethers.Interface([
       'function deposit(uint256 amount)',
     ]);
 
@@ -393,15 +451,15 @@ class VelodromeProtocol extends BaseProtocolV2 {
   /**
    * Get required approvals for LP provision
    * @param {string} userAddress - User address
-   * @param {BigNumber} amount0 - Token 0 amount
-   * @param {BigNumber} amount1 - Token 1 amount
+   * @param {BigInt} amount0 - Token 0 amount
+   * @param {BigInt} amount1 - Token 1 amount
    * @returns {Array} - Array of approval transactions
    */
   async getRequiredApprovals(userAddress, amount0, amount1) {
     const approvals = [];
 
     // Approve token0
-    if (!amount0.isZero()) {
+    if (amount0 !== 0n) {
       approvals.push(
         await this.getApprovalTransaction(
           userAddress,
@@ -413,7 +471,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
     }
 
     // Approve token1
-    if (!amount1.isZero()) {
+    if (amount1 !== 0n) {
       approvals.push(
         await this.getApprovalTransaction(
           userAddress,
@@ -429,7 +487,7 @@ class VelodromeProtocol extends BaseProtocolV2 {
 
   /**
    * Calculate token amounts for balanced LP provision
-   * @param {BigNumber} totalValue - Total USD value to invest
+   * @param {BigInt} totalValue - Total USD value to invest
    * @param {Object} tokenPrices - Token price mapping
    * @returns {Object} - Calculated token amounts
    */
@@ -444,15 +502,15 @@ class VelodromeProtocol extends BaseProtocolV2 {
     }
 
     // Simple 50/50 split for LP provision
-    const halfValue = totalValue.div(2);
+    const halfValue = totalValue / 2n;
 
-    const token0Amount = halfValue
-      .mul(ethers.utils.parseUnits('1', this.token0.decimals))
-      .div(ethers.utils.parseUnits(token0Price.toString(), 18));
+    const token0Amount =
+      (halfValue * ethers.parseUnits('1', this.token0.decimals)) /
+      ethers.parseUnits(token0Price.toString(), 18);
 
-    const token1Amount = halfValue
-      .mul(ethers.utils.parseUnits('1', this.token1.decimals))
-      .div(ethers.utils.parseUnits(token1Price.toString(), 18));
+    const token1Amount =
+      (halfValue * ethers.parseUnits('1', this.token1.decimals)) /
+      ethers.parseUnits(token1Price.toString(), 18);
 
     return {
       token0Amount,

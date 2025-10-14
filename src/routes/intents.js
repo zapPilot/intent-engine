@@ -504,13 +504,15 @@ router.post(
 );
 
 // Legacy rebalance endpoint (deprecated - use optimize instead)
+// REMOVAL SCHEDULED: 2025-11-09 (30 days from 2025-10-10)
 router.post('/api/v1/intents/rebalance', validateIntentRequest, (req, res) => {
   res.status(301).json({
     success: false,
     error: {
       code: 'ENDPOINT_DEPRECATED',
       message:
-        'This endpoint is deprecated. Use POST /api/v1/intents/optimize with operations: ["rebalance"]',
+        'This endpoint is deprecated and will be removed on 2025-11-09. Use POST /api/v1/intents/optimize with operations: ["rebalance"]',
+      removalDate: '2025-11-09',
     },
     redirectTo: '/api/v1/intents/optimize',
   });
