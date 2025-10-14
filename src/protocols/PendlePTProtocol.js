@@ -28,40 +28,33 @@ const PENDLE_MARKET_ABI = ['function isExpired() view returns (bool)'];
 
 const PROVIDER_CACHE = new Map();
 
-function resolveRpcUrl(chain, chainId) {
-  if (chain && UNIFIED_ZAP_CONFIG.SUPPORTED_CHAINS?.[chain]?.rpcUrl) {
-    return UNIFIED_ZAP_CONFIG.SUPPORTED_CHAINS[chain].rpcUrl;
+function resolveRpcUrl(chainId) {
+  if (!chainId) {
+    return null;
   }
 
-  if (chainId) {
-    const match = Object.values(UNIFIED_ZAP_CONFIG.SUPPORTED_CHAINS || {}).find(
-      config => config.chainId === chainId
-    );
-    if (match?.rpcUrl) {
-      return match.rpcUrl;
-    }
-  }
-
-  return null;
+  const match = Object.values(UNIFIED_ZAP_CONFIG.SUPPORTED_CHAINS || {}).find(
+    config => config.chainId === chainId
+  );
+  return match?.rpcUrl || null;
 }
 
-function getRpcProvider(chain, chainId) {
-  const cacheKey = chainId || chain;
-  if (cacheKey && PROVIDER_CACHE.has(cacheKey)) {
-    return PROVIDER_CACHE.get(cacheKey);
+function getRpcProvider(chainId) {
+  if (chainId && PROVIDER_CACHE.has(chainId)) {
+    return PROVIDER_CACHE.get(chainId);
   }
 
-  const rpcUrl = resolveRpcUrl(chain, chainId);
+  const rpcUrl = resolveRpcUrl(chainId);
 
   if (!rpcUrl) {
     throw new Error(
-      `No RPC URL configured for Pendle chain ${chain ?? 'unknown'} (${chainId ?? 'n/a'})`
+      `No RPC URL configured for Pendle chainId ${chainId ?? 'n/a'}`
     );
   }
 
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  if (cacheKey) {
-    PROVIDER_CACHE.set(cacheKey, provider);
+  if (chainId) {
+    PROVIDER_CACHE.set(chainId, provider);
   }
   return provider;
 }
@@ -336,7 +329,7 @@ class PendlePTProtocol extends BaseProtocolV2 {
 
   _getRpcProviderInstance() {
     if (!this._rpcProvider) {
-      this._rpcProvider = getRpcProvider(this.chain, this.chainId);
+      this._rpcProvider = getRpcProvider(this.chainId);
     }
     return this._rpcProvider;
   }
