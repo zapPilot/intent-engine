@@ -49,6 +49,9 @@ ZEROX_API_KEY=your_0x_api_key_here
 # Price API Keys
 COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here,your_second_key_here
 
+# RPC Provider (optional - falls back to public RPCs if not provided)
+ALCHEMY_API_KEY=your_alchemy_api_key_here
+
 # Server Configuration
 PORT=3002
 NODE_ENV=development
@@ -317,6 +320,9 @@ ZEROX_API_KEY=your_0x_api_key_here
 
 # Price API Keys
 COINMARKETCAP_API_KEY=your_coinmarketcap_api_key_here
+
+# RPC Provider (optional - falls back to public RPCs if not provided)
+ALCHEMY_API_KEY=your_alchemy_api_key_here
 
 # Server Configuration
 PORT=3002

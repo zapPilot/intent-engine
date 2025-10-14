@@ -1,7 +1,7 @@
 {
   "btc": "bitcoin",
   "eth": "ethereum",
-  "weth": "weth",
+  "weth": "ethereum",
   "usdc": "usd-coin",
   "usdt": "tether",
   "bnb": "binancecoin",

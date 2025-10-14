@@ -6,7 +6,7 @@
 const BaseProtocolV2 = require('./BaseProtocolV2');
 const { ethers } = require('ethers');
 const axios = require('axios');
-const UNIFIED_ZAP_CONFIG = require('../config/unifiedZapConfig');
+const { getRpcProvider } = require('../utils/rpcProvider');
 const {
   ZAP_TOKEN_STRATEGY_TYPES,
   normalizeToken,
@@ -25,39 +25,6 @@ const PENDLE_SDK_API_BASE = `${PENDLE_CORE_API_BASE}/sdk`;
 const DEFAULT_SWAP_EXTRA_GAS = 600000n;
 const DEFAULT_REDEEM_EXTRA_GAS = 750000n;
 const PENDLE_MARKET_ABI = ['function isExpired() view returns (bool)'];
-
-const PROVIDER_CACHE = new Map();
-
-function resolveRpcUrl(chainId) {
-  if (!chainId) {
-    return null;
-  }
-
-  const match = Object.values(UNIFIED_ZAP_CONFIG.SUPPORTED_CHAINS || {}).find(
-    config => config.chainId === chainId
-  );
-  return match?.rpcUrl || null;
-}
-
-function getRpcProvider(chainId) {
-  if (chainId && PROVIDER_CACHE.has(chainId)) {
-    return PROVIDER_CACHE.get(chainId);
-  }
-
-  const rpcUrl = resolveRpcUrl(chainId);
-
-  if (!rpcUrl) {
-    throw new Error(
-      `No RPC URL configured for Pendle chainId ${chainId ?? 'n/a'}`
-    );
-  }
-
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  if (chainId) {
-    PROVIDER_CACHE.set(chainId, provider);
-  }
-  return provider;
-}
 
 class PendlePTProtocol extends BaseProtocolV2 {
   constructor(config, chain, chainId) {
