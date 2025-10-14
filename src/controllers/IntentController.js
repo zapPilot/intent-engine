@@ -96,9 +96,8 @@ class IntentController {
           .filter(Boolean)
       : null;
 
-    const strategyTargetTokens = getStrategyTokenSymbols(zapStrategy).filter(
-      Boolean
-    );
+    const strategyTargetTokens =
+      getStrategyTokenSymbols(zapStrategy).filter(Boolean);
 
     const targetTokens =
       (lpTargetTokens?.length ? lpTargetTokens : strategyTargetTokens) || [];

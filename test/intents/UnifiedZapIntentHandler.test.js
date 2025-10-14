@@ -82,7 +82,9 @@ describe('UnifiedZapIntentHandler', () => {
 
       const result = await handler.execute(request);
 
-      expect(mockExecutor.prepareExecutionContext).toHaveBeenCalledWith(request);
+      expect(mockExecutor.prepareExecutionContext).toHaveBeenCalledWith(
+        request
+      );
       expect(result).toMatchObject({
         success: true,
         intentType: 'unifiedZap',
@@ -181,7 +183,9 @@ describe('UnifiedZapIntentHandler', () => {
       };
 
       const streamWriter = jest.fn();
-      mockExecutor.generateTransactions.mockRejectedValue(new Error('TX error'));
+      mockExecutor.generateTransactions.mockRejectedValue(
+        new Error('TX error')
+      );
 
       await expect(
         handler.processWithSSEStreaming(executionContext, streamWriter)
@@ -255,7 +259,9 @@ describe('UnifiedZapIntentHandler', () => {
 
   describe('getStatus', () => {
     test('should return handler status', () => {
-      jest.spyOn(handler.contextManager, 'getStatus').mockReturnValue({ active: 1 });
+      jest
+        .spyOn(handler.contextManager, 'getStatus')
+        .mockReturnValue({ active: 1 });
       handler.contextManager.executionContexts = new Map();
 
       const status = handler.getStatus();

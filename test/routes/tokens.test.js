@@ -20,7 +20,9 @@ describe('Token Routes', () => {
 
     // Mock TokenConfigService
     TokenConfigService.getZapTokens = jest.fn();
-    TokenConfigService.getSupportedChains = jest.fn().mockReturnValue([1, 137, 42161, 8453]);
+    TokenConfigService.getSupportedChains = jest
+      .fn()
+      .mockReturnValue([1, 137, 42161, 8453]);
   });
 
   describe('GET /tokens/zap/:chainId', () => {

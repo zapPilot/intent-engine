@@ -30,9 +30,7 @@ function normalizeToken(token) {
 
   if (decimals !== null && decimals !== undefined) {
     if (!Number.isInteger(decimals) || decimals < 0) {
-      throw new Error(
-        `Invalid decimals for zap token ${address}: ${decimals}`
-      );
+      throw new Error(`Invalid decimals for zap token ${address}: ${decimals}`);
     }
   }
 
@@ -181,14 +179,14 @@ function normalizeZapTokenStrategy(rawStrategy, legacyDefaults = {}) {
   const normalizedInput = rawStrategy.defaultInputToken
     ? normalizeToken(rawStrategy.defaultInputToken)
     : defaultInputToken
-    ? normalizeToken(defaultInputToken)
-    : null;
+      ? normalizeToken(defaultInputToken)
+      : null;
 
   const normalizedOutput = rawStrategy.defaultOutputToken
     ? normalizeToken(rawStrategy.defaultOutputToken)
     : defaultOutputToken
-    ? normalizeToken(defaultOutputToken)
-    : null;
+      ? normalizeToken(defaultOutputToken)
+      : null;
 
   return {
     type,
@@ -314,15 +312,16 @@ function getStrategyTokenSymbols(strategy) {
     candidateTokens.push(strategy.defaultOutputToken);
   }
 
-  candidateTokens
-    .filter(Boolean)
-    .forEach(token => {
-      if (token.symbol) {
-        symbols.add(token.symbol);
-      }
-    });
+  candidateTokens.filter(Boolean).forEach(token => {
+    if (token.symbol) {
+      symbols.add(token.symbol);
+    }
+  });
 
-  if (symbols.size === 0 && strategy.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH) {
+  if (
+    symbols.size === 0 &&
+    strategy.type === ZAP_TOKEN_STRATEGY_TYPES.PASSTHROUGH
+  ) {
     return ['ANY'];
   }
 
