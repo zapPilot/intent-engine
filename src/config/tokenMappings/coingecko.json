@@ -1,5 +1,6 @@
 {
   "btc": "bitcoin",
+  "wbtc": "bitcoin",
   "eth": "ethereum",
   "weth": "ethereum",
   "usdc": "usd-coin",

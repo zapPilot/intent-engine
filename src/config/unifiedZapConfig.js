@@ -13,42 +13,42 @@ const UNIFIED_ZAP_CONFIG = {
       targetAssets: ['USDC', 'USDT', 'DAI', 'EURC'],
       chains: ['arbitrum', 'base', 'optimism'],
       protocols: [
-        // // Aave lending on Base
-        // {
-        //   id: 'aave-usdc-base',
-        //   name: 'Aave USDC (Base)',
-        //   implementation: 'AaveProtocol',
-        //   chain: 'base',
-        //   chainId: 8453,
-        //   weight: 20,
-        //   enabled: true,
-        //   config: {
-        //     mode: 'single',
-        //     symbolOfBestTokenToZapInOut: 'usdc',
-        //     zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        //     assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
-        //     protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
-        //     assetDecimals: 6,
-        //   },
-        // },
-        // // Aave USDC on Arbitrum
-        // {
-        //   id: 'aave-usdc-arbitrum',
-        //   name: 'Aave USDC (Arbitrum)',
-        //   implementation: 'AaveProtocol',
-        //   chain: 'arbitrum',
-        //   chainId: 42161,
-        //   weight: 100,
-        //   enabled: true,
-        //   config: {
-        //     mode: 'single',
-        //     symbolOfBestTokenToZapInOut: 'usdc',
-        //     zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-        //     assetAddress: '0x625e7708f30ca75bfd92586e17077590c60eb4cd',
-        //     protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-        //     assetDecimals: 6,
-        //   },
-        // },
+        // Aave lending on Base
+        {
+          id: 'aave-usdc-base',
+          name: 'Aave USDC (Base)',
+          implementation: 'AaveProtocol',
+          chain: 'base',
+          chainId: 8453,
+          weight: 20,
+          enabled: true,
+          config: {
+            mode: 'single',
+            symbolOfBestTokenToZapInOut: 'usdc',
+            zapInOutTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            assetAddress: '0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB',
+            protocolAddress: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
+            assetDecimals: 6,
+          },
+        },
+        // Aave USDC on Arbitrum
+        {
+          id: 'aave-usdc-arbitrum',
+          name: 'Aave USDC (Arbitrum)',
+          implementation: 'AaveProtocol',
+          chain: 'arbitrum',
+          chainId: 42161,
+          weight: 100,
+          enabled: true,
+          config: {
+            mode: 'single',
+            symbolOfBestTokenToZapInOut: 'usdc',
+            zapInOutTokenAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+            assetAddress: '0x625e7708f30ca75bfd92586e17077590c60eb4cd',
+            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+            assetDecimals: 6,
+          },
+        },
         // Pendle PT gUSDC on Arbitrum
         {
           id: 'pendle-pt-gusdc-arbitrum',
