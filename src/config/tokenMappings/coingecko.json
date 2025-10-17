@@ -1,8 +1,10 @@
 {
   "btc": "bitcoin",
+  "wbtc": "bitcoin",
   "eth": "ethereum",
   "weth": "ethereum",
   "usdc": "usd-coin",
+  "usdc.e": "usd-coin",
   "usdt": "tether",
   "bnb": "binancecoin",
   "ada": "cardano",

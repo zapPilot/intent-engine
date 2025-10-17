@@ -7,6 +7,7 @@ const BaseProtocolV2 = require('./BaseProtocolV2');
 const AaveProtocol = require('./AaveProtocol');
 const PendlePTProtocol = require('./PendlePTProtocol');
 const VelodromeProtocol = require('./VelodromeProtocol');
+const ApolloXProtocol = require('./ApolloXProtocol');
 const { ProtocolFactory, protocolFactory } = require('./ProtocolFactory');
 
 module.exports = {
@@ -17,6 +18,7 @@ module.exports = {
   AaveProtocol,
   PendlePTProtocol,
   VelodromeProtocol,
+  ApolloXProtocol,
 
   // Factory
   ProtocolFactory,
@@ -27,5 +29,6 @@ module.exports = {
     AaveProtocol,
     PendlePTProtocol,
     VelodromeProtocol,
+    ApolloXProtocol,
   },
 };

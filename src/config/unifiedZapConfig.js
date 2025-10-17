@@ -49,193 +49,176 @@ const UNIFIED_ZAP_CONFIG = {
         //     assetDecimals: 6,
         //   },
         // },
-        // Pendle PT gUSDC on Arbitrum
+        // // Pendle PT gUSDC on Arbitrum
+        // {
+        //   id: 'pendle-pt-gusdc-arbitrum',
+        //   name: 'Pendle PT gUSDC (Arbitrum)',
+        //   implementation: 'PendlePTProtocol',
+        //   chain: 'arbitrum',
+        //   chainId: 42161,
+        //   weight: 25,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'single',
+        //     marketAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48',
+        //     assetAddress: '0x247f150C90c9EEb7d733219bfA36D189C76D5Ec5',
+        //     protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
+        //     ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
+        //     assetDecimals: 6,
+        //     symbolOfBestTokenToZapOut: 'usdc',
+        //     bestTokenAddressToZapOut:
+        //       '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        //     decimalOfBestTokenToZapOut: 6,
+        //     zapTokenStrategy: {
+        //       type: 'passthrough',
+        //       defaultInputToken: {
+        //         symbol: 'usdc',
+        //         address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        //         decimals: 6,
+        //       },
+        //       defaultOutputToken: {
+        //         symbol: 'usdc',
+        //         address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        //         decimals: 6,
+        //       },
+        //     },
+        //   },
+        // },
+        // // Velodrome BOLD/USDC LP on Base
+        // {
+        //   id: 'velodrome-bold-usdc-base',
+        //   name: 'Velodrome BOLD/USDC LP (Base)',
+        //   implementation: 'VelodromeProtocol',
+        //   chain: 'base',
+        //   chainId: 8453,
+        //   weight: 30,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'LP',
+        //     protocolName: 'aerodrome',
+        //     protocolVersion: '0',
+        //     assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
+        //     assetDecimals: 18,
+        //     routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
+        //     guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
+        //     lpTokens: [
+        //       ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
+        //       ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
+        //     ],
+        //     rewards: [
+        //       {
+        //         symbol: 'aero',
+        //         address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
+        //         decimals: 18,
+        //       },
+        //     ],
+        //   },
+        // },
+        // // Velodrome USDC/sUSD LP on Optimism
+        // {
+        //   id: 'velodrome-usdc-susd-optimism',
+        //   name: 'Velodrome USDC/sUSD LP (Optimism)',
+        //   implementation: 'VelodromeProtocol',
+        //   chain: 'optimism',
+        //   chainId: 10,
+        //   weight: 25,
+        //   enabled: true,
+        //   config: {
+        //     mode: 'LP',
+        //     protocolName: 'velodrome',
+        //     protocolVersion: 'v2',
+        //     assetAddress: '0xbC26519f936A90E78fe2C9aA2A03CC208f041234',
+        //     assetDecimals: 18,
+        //     routerAddress: '0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858',
+        //     guageAddress: '0x0E4c56B4a766968b12c286f67aE341b11eDD8b8d',
+        //     lpTokens: [
+        //       ['usdc', '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', 6],
+        //       ['susd', '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9', 18],
+        //     ],
+        //     rewards: [
+        //       {
+        //         symbol: 'velo',
+        //         address: '0x9560e827af36c94d2ac33a39bce1fe78631088db',
+        //         decimals: 18,
+        //       },
+        //     ],
+        //   },
+        // },
         {
-          id: 'pendle-pt-gusdc-arbitrum',
-          name: 'Pendle PT gUSDC (Arbitrum)',
-          implementation: 'PendlePTProtocol',
-          chain: 'arbitrum',
-          chainId: 42161,
-          weight: 25,
-          enabled: true,
-          config: {
-            mode: 'single',
-            marketAddress: '0x18ffb61c6d223bd91ec15acc248bb7e670abcc48',
-            assetAddress: '0x247f150C90c9EEb7d733219bfA36D189C76D5Ec5',
-            protocolAddress: '0x888888888889758F76e7103c6CbF23ABbF58F946', // Add this line - using marketAddress
-            ytAddress: '0x59e4e0FE7981E31Eb1283ff9aDc5F851FE9A216D',
-            assetDecimals: 6,
-            symbolOfBestTokenToZapOut: 'usdc',
-            bestTokenAddressToZapOut:
-              '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-            decimalOfBestTokenToZapOut: 6,
-            zapTokenStrategy: {
-              type: 'passthrough',
-              defaultInputToken: {
-                symbol: 'usdc',
-                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-                decimals: 6,
-              },
-              defaultOutputToken: {
-                symbol: 'usdc',
-                address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-                decimals: 6,
-              },
-            },
-          },
-        },
-        // Velodrome BOLD/USDC LP on Base
-        {
-          id: 'velodrome-bold-usdc-base',
-          name: 'Velodrome BOLD/USDC LP (Base)',
-          implementation: 'VelodromeProtocol',
-          chain: 'base',
-          chainId: 8453,
-          weight: 30,
-          enabled: true,
-          config: {
-            mode: 'LP',
-            protocolName: 'aerodrome',
-            protocolVersion: '0',
-            assetAddress: '0x2De3fE21d32319a1550264dA37846737885Ad7A1',
-            assetDecimals: 18,
-            routerAddress: '0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43',
-            guageAddress: '0x7fDCBc8C442C667D41a1041bdc6e588393cEb6fe',
-            lpTokens: [
-              ['bold', '0x03569CC076654F82679C4BA2124D64774781B01D', 18],
-              ['usdc', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6],
-            ],
-            rewards: [
-              {
-                symbol: 'aero',
-                address: '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
-                decimals: 18,
-              },
-            ],
-          },
-        },
-        // Velodrome USDC/sUSD LP on Optimism
-        {
-          id: 'velodrome-usdc-susd-optimism',
-          name: 'Velodrome USDC/sUSD LP (Optimism)',
-          implementation: 'VelodromeProtocol',
-          chain: 'optimism',
-          chainId: 10,
-          weight: 25,
-          enabled: true,
-          config: {
-            mode: 'LP',
-            protocolName: 'velodrome',
-            protocolVersion: 'v2',
-            assetAddress: '0xbC26519f936A90E78fe2C9aA2A03CC208f041234',
-            assetDecimals: 18,
-            routerAddress: '0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858',
-            guageAddress: '0x0E4c56B4a766968b12c286f67aE341b11eDD8b8d',
-            lpTokens: [
-              ['usdc', '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', 6],
-              ['susd', '0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9', 18],
-            ],
-            rewards: [
-              {
-                symbol: 'velo',
-                address: '0x9560e827af36c94d2ac33a39bce1fe78631088db',
-                decimals: 18,
-              },
-            ],
-          },
-        },
-      ],
-    },
-
-    eth: {
-      displayName: 'Ethereum Strategies',
-      description: 'ETH staking and yield strategies',
-      targetAssets: ['ETH', 'WETH', 'stETH'],
-      chains: ['ethereum', 'arbitrum', 'base'],
-      protocols: [
-        // Lido Staked ETH
-        {
-          id: 'lido-steth-ethereum',
-          name: 'Lido Staked ETH',
-          implementation: 'LidoProtocol',
-          chain: 'ethereum',
-          chainId: 1,
-          weight: 60,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'eth',
-            zapInOutTokenAddress: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
-            assetAddress: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
-            protocolAddress: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
-            assetDecimals: 18,
-          },
-        },
-        // Rocket Pool ETH
-        {
-          id: 'rocketpool-reth-ethereum',
-          name: 'Rocket Pool ETH',
-          implementation: 'RocketPoolProtocol',
-          chain: 'ethereum',
-          chainId: 1,
-          weight: 40,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'eth',
-            zapInOutTokenAddress: '0xae78736Cd615f374D3085123A210448E74Fc6393',
-            assetAddress: '0xae78736Cd615f374D3085123A210448E74Fc6393',
-            protocolAddress: '0xae78736Cd615f374D3085123A210448E74Fc6393',
-            assetDecimals: 18,
-          },
-        },
-        // Aave WETH on Arbitrum
-        {
-          id: 'aave-weth-arbitrum',
-          name: 'Aave WETH (Arbitrum)',
-          implementation: 'AaveProtocol',
+          id: 'apollox-alp-arbitrum',
+          name: 'ApolloX ALP (Arbitrum)',
+          implementation: 'ApolloXProtocol',
           chain: 'arbitrum',
           chainId: 42161,
           weight: 100,
           enabled: true,
           config: {
             mode: 'single',
-            symbolOfBestTokenToZapInOut: 'weth',
-            zapInOutTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-            assetAddress: '0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8',
-            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+            symbolOfBestTokenToZapInOut: 'usdc.e',
+            zapInOutTokenAddress: '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8', // USDC.e
+            assetAddress: '0xbc76b3fd0d18c7496c0b04aea0fe7c3ed0e4d9c9', // ALP token
+            protocolAddress: '0xB3879E95a4B8e3eE570c232B19d520821F540E48', // ApolloX vault
             assetDecimals: 18,
+            stakeFarmAddress: '0xD2e71125ec0313874d578454E28086fba7444c0c', // PancakeSwap stake (optional)
+            stakingEnabled: false, // Currently no active staking campaign
           },
         },
       ],
     },
 
-    btc: {
-      displayName: 'Bitcoin Strategies',
-      description: 'WBTC yield farming strategies',
-      targetAssets: ['WBTC', 'BTC'],
-      chains: ['ethereum', 'arbitrum'],
-      protocols: [
-        // Aave WBTC on Arbitrum
-        {
-          id: 'aave-wbtc-arbitrum',
-          name: 'Aave WBTC (Arbitrum)',
-          implementation: 'AaveProtocol',
-          chain: 'arbitrum',
-          chainId: 42161,
-          weight: 100,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'wbtc',
-            zapInOutTokenAddress: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-            assetAddress: '0x078f358208685046a11C85e8ad32895DED33A249',
-            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-            assetDecimals: 8,
-          },
-        },
-      ],
-    },
+    // eth: {
+    //   displayName: 'Ethereum Strategies',
+    //   description: 'ETH staking and yield strategies',
+    //   targetAssets: ['ETH', 'WETH', 'stETH'],
+    //   chains: ['arbitrum', 'base'],
+    //   protocols: [
+    //     // Aave WETH on Arbitrum
+    //     {
+    //       id: 'aave-weth-arbitrum',
+    //       name: 'Aave WETH (Arbitrum)',
+    //       implementation: 'AaveProtocol',
+    //       chain: 'arbitrum',
+    //       chainId: 42161,
+    //       weight: 100,
+    //       enabled: true,
+    //       config: {
+    //         mode: 'single',
+    //         symbolOfBestTokenToZapInOut: 'weth',
+    //         zapInOutTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+    //         assetAddress: '0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8',
+    //         protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+    //         assetDecimals: 18,
+    //       },
+    //     },
+    //   ],
+    // },
+
+    // btc: {
+    //   displayName: 'Bitcoin Strategies',
+    //   description: 'WBTC yield farming strategies',
+    //   targetAssets: ['WBTC', 'BTC'],
+    //   chains: ['arbitrum'],
+    //   protocols: [
+    //     // Aave WBTC on Arbitrum
+    //     {
+    //       id: 'aave-wbtc-arbitrum',
+    //       name: 'Aave WBTC (Arbitrum)',
+    //       implementation: 'AaveProtocol',
+    //       chain: 'arbitrum',
+    //       chainId: 42161,
+    //       weight: 100,
+    //       enabled: true,
+    //       config: {
+    //         mode: 'single',
+    //         symbolOfBestTokenToZapInOut: 'wbtc',
+    //         zapInOutTokenAddress: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+    //         assetAddress: '0x078f358208685046a11C85e8ad32895DED33A249',
+    //         protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+    //         assetDecimals: 8,
+    //       },
+    //     },
+    //   ],
+    // },
   },
 
   // SSE streaming configuration
@@ -276,14 +259,6 @@ const UNIFIED_ZAP_CONFIG = {
 
   // Chain configuration
   SUPPORTED_CHAINS: {
-    ethereum: {
-      chainId: 1,
-      name: 'Ethereum',
-      nativeCurrency: 'ETH',
-      alchemyPrefix: 'eth',
-      publicRpcUrls: ['https://eth.llamarpc.com', 'https://rpc.ankr.com/eth'],
-      blockExplorerUrl: 'https://etherscan.io',
-    },
     arbitrum: {
       chainId: 42161,
       name: 'Arbitrum One',
