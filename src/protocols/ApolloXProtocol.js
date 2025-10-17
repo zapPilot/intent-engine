@@ -7,6 +7,7 @@
 const BaseProtocolV2 = require('./BaseProtocolV2');
 const { ethers } = require('ethers');
 const axios = require('axios');
+const { getRpcProvider } = require('../utils/rpcProvider');
 
 // ============================================================================
 // Constants
@@ -272,14 +273,60 @@ class ApolloXProtocol extends BaseProtocolV2 {
 
     /**
      * Check if there's a lock-up period for withdrawal
-     * Note: This would require on-chain contract call in production
+     * Queries the ApolloX vault contract to calculate remaining lock-up time
      * @param {string} userAddress - User address
-     * @returns {Promise<number>} - Lock-up seconds remaining
+     * @returns {Promise<number>} - Lock-up seconds remaining (0 if no lock-up)
      */
     async getLockUpPeriod(userAddress) {
-        // Placeholder - in production, would query contract
-        // lastMintedTimestamp + coolingDuration - currentTimestamp
-        return 0;
+        try {
+            // Validate address
+            if (!userAddress || !ethers.isAddress(userAddress)) {
+                throw new Error('Invalid address');
+            }
+
+            // Get RPC provider for Arbitrum
+            const provider = getRpcProvider(this.chainId);
+
+            // Create contract instance with minimal ABI
+            const vaultContract = new ethers.Contract(
+                this.vaultAddress,
+                [
+                    'function lastMintedTimestamp(address) view returns (uint256)',
+                    'function coolingDuration() view returns (uint256)',
+                ],
+                provider
+            );
+
+            // Get last minted timestamp for user
+            const lastMintedTimestamp = await vaultContract.lastMintedTimestamp(
+                userAddress
+            );
+
+            // Return 0 if user has never minted (timestamp is 0)
+            if (lastMintedTimestamp === 0n) {
+                return 0;
+            }
+
+            // Get cooling duration from contract
+            const coolingDuration = await vaultContract.coolingDuration();
+            const currentTimestamp = Math.floor(Date.now() / 1000);
+
+            // Calculate unlock timestamp
+            const unlockTimestamp =
+                Number(lastMintedTimestamp) + Number(coolingDuration);
+
+            // Return remaining seconds or 0 if already unlocked
+            if (unlockTimestamp > currentTimestamp) {
+                return unlockTimestamp - currentTimestamp;
+            }
+
+            return 0;
+        } catch (error) {
+            // Log error and return 0 to allow operation (fail-open)
+            // This ensures withdrawals aren't blocked due to RPC issues
+            console.error('Error fetching lock-up period:', error.message);
+            return 0;
+        }
     }
 
     // ========================================================================
