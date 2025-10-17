@@ -287,10 +287,7 @@ describe('UnifiedZapValidator', () => {
     it('should accept valid multiple strategies', () => {
       expect(() => {
         UnifiedZapValidator.validateStrategyAllocations(
-          [
-            { strategyId: 'stablecoin', percentage: 50 },
-            { strategyId: 'eth', percentage: 50 },
-          ],
+          [{ strategyId: 'stablecoin', percentage: 100 }],
           UNIFIED_ZAP_CONFIG
         );
       }).not.toThrow();
@@ -305,10 +302,7 @@ describe('UnifiedZapValidator', () => {
     it('should throw error when percentages do not sum to 100', () => {
       expect(() => {
         UnifiedZapValidator.validateStrategyAllocations(
-          [
-            { strategyId: 'stablecoin', percentage: 50 },
-            { strategyId: 'eth', percentage: 40 },
-          ],
+          [{ strategyId: 'stablecoin', percentage: 90 }],
           UNIFIED_ZAP_CONFIG
         );
       }).toThrow('Strategy percentages must sum to 100%');

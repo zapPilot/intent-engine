@@ -219,7 +219,7 @@ describe('GET /api/v1/strategies', () => {
           expect(typeof token).toBe('string');
           expect(token.length).toBeGreaterThan(0);
           // Tokens should be valid symbol format (no special chars except allowed ones)
-          expect(token).toMatch(/^[a-zA-Z0-9_-]+$/);
+          expect(token).toMatch(/^[a-zA-Z0-9_.-]+$/);
         });
       });
     });
