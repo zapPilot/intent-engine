@@ -6,6 +6,7 @@
 const AaveProtocol = require('./AaveProtocol');
 const PendlePTProtocol = require('./PendlePTProtocol');
 const VelodromeProtocol = require('./VelodromeProtocol');
+const ApolloXProtocol = require('./ApolloXProtocol');
 
 class ProtocolFactory {
   constructor() {
@@ -253,6 +254,7 @@ class ProtocolFactory {
     this.registerProtocol('AaveProtocol', AaveProtocol);
     this.registerProtocol('PendlePTProtocol', PendlePTProtocol);
     this.registerProtocol('VelodromeProtocol', VelodromeProtocol);
+    this.registerProtocol('ApolloXProtocol', ApolloXProtocol);
 
     // Add aliases for common naming patterns
     this.registerProtocol('Aave', AaveProtocol);
@@ -260,11 +262,13 @@ class ProtocolFactory {
     this.registerProtocol('Pendle', PendlePTProtocol);
     this.registerProtocol('Velodrome', VelodromeProtocol);
     this.registerProtocol('Aerodrome', VelodromeProtocol);
+    this.registerProtocol('ApolloX', ApolloXProtocol);
 
     // Protocol-specific aliases based on V1 naming
     this.registerProtocol('BaseAave', AaveProtocol);
     this.registerProtocol('BasePendlePT', PendlePTProtocol);
     this.registerProtocol('BaseVelodrome', VelodromeProtocol);
+    this.registerProtocol('BaseApolloX', ApolloXProtocol);
   }
 
   /**
@@ -290,9 +294,12 @@ class ProtocolFactory {
     for (const [name, protocolClass] of this.protocolRegistry.entries()) {
       // Skip default registrations to avoid duplicates
       if (
-        !['AaveProtocol', 'PendlePTProtocol', 'VelodromeProtocol'].includes(
-          name
-        )
+        ![
+          'AaveProtocol',
+          'PendlePTProtocol',
+          'VelodromeProtocol',
+          'ApolloXProtocol',
+        ].includes(name)
       ) {
         newFactory.registerProtocol(name, protocolClass);
       }
