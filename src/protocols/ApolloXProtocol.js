@@ -28,7 +28,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
 
         // Default zap token (USDC bridged on Arbitrum)
         this.defaultZapToken = config.zapInOutTokenAddress || '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8'; // USDC.e
-        this.defaultZapTokenDecimals = config.assetDecimals || 6;
+        this.defaultZapTokenDecimals = 6;
 
         // Optional: PancakeSwap staking (currently not active based on frontend code)
         this.stakeFarmAddress = config.stakeFarmAddress || null;
@@ -59,51 +59,46 @@ class ApolloXProtocol extends BaseProtocolV2 {
             throw new Error('Deposit amount cannot be zero');
         }
 
-        // Get current ALP price
+        // Get current ALP price (decimal, e.g., 1.95107195)
         const alpPrice = await this._fetchAlpPrice();
 
         // Get slippage from params or use default (0.5%)
         const slippage = additionalParams.slippage || 0.5;
 
-        // Get token prices for USD calculation
+        // Get token prices for USD calculation (defaults to 1.0 for stablecoins)
         const tokenPrices = additionalParams.tokenPrices || {};
         const inputTokenSymbol = additionalParams.inputTokenSymbol || 'usdc';
-        const inputTokenPrice = tokenPrices[inputTokenSymbol] || 1.0; // Default to 1.0 for stablecoins
-
-        // Calculate USD value of input
         const inputTokenDecimals = this._getTokenDecimals(inputToken);
-        const inputUsdValue = this._calculateUsdValue(
-            depositAmount,
-            inputTokenPrice,
-            inputTokenDecimals
-        );
+        const tokenPriceDecimal = tokenPrices[inputTokenSymbol] ?? 1.0;
 
-        // Calculate expected ALP amount using BigInt arithmetic to avoid overflow
-        // Convert prices to scaled integers for BigInt calculation
-        const alpPriceScaled = BigInt(Math.floor(alpPrice * 1e18)); // Scale price by 1e18
-        const inputUsdValueScaled = BigInt(Math.floor(inputUsdValue * 1e18)); // Scale USD value by 1e18
+        // Scale prices into 1e18 BigInt to avoid precision loss
+        const tokenPriceWei = this._decimalToWei(tokenPriceDecimal, 18);
+        const alpPriceWei = this._decimalToWei(alpPrice, 18);
 
-        // estimatedAlpAmount = inputUsdValue / alpPrice (in ALP decimals)
-        // Using BigInt: (inputUsdValueScaled * 10^assetDecimals) / alpPriceScaled / 10^18
-        const estimatedAlpAmountBigInt = (inputUsdValueScaled * BigInt(Math.pow(10, this.assetDecimals))) / alpPriceScaled;
+        // USD value in 1e18 precision: usdWei = amount * price / 10^tokenDecimals
+        const usdWei = (depositAmount * tokenPriceWei) / (10n ** BigInt(inputTokenDecimals));
 
-        // Apply slippage: minAlpAmount = estimatedAlpAmount * (100 - slippage) / 100
-        const slippageFactor = BigInt(Math.floor((100 - slippage) * 100)); // Scale by 100 for precision
-        const minAlpAmountBigInt = (estimatedAlpAmountBigInt * slippageFactor) / 10000n;
+        // Estimated ALP amount in 18 decimals: estAlpWei = usdWei * 10^assetDecimals / alpPriceWei
+        const estAlpWei = (usdWei * (10n ** BigInt(this.assetDecimals))) / alpPriceWei;
 
-        // For logging/meta - convert to number
-        const estimatedAlpAmount = Number(estimatedAlpAmountBigInt) / Math.pow(10, this.assetDecimals);
-        const minAlpAmount = Number(minAlpAmountBigInt) / Math.pow(10, this.assetDecimals);
+        // Apply safety margins in basis points (bps)
+        const slippageBps = BigInt(Math.round((slippage ?? 0.5) * 100)); // e.g., 0.5% => 50 bps
+        const feeBps = 30n;   // 0.30%
+        const bufferBps = 5n; // 0.05% buffer for rounding
+        const minFactorBps = 10000n - slippageBps - feeBps - bufferBps;
+        const minAlpWei = (estAlpWei * minFactorBps) / 10000n;
 
-        // Encode mintAlp function call with BigInt value
+        // Encode mintAlp function call with computed minAlp (BigInt)
         const mintData = this._encodeMintAlp(
             inputToken,
             depositAmount,
-            minAlpAmountBigInt,
+            minAlpWei,
             false // auto compound flag
         );
 
-        // Calculate protocol fee impact
+        // For meta/logging
+        const inputUsdValue = Number(usdWei) / 1e18;
+        const estimatedAlpAmount = Number(estAlpWei) / Math.pow(10, this.assetDecimals);
         const tradingLoss = -inputUsdValue * HARDCODED_PROTOCOL_FEE;
 
         return {
@@ -119,7 +114,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
                 inputAmount: depositAmount.toString(),
                 inputUsdValue,
                 estimatedAlpAmount,
-                minAlpAmount: minAlpAmountBigInt.toString(),
+                minAlpAmount: minAlpWei.toString(),
                 alpPrice,
                 slippage,
                 protocolFee: HARDCODED_PROTOCOL_FEE,
@@ -145,7 +140,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
             throw new Error('Burn amount cannot be zero');
         }
 
-        // Get current ALP price
+        // Get current ALP price (decimal)
         const alpPrice = await this._fetchAlpPrice();
 
         // Get slippage from params or use default (0.5%)
@@ -156,14 +151,14 @@ class ApolloXProtocol extends BaseProtocolV2 {
         const outputTokenDecimals = this._getTokenDecimals(outputToken);
 
         // Calculate USD value of ALP using BigInt arithmetic to avoid overflow
-        // alpUsdValue = burnAmount * alpPrice / 10^assetDecimals
-        const alpPriceScaled = BigInt(Math.floor(alpPrice * 1e18)); // Scale price by 1e18
-        const alpUsdValueScaled = (burnAmount * alpPriceScaled) / BigInt(Math.pow(10, this.assetDecimals));
+        // alpUsdValue in 1e18 = burnAmount * alpPriceWei / 10^assetDecimals
+        const alpPriceScaled = this._decimalToWei(alpPrice, 18);
+        const alpUsdValueScaled = (burnAmount * alpPriceScaled) / (10n ** BigInt(this.assetDecimals));
 
         // Apply slippage and convert to output token amount
         // minOutAmount = alpUsdValue * (100 - slippage) / 100 * 10^outputTokenDecimals
         const slippageFactor = BigInt(Math.floor((100 - slippage) * 100)); // Scale by 100 for precision
-        const minOutAmountBigInt = (alpUsdValueScaled * slippageFactor * BigInt(Math.pow(10, outputTokenDecimals))) / (BigInt(1e18) * 10000n);
+        const minOutAmountBigInt = (alpUsdValueScaled * slippageFactor * (10n ** BigInt(outputTokenDecimals))) / (10n ** 18n) / 10000n;
 
         // For logging/meta - convert to number
         const alpUsdValue = Number(alpUsdValueScaled) / 1e18;
@@ -284,8 +279,8 @@ class ApolloXProtocol extends BaseProtocolV2 {
                 throw new Error('Invalid response from ApolloX price API');
             }
 
-            const latestPrice = response.data.data[0].price;
-            return latestPrice / Math.pow(10, this.assetDecimals);
+            const latestPrice = Number(response.data.data[0].price);
+            return latestPrice; // return as decimal (e.g., 1.95107195)
         } catch (error) {
             throw new Error(
                 `Failed to fetch ALP price: ${error.message || 'Unknown error'}`
@@ -362,8 +357,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
         return vaultInterface.encodeFunctionData('mintAlp', [
             tokenIn,
             amount,
-            // minAlp,
-            0,
+            typeof minAlp === 'bigint' ? minAlp.toString() : minAlp,
             autoCompound,
         ]);
     }
@@ -400,6 +394,17 @@ class ApolloXProtocol extends BaseProtocolV2 {
      */
     _calculateUsdValue(amount, price, decimals) {
         return (Number(amount) * price) / Math.pow(10, decimals);
+    }
+
+    // Convert decimal number/string to 1e{decimals} BigInt without floating point errors
+    _decimalToWei(decimal, decimals = 18) {
+        const s = typeof decimal === 'number' ? String(decimal) : String(decimal);
+        const parts = s.split('.');
+        const i = parts[0];
+        const fRaw = parts[1] || '';
+        const f = (fRaw + '0'.repeat(decimals)).slice(0, decimals);
+        const base = 10n ** BigInt(decimals);
+        return (BigInt(i) * base) + (f ? BigInt(f) : 0n);
     }
 
     /**
