@@ -166,59 +166,59 @@ const UNIFIED_ZAP_CONFIG = {
       ],
     },
 
-    eth: {
-      displayName: 'Ethereum Strategies',
-      description: 'ETH staking and yield strategies',
-      targetAssets: ['ETH', 'WETH', 'stETH'],
-      chains: ['arbitrum', 'base'],
-      protocols: [
-        // Aave WETH on Arbitrum
-        {
-          id: 'aave-weth-arbitrum',
-          name: 'Aave WETH (Arbitrum)',
-          implementation: 'AaveProtocol',
-          chain: 'arbitrum',
-          chainId: 42161,
-          weight: 100,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'weth',
-            zapInOutTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-            assetAddress: '0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8',
-            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-            assetDecimals: 18,
-          },
-        },
-      ],
-    },
+    // eth: {
+    //   displayName: 'Ethereum Strategies',
+    //   description: 'ETH staking and yield strategies',
+    //   targetAssets: ['ETH', 'WETH', 'stETH'],
+    //   chains: ['arbitrum', 'base'],
+    //   protocols: [
+    //     // Aave WETH on Arbitrum
+    //     {
+    //       id: 'aave-weth-arbitrum',
+    //       name: 'Aave WETH (Arbitrum)',
+    //       implementation: 'AaveProtocol',
+    //       chain: 'arbitrum',
+    //       chainId: 42161,
+    //       weight: 100,
+    //       enabled: true,
+    //       config: {
+    //         mode: 'single',
+    //         symbolOfBestTokenToZapInOut: 'weth',
+    //         zapInOutTokenAddress: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+    //         assetAddress: '0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8',
+    //         protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+    //         assetDecimals: 18,
+    //       },
+    //     },
+    //   ],
+    // },
 
-    btc: {
-      displayName: 'Bitcoin Strategies',
-      description: 'WBTC yield farming strategies',
-      targetAssets: ['WBTC', 'BTC'],
-      chains: ['arbitrum'],
-      protocols: [
-        // Aave WBTC on Arbitrum
-        {
-          id: 'aave-wbtc-arbitrum',
-          name: 'Aave WBTC (Arbitrum)',
-          implementation: 'AaveProtocol',
-          chain: 'arbitrum',
-          chainId: 42161,
-          weight: 100,
-          enabled: true,
-          config: {
-            mode: 'single',
-            symbolOfBestTokenToZapInOut: 'wbtc',
-            zapInOutTokenAddress: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-            assetAddress: '0x078f358208685046a11C85e8ad32895DED33A249',
-            protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-            assetDecimals: 8,
-          },
-        },
-      ],
-    },
+    // btc: {
+    //   displayName: 'Bitcoin Strategies',
+    //   description: 'WBTC yield farming strategies',
+    //   targetAssets: ['WBTC', 'BTC'],
+    //   chains: ['arbitrum'],
+    //   protocols: [
+    //     // Aave WBTC on Arbitrum
+    //     {
+    //       id: 'aave-wbtc-arbitrum',
+    //       name: 'Aave WBTC (Arbitrum)',
+    //       implementation: 'AaveProtocol',
+    //       chain: 'arbitrum',
+    //       chainId: 42161,
+    //       weight: 100,
+    //       enabled: true,
+    //       config: {
+    //         mode: 'single',
+    //         symbolOfBestTokenToZapInOut: 'wbtc',
+    //         zapInOutTokenAddress: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+    //         assetAddress: '0x078f358208685046a11C85e8ad32895DED33A249',
+    //         protocolAddress: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
+    //         assetDecimals: 8,
+    //       },
+    //     },
+    //   ],
+    // },
   },
 
   // SSE streaming configuration

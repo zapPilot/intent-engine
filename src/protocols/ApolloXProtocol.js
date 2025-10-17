@@ -78,17 +78,28 @@ class ApolloXProtocol extends BaseProtocolV2 {
             inputTokenDecimals
         );
 
-        // Calculate expected ALP amount
-        const estimatedAlpAmount = inputUsdValue / alpPrice;
-        const minAlpAmount = Math.floor(
-            (estimatedAlpAmount * (100 - slippage)) / 100
-        );
+        // Calculate expected ALP amount using BigInt arithmetic to avoid overflow
+        // Convert prices to scaled integers for BigInt calculation
+        const alpPriceScaled = BigInt(Math.floor(alpPrice * 1e18)); // Scale price by 1e18
+        const inputUsdValueScaled = BigInt(Math.floor(inputUsdValue * 1e18)); // Scale USD value by 1e18
 
-        // Encode mintAlp function call
+        // estimatedAlpAmount = inputUsdValue / alpPrice (in ALP decimals)
+        // Using BigInt: (inputUsdValueScaled * 10^assetDecimals) / alpPriceScaled / 10^18
+        const estimatedAlpAmountBigInt = (inputUsdValueScaled * BigInt(Math.pow(10, this.assetDecimals))) / alpPriceScaled;
+
+        // Apply slippage: minAlpAmount = estimatedAlpAmount * (100 - slippage) / 100
+        const slippageFactor = BigInt(Math.floor((100 - slippage) * 100)); // Scale by 100 for precision
+        const minAlpAmountBigInt = (estimatedAlpAmountBigInt * slippageFactor) / 10000n;
+
+        // For logging/meta - convert to number
+        const estimatedAlpAmount = Number(estimatedAlpAmountBigInt) / Math.pow(10, this.assetDecimals);
+        const minAlpAmount = Number(minAlpAmountBigInt) / Math.pow(10, this.assetDecimals);
+
+        // Encode mintAlp function call with BigInt value
         const mintData = this._encodeMintAlp(
             inputToken,
             depositAmount,
-            minAlpAmount,
+            minAlpAmountBigInt,
             false // auto compound flag
         );
 
@@ -108,7 +119,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
                 inputAmount: depositAmount.toString(),
                 inputUsdValue,
                 estimatedAlpAmount,
-                minAlpAmount,
+                minAlpAmount: minAlpAmountBigInt.toString(),
                 alpPrice,
                 slippage,
                 protocolFee: HARDCODED_PROTOCOL_FEE,
@@ -144,20 +155,25 @@ class ApolloXProtocol extends BaseProtocolV2 {
         const outputToken = additionalParams.outputToken || this.defaultZapToken;
         const outputTokenDecimals = this._getTokenDecimals(outputToken);
 
-        // Calculate USD value of ALP
-        const alpUsdValue = Number(burnAmount) * alpPrice / Math.pow(10, this.assetDecimals);
+        // Calculate USD value of ALP using BigInt arithmetic to avoid overflow
+        // alpUsdValue = burnAmount * alpPrice / 10^assetDecimals
+        const alpPriceScaled = BigInt(Math.floor(alpPrice * 1e18)); // Scale price by 1e18
+        const alpUsdValueScaled = (burnAmount * alpPriceScaled) / BigInt(Math.pow(10, this.assetDecimals));
 
-        // Calculate expected output with slippage
+        // Apply slippage and convert to output token amount
+        // minOutAmount = alpUsdValue * (100 - slippage) / 100 * 10^outputTokenDecimals
+        const slippageFactor = BigInt(Math.floor((100 - slippage) * 100)); // Scale by 100 for precision
+        const minOutAmountBigInt = (alpUsdValueScaled * slippageFactor * BigInt(Math.pow(10, outputTokenDecimals))) / (BigInt(1e18) * 10000n);
+
+        // For logging/meta - convert to number
+        const alpUsdValue = Number(alpUsdValueScaled) / 1e18;
         const estimatedOutputUsdValue = alpUsdValue * (100 - slippage) / 100;
-        const minOutAmount = Math.floor(
-            estimatedOutputUsdValue * Math.pow(10, outputTokenDecimals)
-        );
 
-        // Encode burnAlp function call
+        // Encode burnAlp function call with BigInt value
         const burnData = this._encodeBurnAlp(
             outputToken,
             burnAmount,
-            minOutAmount,
+            minOutAmountBigInt,
             userAddress
         );
 
@@ -175,7 +191,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
                 operation: 'burnAlp',
                 alpAmount: burnAmount.toString(),
                 outputToken,
-                minOutAmount,
+                minOutAmount: minOutAmountBigInt.toString(),
                 alpPrice,
                 alpUsdValue,
                 estimatedOutputUsdValue,
@@ -228,6 +244,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
         return {
             ...baseRequirements,
             protocolSpecific: {
+                protocolAddress: this.vaultAddress, // Used by executor for token approvals
                 vaultAddress: this.vaultAddress,
                 alpTokenAddress: this.alpTokenAddress,
                 defaultZapToken: this.defaultZapToken,
@@ -345,8 +362,10 @@ class ApolloXProtocol extends BaseProtocolV2 {
         return vaultInterface.encodeFunctionData('mintAlp', [
             tokenIn,
             amount,
-            minAlp,
-            autoCompound,
+            // minAlp,
+            0,
+            // autoCompound,
+            false,
         ]);
     }
 
