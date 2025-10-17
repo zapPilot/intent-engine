@@ -364,8 +364,7 @@ class ApolloXProtocol extends BaseProtocolV2 {
             amount,
             // minAlp,
             0,
-            // autoCompound,
-            false,
+            autoCompound,
         ]);
     }
 
